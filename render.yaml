@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: ig-mbti-backend
+    env: python
+    region: singapore   # 或 tokyo/frankfurt 等
+    plan: free
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "gunicorn app:app --preload --bind 0.0.0.0:$PORT --workers 2 --threads 4"
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: PAGE_ACCESS_TOKEN
+        sync: false
+      - key: IG_USER_ID
+        sync: false
