@@ -36,6 +36,13 @@ OAUTH_SCOPES = [
 # -----------------------------------------------------------------------------
 app = Flask(__name__)
 app.secret_key = SESSION_SECRET
+
+# 跨站需要
+app.config.update(
+    SESSION_COOKIE_SAMESITE="None",
+    SESSION_COOKIE_SECURE=True  # Render 是 HTTPS，務必 True
+)
+
 CORS(
     app,
     resources={r"/*": {"origins": [FRONTEND_ORIGIN]}},
@@ -294,7 +301,7 @@ def me_ig_analyze():
 
         out = {
             "ig_account": prof.get("username") or b.get("ig_username") or "",
-            "profile_name": prof.get("name") or "",
+            "profile_name": prof.get("name") or prof.get("username") or "",  # 加這個 fallback
             "mbti": mbti,
             "reason": reason,  # <= 50字
         }
@@ -316,3 +323,4 @@ def root():
 # -----------------------------------------------------------------------------
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.getenv("PORT", "8000")), debug=True)
+
