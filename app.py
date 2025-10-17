@@ -1,134 +1,81 @@
 import os
+import time
 import re
 import json
 import requests
-from flask import Flask, request, jsonify
+from urllib.parse import urlencode
+from flask import Flask, request, jsonify, redirect, session
 from flask_cors import CORS
 
 # -----------------------------------------------------------------------------
-# Config
+# Environment / Config
 # -----------------------------------------------------------------------------
-GRAPH_VERSION = os.getenv("GRAPH_VERSION", "v24.0").strip()
-PAGE_ACCESS_TOKEN = os.getenv("PAGE_ACCESS_TOKEN", "").strip()  # 必須是「Page 長效 Token」
-IG_USER_ID = os.getenv("IG_USER_ID", "").strip()                # 連到該 Page 的 IG Business/Creator user_id
+GRAPH_VERSION   = os.getenv("GRAPH_VERSION", "v24.0")
+GRAPH           = f"https://graph.facebook.com/{GRAPH_VERSION}"
 
-# 前端網域（強烈建議設定成你的 Vercel 網域）
+FB_APP_ID       = os.getenv("FB_APP_ID")        # 必填
+FB_APP_SECRET   = os.getenv("FB_APP_SECRET")    # 必填
+SITE_URL        = os.getenv("SITE_URL", "").rstrip("/")  # 你的後端完整網址（例：https://socialavatar.onrender.com）
+SESSION_SECRET  = os.getenv("SESSION_SECRET", "change-me")
 FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "https://socialavatar.vercel.app").rstrip("/")
 
-# App for debug_token 用
-APP_ID = os.getenv("APP_ID", "").strip()
-APP_SECRET = os.getenv("APP_SECRET", "").strip()
+REDIRECT_URI    = f"{SITE_URL}/auth/callback"
+HTTP_TIMEOUT    = int(os.getenv("HTTP_TIMEOUT", "20"))
 
-# 逾時（秒）
-HTTP_TIMEOUT = int(os.getenv("HTTP_TIMEOUT", "20"))
+OAUTH_SCOPES = [
+    "pages_show_list",
+    "instagram_basic",
+    # 視需求再加：
+    # "pages_read_engagement",
+    # "instagram_manage_insights",
+    # "business_management",
+]
 
 # -----------------------------------------------------------------------------
-# Flask + CORS
+# Flask
 # -----------------------------------------------------------------------------
 app = Flask(__name__)
-# 嚴格 CORS：只允許你的前端網域
-CORS(app, resources={r"/*": {"origins": [FRONTEND_ORIGIN]}})
-
-GRAPH_BASE = f"https://graph.facebook.com/{GRAPH_VERSION}"
-
+app.secret_key = SESSION_SECRET
+CORS(
+    app,
+    resources={r"/*": {"origins": [FRONTEND_ORIGIN]}},
+    supports_credentials=True,
+)
 
 # -----------------------------------------------------------------------------
-# Utils
+# Helpers
 # -----------------------------------------------------------------------------
-def _ensure_tokens():
-    if not PAGE_ACCESS_TOKEN or not IG_USER_ID:
-        raise RuntimeError("Missing PAGE_ACCESS_TOKEN or IG_USER_ID in environment.")
+def graph_get(path, params, timeout=HTTP_TIMEOUT):
+    r = requests.get(f"{GRAPH}/{path.lstrip('/')}", params=params, timeout=timeout)
+    ok = r.ok
+    try:
+        data = r.json()
+    except Exception:
+        data = {"raw": r.text}
+    return ok, data, r.status_code
 
-
-def _cleanup_username(username: str) -> str:
-    """移除 @、空白、換行，只保留英數/底線/點號。"""
-    if not isinstance(username, str):
+def sanitize_username(u: str) -> str:
+    if not isinstance(u, str):
         return ""
-    u = username.strip().lstrip("@")
-    u = re.sub(r"[^A-Za-z0-9._]", "", u)
-    return u
+    u = u.strip().lstrip("@")
+    return re.sub(r"[^A-Za-z0-9._]", "", u)
 
-
-def _get_business_discovery(username: str, fields: str):
+def mbti_heuristic(profile, media_list):
     """
-    Graph API Business Discovery：
-    GET /{ig_user_id}?fields=business_discovery.username(USER){FIELDS}&access_token=...
-    """
-    url = f"{GRAPH_BASE}/{IG_USER_ID}"
-    params = {
-        "fields": f"business_discovery.username({username}){{{fields}}}",
-        "access_token": PAGE_ACCESS_TOKEN,
-    }
-    r = requests.get(url, params=params, timeout=HTTP_TIMEOUT)
-    if r.status_code != 200:
-        raise RuntimeError(f"Graph error ({r.status_code}): {r.text}")
-    data = r.json()
-    bd = data.get("business_discovery")
-    if not bd:
-        raise RuntimeError("No business_discovery returned. The username may be invalid or not public.")
-    return bd
-
-
-def fetch_profile(username: str) -> dict:
-    """取得基本檔案資訊（僅用於內部分析，不直接回給前端）。"""
-    fields = ",".join([
-        "id",
-        "username",
-        "media_count",
-        "followers_count",
-        "follows_count",
-        "profile_picture_url",
-        "name",
-        "biography",
-    ])
-    bd = _get_business_discovery(username, fields)
-    return {
-        "id": bd.get("id"),
-        "username": bd.get("username"),
-        "media_count": bd.get("media_count"),
-        "followers_count": bd.get("followers_count"),
-        "follows_count": bd.get("follows_count"),
-        "profile_picture_url": bd.get("profile_picture_url"),
-        "name": bd.get("name"),
-        "biography": bd.get("biography"),
-    }
-
-
-def fetch_recent_media(username: str, limit: int = 30) -> list:
-    """取得最近貼文（圖片/影片/短片）供簡單特徵分析。"""
-    fields = f"media.limit({limit}){{id,caption,media_type,media_url,thumbnail_url,permalink,timestamp}}"
-    bd = _get_business_discovery(username, fields)
-    media = bd.get("media", {}).get("data", []) or []
-    cleaned = []
-    for m in media:
-        cleaned.append({
-            "id": m.get("id"),
-            "caption": m.get("caption"),
-            "media_type": m.get("media_type"),
-            "media_url": m.get("media_url"),
-            "thumbnail_url": m.get("thumbnail_url"),
-            "permalink": m.get("permalink"),
-            "timestamp": m.get("timestamp"),
-        })
-    return cleaned
-
-
-def simple_mbti_inference(profile: dict, media_list: list) -> tuple[str, str]:
-    """
-    非正式/示範用的簡單 Heuristic：依資料給出一個 MBTI 與短原因（50 字內）。
+    極簡 Demo：根據followers / bio關鍵字 / 圖片vs影片比，推一個 MBTI + 50字內說明
     """
     bio = (profile.get("biography") or "").lower()
     name = (profile.get("name") or "")
-    followers = profile.get("followers_count") or 0
+    followers = int(profile.get("followers_count") or 0)
 
     imgs = sum(1 for m in media_list if (m.get("media_type") == "IMAGE"))
     vids = sum(1 for m in media_list if (m.get("media_type") in ("VIDEO", "REEL", "CLIP")))
 
     score_E = 1 if followers > 5000 else 0
-    if "travel" in bio or "football" in bio or "🏀" in name:
+    if any(k in bio for k in ["travel", "music", "football", "basketball"]) or "🏀" in name:
         score_E += 1
-    score_N = 1 if ("research" in bio or "design" in bio or "創作" in bio) else 0
-    score_T = 1 if ("engineer" in bio or "分析" in bio or "data" in bio) else 0
+    score_N = 1 if any(k in bio for k in ["research", "design", "創作"]) else 0
+    score_T = 1 if any(k in bio for k in ["engineer", "分析", "data"]) else 0
     score_P = 1 if vids > imgs else 0
 
     E_or_I = "E" if score_E >= 1 else "I"
@@ -137,270 +84,235 @@ def simple_mbti_inference(profile: dict, media_list: list) -> tuple[str, str]:
     J_or_P = "P" if score_P >= 1 else "J"
 
     mbti = f"{E_or_I}{N_or_S}{T_or_F}{J_or_P}"
+    reason = []
+    reason.append("粉絲量顯示" + ("外向" if E_or_I == "E" else "內向"))
+    reason.append("簡介字詞偏" + ("直覺" if N_or_S == "N" else "感覺"))
+    reason.append("專業傾向" + ("思考" if T_or_F == "T" else "情感"))
+    reason.append("貼文型態偏" + ("感知" if J_or_P == "P" else "判斷"))
+    short = "；".join(reason)
+    if len(short) > 50:
+        short = short[:50] + "…"
+    return mbti, short
 
-    # 50 字內的極短理由（中文長度用 len 簡化估算）
-    reason = (
-        f"粉絲與簡介顯示{('外向' if E_or_I=='E' else '內向')}、"
-        f"{('直覺' if N_or_S=='N' else '感覺')}與"
-        f"{('思考' if T_or_F=='T' else '情感')}傾向；"
-        f"{'影片多於圖片' if J_or_P=='P' else '圖片多於影片'}，判為{('感知' if J_or_P=='P' else '判斷')}型。"
-    )
-    # 硬切 50 字
-    if len(reason) > 50:
-        reason = reason[:50]
-    return mbti, reason
-
-# ================================
-# Debug helpers for Page Token
-# ================================
-APP_ID = os.getenv("APP_ID", "").strip()
-APP_SECRET = os.getenv("APP_SECRET", "").strip()
-
-def _app_access_token() -> str:
-    """
-    產生 App Access Token: {app_id}|{app_secret}
-    用於 /debug_token 檢查任意 token
-    """
-    if not APP_ID or not APP_SECRET:
-        raise RuntimeError("Missing APP_ID / APP_SECRET in environment for debug.")
-    return f"{APP_ID}|{APP_SECRET}"
-
-def _graph_get(path, params=None):
-    url = f"{GRAPH_BASE}/{path.lstrip('/')}"
-    r = requests.get(url, params=params or {}, timeout=HTTP_TIMEOUT)
-    try:
-        data = r.json()
-    except Exception:
-        data = {"error": {"message": r.text}}
-    return r.status_code, data
-
-@app.get("/debug/token_tail")
-def debug_token_tail():
-    """
-    用來確認 Render 環境變數是否真的換成「新 Token」。
-    只顯示尾碼與字元數，避免 token 外洩。
-    """
-    tail = PAGE_ACCESS_TOKEN[-10:] if PAGE_ACCESS_TOKEN else ""
-    return jsonify({
-        "read_from_env": bool(PAGE_ACCESS_TOKEN),
-        "token_len": len(PAGE_ACCESS_TOKEN),
-        "token_tail": tail
-    })
-
-@app.get("/debug/debug_token")
-def debug_debug_token():
-    """
-    用 Graph 的 /debug_token 解析目前 PAGE_ACCESS_TOKEN。
-    需要 APP_ID / APP_SECRET，請在 Render 設定環境變數。
-    """
-    try:
-        app_token = _app_access_token()
-    except RuntimeError as e:
-        return jsonify({"error": str(e)}), 400
-
-    params = {
-        "input_token": PAGE_ACCESS_TOKEN,
-        "access_token": app_token
-    }
-    status, data = _graph_get("/debug_token", params)
-    return jsonify({
-        "status": status,
-        "raw": data
-    }), status
-
-@app.get("/debug/check_token")
-def debug_check_token():
-    """
-    高度摘要：透過 /debug_token 判斷是否有效、token 類型、到期時間、scopes。
-    並額外取 /me 與 /{page_id} 基本資料。
-    """
-    try:
-        app_token = _app_access_token()
-    except RuntimeError as e:
-        return jsonify({"error": str(e)}), 400
-
-    # 1) 解析 token
-    st, info = _graph_get("/debug_token", {
-        "input_token": PAGE_ACCESS_TOKEN,
-        "access_token": app_token
-    })
-    if st != 200 or not info.get("data"):
-        return jsonify({"ok": False, "debug_token": info}), 400
-
-    data = info["data"]
-    is_valid = data.get("is_valid")
-    token_type = data.get("type")      # 期望為 "PAGE"
-    scopes = data.get("scopes", [])
-    user_id = data.get("user_id")      # 對 Page Token 而言，這其實就是 page_id
-    expires_at = data.get("expires_at")
-    issued_at = data.get("issued_at")
-
-    summary = {
-        "ok": bool(is_valid),
-        "token_type": token_type,
-        "page_id_from_token": user_id,
-        "expires_at": expires_at,
-        "issued_at": issued_at,
-        "scopes": scopes,
-    }
-
-    # 2) 讀 /me (用 page token 會得到 Page)
-    st2, me = _graph_get("/me", params={"access_token": PAGE_ACCESS_TOKEN, "fields": "id,name"})
-    summary["me_status"] = st2
-    summary["me"] = me
-
-    # 3) 讀 page 綁定的 IG（如果 user_id 有值）
-    page_check = {}
-    if user_id:
-        st3, page_info = _graph_get(f"/{user_id}", params={
-            "access_token": PAGE_ACCESS_TOKEN,
-            "fields": "name,connected_instagram_account,instagram_business_account"
-        })
-        page_check = {
-            "status": st3,
-            "page_info": page_info
-        }
-
-    return jsonify({
-        "summary": summary,
-        "debug_token_raw": info,
-        "page_binding": page_check
-    }), 200
-
-@app.get("/debug/whoami")
-def debug_whoami():
-    """
-    用目前 PAGE_ACCESS_TOKEN 呼叫 /me?fields=id,name
-    快速確認 Token 實際代表的主體（Page / User）
-    """
-    st, data = _graph_get("/me", {"access_token": PAGE_ACCESS_TOKEN, "fields": "id,name"})
-    return jsonify({"status": st, "data": data}), st
-
-@app.get("/debug/page_binding")
-def debug_page_binding():
-    """
-    當你已經知道 page_id（可從 /debug/check_token 看到），
-    也可以帶 ?page_id= 直接檢查此 Page 是否綁定 IG。
-    """
-    page_id = request.args.get("page_id", "").strip()
-    if not page_id:
-        # 如果沒帶，就嘗試從 debug_token 找
-        try:
-            app_token = _app_access_token()
-            st, info = _graph_get("/debug_token", {
-                "input_token": PAGE_ACCESS_TOKEN,
-                "access_token": app_token
-            })
-            page_id = info.get("data", {}).get("user_id", "")
-        except Exception:
-            pass
-
-    if not page_id:
-        return jsonify({"error": "page_id missing and cannot be derived from token"}), 400
-
-    st2, page_info = _graph_get(f"/{page_id}", {
-        "access_token": PAGE_ACCESS_TOKEN,
-        "fields": "id,name,connected_instagram_account,instagram_business_account"
-    })
-    return jsonify({"status": st2, "page_info": page_info}), st2
+def require_bind():
+    bind = session.get("bind")
+    if not bind:
+        raise RuntimeError("not bound")
+    return bind
 
 # -----------------------------------------------------------------------------
-# Routes
+# Health / Debug
 # -----------------------------------------------------------------------------
 @app.get("/health")
 def health():
-    return jsonify({"status": "ok", "frontend_allowed": FRONTEND_ORIGIN}), 200
-
-
-@app.get("/")
-def index_root():
-    return jsonify({"message": "SocialAvatar API is running.", "version": GRAPH_VERSION}), 200
-
-
-@app.post("/api/analyze")
-def analyze():
-    """
-    前端只需要四個欄位：
-      - ig_username
-      - profile_name
-      - mbti
-      - reason (<= 50 字)
-    """
-    try:
-        _ensure_tokens()
-
-        body = request.get_json(silent=True) or {}
-        username = _cleanup_username(body.get("username", ""))
-        if not username:
-            return jsonify({"error": "username is required"}), 400
-
-        # 取得檔案與貼文（僅用於內部推估）
-        profile = fetch_profile(username)
-        media = fetch_recent_media(username, limit=30)
-
-        mbti, reason = simple_mbti_inference(profile, media)
-
-        return jsonify({
-            "ok": True,
-            "ig_username": profile.get("username") or username,
-            "profile_name": profile.get("name") or "",
-            "mbti": mbti,
-            "reason": reason,  # 已限制 50 字內
-        }), 200
-
-    except requests.Timeout:
-        return jsonify({"error": "Upstream timeout"}), 504
-    except RuntimeError as e:
-        # Graph 相關錯誤、權限/Token 錯誤會在這裡
-        return jsonify({"error": str(e)}), 400
-    except Exception as e:
-        # 保險：避免把內部錯誤細節曝露給前端
-        return jsonify({"error": "Server error"}), 500
-
-
-# -----------------------------------------------------------------------------
-# DEBUG endpoints（部署後測完請移除）
-# -----------------------------------------------------------------------------
-@app.get("/debug/token_tail")
-def token_tail():
-    tail = PAGE_ACCESS_TOKEN[-8:] if PAGE_ACCESS_TOKEN else None
     return jsonify({
-        "token_tail": tail,
-        "ig_user_id": IG_USER_ID
-    }), 200
-
-
-@app.get("/debug/check_token")
-def check_token():
-    if not PAGE_ACCESS_TOKEN or not APP_ID or not APP_SECRET:
-        return jsonify({"error": "missing PAGE_ACCESS_TOKEN / APP_ID / APP_SECRET"}), 400
-    app_access = f"{APP_ID}|{APP_SECRET}"
-    url = f"{GRAPH_BASE}/debug_token"
-    try:
-        resp = requests.get(url, params={
-            "input_token": PAGE_ACCESS_TOKEN,
-            "access_token": app_access
-        }, timeout=HTTP_TIMEOUT)
-        return jsonify(resp.json()), resp.status_code
-    except Exception as e:
-        return jsonify({"error": f"debug_token failed: {str(e)}"}), 500
-
+        "status": "ok",
+        "frontend_allowed": FRONTEND_ORIGIN,
+        "redirect_uri": REDIRECT_URI
+    })
 
 # -----------------------------------------------------------------------------
-# Entrypoint (for local dev)
+# OAuth Flow
+# -----------------------------------------------------------------------------
+@app.get("/auth/login")
+def auth_login():
+    if not FB_APP_ID or not FB_APP_SECRET or not SITE_URL:
+        return jsonify({"error": "FB_APP_ID / FB_APP_SECRET / SITE_URL not set"}), 500
+
+    params = {
+        "client_id": FB_APP_ID,
+        "redirect_uri": REDIRECT_URI,
+        "response_type": "code",
+        "scope": ",".join(OAUTH_SCOPES),
+        # "state": "csrf-token"
+    }
+    return redirect(f"https://www.facebook.com/{GRAPH_VERSION}/dialog/oauth?{urlencode(params)}")
+
+@app.get("/auth/callback")
+def auth_callback():
+    code = request.args.get("code")
+    if not code:
+        return "Missing code", 400
+
+    # 1) code → 短期 user token
+    ok, data, _ = graph_get(
+        "oauth/access_token",
+        {
+            "client_id": FB_APP_ID,
+            "client_secret": FB_APP_SECRET,
+            "redirect_uri": REDIRECT_URI,
+            "code": code,
+        },
+    )
+    if not ok:
+        return jsonify({"step": "code_to_short_token", "error": data}), 400
+    short_user_token = data["access_token"]
+
+    # 2) 短期 → 長期 user token
+    ok, data, _ = graph_get(
+        "oauth/access_token",
+        {
+            "grant_type": "fb_exchange_token",
+            "client_id": FB_APP_ID,
+            "client_secret": FB_APP_SECRET,
+            "fb_exchange_token": short_user_token,
+        },
+    )
+    if not ok:
+        return jsonify({"step": "short_to_long_user_token", "error": data}), 400
+    long_user_token = data["access_token"]
+    expires_in = int(data.get("expires_in") or 0)
+
+    # 3) 找 Pages
+    ok, pages, _ = graph_get("me/accounts", {"access_token": long_user_token})
+    if not ok:
+        return jsonify({"step": "me_accounts", "error": pages}), 400
+
+    chosen = None
+    for p in pages.get("data", []):
+        page_id = p["id"]
+        page_token = p["access_token"]
+        # 查頁面是否連 IG
+        ok, info, _ = graph_get(
+            page_id,
+            {"fields": "connected_instagram_account{id,username}", "access_token": page_token},
+        )
+        if ok and info.get("connected_instagram_account", {}).get("id"):
+            ig = info["connected_instagram_account"]
+            chosen = {
+                "page_id": page_id,
+                "page_name": p.get("name"),
+                "page_token": page_token,       # 後續 IG Graph 用此 Token
+                "ig_user_id": ig["id"],
+                "ig_username": ig.get("username"),
+            }
+            break
+
+    if not chosen:
+        return "No connected Instagram account on any managed Page.", 400
+
+    session["bind"] = {
+        "long_user_token": long_user_token,
+        "long_user_expires_at": int(time.time()) + expires_in,
+        **chosen,
+    }
+
+    # 綁定完成 → 回前端
+    return redirect(f"{FRONTEND_ORIGIN}/?bind=success")
+
+@app.get("/auth/status")
+def auth_status():
+    b = session.get("bind")
+    if not b:
+        return jsonify({"status": "not bound"})
+    # 不回傳 token 給前端，只回可視資訊
+    return jsonify({
+        "status": "bound",
+        "page_id": b["page_id"],
+        "page_name": b.get("page_name"),
+        "ig_user_id": b["ig_user_id"],
+        "ig_username": b.get("ig_username"),
+        "long_user_expires_at": b.get("long_user_expires_at"),
+    })
+
+@app.post("/auth/logout")
+def auth_logout():
+    session.pop("bind", None)
+    return jsonify({"ok": True})
+
+# -----------------------------------------------------------------------------
+# IG Graph endpoints (需要綁定)
+# -----------------------------------------------------------------------------
+@app.get("/me/ig/basic")
+def me_ig_basic():
+    try:
+        b = require_bind()
+        ok, data, status = graph_get(
+            b["ig_user_id"],
+            {
+                "fields": "id,username,media_count,followers_count,follows_count,profile_picture_url,biography,name",
+                "access_token": b["page_token"],
+            },
+        )
+        return (jsonify(data), status)
+    except RuntimeError:
+        return jsonify({"error": "not bound"}), 401
+
+@app.get("/me/ig/media")
+def me_ig_media():
+    try:
+        b = require_bind()
+        ok, data, status = graph_get(
+            f"{b['ig_user_id']}/media",
+            {
+                "fields": "id,media_type,caption,permalink,media_url,thumbnail_url,timestamp",
+                "limit": 30,
+                "access_token": b["page_token"],
+            },
+        )
+        return (jsonify(data), status)
+    except RuntimeError:
+        return jsonify({"error": "not bound"}), 401
+
+@app.post("/me/ig/analyze")
+def me_ig_analyze():
+    """
+    回應前端需要的四個欄位：
+    1. ig_account
+    2. profile_name
+    3. mbti
+    4. reason (<= 50字)
+    """
+    try:
+        b = require_bind()
+
+        # 取基本資料
+        ok, prof, _ = graph_get(
+            b["ig_user_id"],
+            {
+                "fields": "id,username,name,biography,followers_count,media_count,follows_count,profile_picture_url",
+                "access_token": b["page_token"],
+            },
+        )
+        if not ok:
+            return jsonify({"error": "profile_fetch_failed", "detail": prof}), 400
+
+        # 取最近貼文
+        ok, media, _ = graph_get(
+            f"{b['ig_user_id']}/media",
+            {
+                "fields": "id,media_type,caption,media_url,thumbnail_url,permalink,timestamp",
+                "limit": 30,
+                "access_token": b["page_token"],
+            },
+        )
+        if not ok:
+            return jsonify({"error": "media_fetch_failed", "detail": media}), 400
+
+        media_list = media.get("data", []) or []
+        mbti, reason = mbti_heuristic(prof, media_list)
+
+        out = {
+            "ig_account": prof.get("username") or b.get("ig_username") or "",
+            "profile_name": prof.get("name") or "",
+            "mbti": mbti,
+            "reason": reason,  # <= 50字
+        }
+        return jsonify(out)
+    except RuntimeError:
+        return jsonify({"error": "not bound"}), 401
+    except Exception as e:
+        return jsonify({"error": "server_error", "detail": str(e)}), 500
+
+# -----------------------------------------------------------------------------
+# Root
+# -----------------------------------------------------------------------------
+@app.get("/")
+def root():
+    return jsonify({"message": "SocialAvatar API", "frontend": FRONTEND_ORIGIN})
+
+# -----------------------------------------------------------------------------
+# Local dev
 # -----------------------------------------------------------------------------
 if __name__ == "__main__":
-    # 本地開發才會用；Render 會用 gunicorn/uvicorn 啟動
     app.run(host="0.0.0.0", port=int(os.getenv("PORT", "8000")), debug=True)
-
-
-@app.get("/debug/token")
-def debug_token():
-    try:
-        token = PAGE_ACCESS_TOKEN.strip()
-        url = f"https://graph.facebook.com/{GRAPH_VERSION}/debug_token"
-        params = {"input_token": token, "access_token": token}
-        r = requests.get(url, params=params, timeout=HTTP_TIMEOUT)
-        return jsonify(r.json()), r.status_code
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
