@@ -1,12 +1,136 @@
-<!doctype html><html lang="zh-Hant"><head>
-<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>SocialAvatar</title>
-</head><body>
-<h1>SocialAvatar</h1>
-<p>這是 GitHub Pages 測試首頁。</p>
-<ul>
-  <li><a href="privacy.html">隱私權政策</a></li>
-  <li><a href="terms.html">服務條款</a></li>
-  <li><a href="data-deletion.html">資料刪除說明</a></li>
-</ul>
-</body></html>
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SocialAvatar｜AI IG 人格分析</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      background: #f9fafb;
+      color: #222;
+      margin: 0;
+      padding: 0;
+    }
+    header {
+      background: #111827;
+      color: white;
+      text-align: center;
+      padding: 2rem 1rem;
+    }
+    header h1 {
+      font-size: 1.8rem;
+      margin-bottom: 0.5rem;
+    }
+    main {
+      max-width: 720px;
+      margin: 2rem auto;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+      padding: 2rem;
+    }
+    input {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      font-size: 1rem;
+      margin-bottom: 1rem;
+    }
+    button {
+      background: #2563eb;
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      font-size: 1rem;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #1e40af;
+    }
+    #result {
+      margin-top: 1.5rem;
+      white-space: pre-wrap;
+      background: #f3f4f6;
+      padding: 1rem;
+      border-radius: 8px;
+      font-family: monospace;
+    }
+    footer {
+      text-align: center;
+      margin-top: 3rem;
+      font-size: 0.9rem;
+      color: #666;
+    }
+    footer a {
+      color: #2563eb;
+      text-decoration: none;
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1>SocialAvatar</h1>
+    <p>AI 驅動的 Instagram 人格分析工具</p>
+  </header>
+
+  <main>
+    <h2>輸入你的 IG 帳號名稱</h2>
+    <p>系統將分析用戶的公開貼文與圖片特徵，生成 MBTI 人格推測與理由。</p>
+    <input id="username" placeholder="例如：dannytjkan" />
+    <button onclick="analyze()">開始分析</button>
+
+    <div id="loading" style="display:none; margin-top:1rem;">⏳ 分析中，請稍候...</div>
+    <div id="result"></div>
+  </main>
+
+  <footer>
+    <p>
+      <a href="privacy.html">隱私權政策</a> ｜ 
+      <a href="terms.html">服務條款</a> ｜ 
+      <a href="data-deletion.html">資料刪除說明</a>
+    </p>
+    <p>© 2025 SocialAvatar</p>
+  </footer>
+
+  <script>
+    const API_BASE = "https://socialavatar.onrender.com";
+
+    async function analyze() {
+      const username = document.getElementById("username").value.trim();
+      const resultBox = document.getElementById("result");
+      const loading = document.getElementById("loading");
+      resultBox.textContent = "";
+      
+      if (!username) {
+        alert("請輸入 IG 帳號名稱！");
+        return;
+      }
+
+      loading.style.display = "block";
+      try {
+        const res = await fetch(`${API_BASE}/api/analyze`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username })
+        });
+
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(text || "伺服器錯誤");
+        }
+
+        const data = await res.json();
+        loading.style.display = "none";
+        resultBox.textContent = JSON.stringify(data, null, 2);
+      } catch (err) {
+        loading.style.display = "none";
+        resultBox.textContent = "❌ 錯誤：" + err.message;
+      }
+    }
+  </script>
+</body>
+</html>
