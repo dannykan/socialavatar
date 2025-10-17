@@ -50,6 +50,12 @@
     button:hover {
       background: #1e40af;
     }
+    #loading {
+      display: none;
+      margin-top: 1rem;
+      font-style: italic;
+      color: #555;
+    }
     #result {
       margin-top: 1.5rem;
       background: #f3f4f6;
@@ -57,15 +63,28 @@
       border-radius: 8px;
       display: none;
     }
-    #result h3 {
+    .row {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .avatar {
+      width: 88px;
+      height: 88px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 3px solid #fff;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+      display: none; /* 預設不顯示，載到圖片後才顯示 */
+    }
+    .meta h3 {
       margin: 0.3rem 0;
       color: #111827;
     }
-    #loading {
-      display: none;
-      margin-top: 1rem;
-      font-style: italic;
-      color: #555;
+    #r-reason {
+      margin-top: .25rem;
+      color: #374151;
     }
     footer {
       text-align: center;
@@ -93,9 +112,14 @@
     <div id="loading">⏳ 分析中，請稍候...</div>
 
     <div id="result">
-      <h3>IG 帳號：<span id="r-username"></span></h3>
-      <h3>Profile 名稱：<span id="r-name"></span></h3>
-      <h3>MBTI 類型：<span id="r-mbti"></span></h3>
+      <div class="row">
+        <img id="r-avatar" class="avatar" alt="IG 頭像" />
+        <div class="meta">
+          <h3>IG 帳號：<span id="r-username"></span></h3>
+          <h3>Profile 名稱：<span id="r-name"></span></h3>
+          <h3>MBTI 類型：<span id="r-mbti"></span></h3>
+        </div>
+      </div>
       <p id="r-reason"></p>
     </div>
   </main>
@@ -116,6 +140,7 @@
       const username = document.getElementById("username").value.trim();
       const loading = document.getElementById("loading");
       const resultBox = document.getElementById("result");
+      const avatar = document.getElementById("r-avatar");
 
       if (!username) {
         alert("請輸入 IG 帳號名稱！");
@@ -124,6 +149,8 @@
 
       resultBox.style.display = "none";
       loading.style.display = "block";
+      avatar.style.display = "none";
+      avatar.src = "";  // 清空舊圖
 
       try {
         const res = await fetch(`${API_BASE}/api/analyze`, {
@@ -133,7 +160,6 @@
         });
 
         if (!res.ok) throw new Error(await res.text());
-
         const data = await res.json();
 
         loading.style.display = "none";
@@ -145,6 +171,14 @@
         document.getElementById("r-reason").textContent = data.explanation
           ? data.explanation.slice(0, 50)
           : "（暫無分析說明）";
+
+        // 顯示頭像（若後端有回傳 URL）
+        const url = data.profile?.profile_picture_url || data.profile_picture_url;
+        if (url) {
+          avatar.src = url;
+          avatar.onload = () => (avatar.style.display = "block");
+          avatar.onerror = () => (avatar.style.display = "none");
+        }
       } catch (err) {
         loading.style.display = "none";
         alert("分析失敗：" + err.message);
