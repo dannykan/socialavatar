@@ -150,6 +150,159 @@ def simple_mbti_inference(profile: dict, media_list: list) -> tuple[str, str]:
         reason = reason[:50]
     return mbti, reason
 
+# ================================
+# Debug helpers for Page Token
+# ================================
+APP_ID = os.getenv("APP_ID", "").strip()
+APP_SECRET = os.getenv("APP_SECRET", "").strip()
+
+def _app_access_token() -> str:
+    """
+    產生 App Access Token: {app_id}|{app_secret}
+    用於 /debug_token 檢查任意 token
+    """
+    if not APP_ID or not APP_SECRET:
+        raise RuntimeError("Missing APP_ID / APP_SECRET in environment for debug.")
+    return f"{APP_ID}|{APP_SECRET}"
+
+def _graph_get(path, params=None):
+    url = f"{GRAPH_BASE}/{path.lstrip('/')}"
+    r = requests.get(url, params=params or {}, timeout=HTTP_TIMEOUT)
+    try:
+        data = r.json()
+    except Exception:
+        data = {"error": {"message": r.text}}
+    return r.status_code, data
+
+@app.get("/debug/token_tail")
+def debug_token_tail():
+    """
+    用來確認 Render 環境變數是否真的換成「新 Token」。
+    只顯示尾碼與字元數，避免 token 外洩。
+    """
+    tail = PAGE_ACCESS_TOKEN[-10:] if PAGE_ACCESS_TOKEN else ""
+    return jsonify({
+        "read_from_env": bool(PAGE_ACCESS_TOKEN),
+        "token_len": len(PAGE_ACCESS_TOKEN),
+        "token_tail": tail
+    })
+
+@app.get("/debug/debug_token")
+def debug_debug_token():
+    """
+    用 Graph 的 /debug_token 解析目前 PAGE_ACCESS_TOKEN。
+    需要 APP_ID / APP_SECRET，請在 Render 設定環境變數。
+    """
+    try:
+        app_token = _app_access_token()
+    except RuntimeError as e:
+        return jsonify({"error": str(e)}), 400
+
+    params = {
+        "input_token": PAGE_ACCESS_TOKEN,
+        "access_token": app_token
+    }
+    status, data = _graph_get("/debug_token", params)
+    return jsonify({
+        "status": status,
+        "raw": data
+    }), status
+
+@app.get("/debug/check_token")
+def debug_check_token():
+    """
+    高度摘要：透過 /debug_token 判斷是否有效、token 類型、到期時間、scopes。
+    並額外取 /me 與 /{page_id} 基本資料。
+    """
+    try:
+        app_token = _app_access_token()
+    except RuntimeError as e:
+        return jsonify({"error": str(e)}), 400
+
+    # 1) 解析 token
+    st, info = _graph_get("/debug_token", {
+        "input_token": PAGE_ACCESS_TOKEN,
+        "access_token": app_token
+    })
+    if st != 200 or not info.get("data"):
+        return jsonify({"ok": False, "debug_token": info}), 400
+
+    data = info["data"]
+    is_valid = data.get("is_valid")
+    token_type = data.get("type")      # 期望為 "PAGE"
+    scopes = data.get("scopes", [])
+    user_id = data.get("user_id")      # 對 Page Token 而言，這其實就是 page_id
+    expires_at = data.get("expires_at")
+    issued_at = data.get("issued_at")
+
+    summary = {
+        "ok": bool(is_valid),
+        "token_type": token_type,
+        "page_id_from_token": user_id,
+        "expires_at": expires_at,
+        "issued_at": issued_at,
+        "scopes": scopes,
+    }
+
+    # 2) 讀 /me (用 page token 會得到 Page)
+    st2, me = _graph_get("/me", params={"access_token": PAGE_ACCESS_TOKEN, "fields": "id,name"})
+    summary["me_status"] = st2
+    summary["me"] = me
+
+    # 3) 讀 page 綁定的 IG（如果 user_id 有值）
+    page_check = {}
+    if user_id:
+        st3, page_info = _graph_get(f"/{user_id}", params={
+            "access_token": PAGE_ACCESS_TOKEN,
+            "fields": "name,connected_instagram_account,instagram_business_account"
+        })
+        page_check = {
+            "status": st3,
+            "page_info": page_info
+        }
+
+    return jsonify({
+        "summary": summary,
+        "debug_token_raw": info,
+        "page_binding": page_check
+    }), 200
+
+@app.get("/debug/whoami")
+def debug_whoami():
+    """
+    用目前 PAGE_ACCESS_TOKEN 呼叫 /me?fields=id,name
+    快速確認 Token 實際代表的主體（Page / User）
+    """
+    st, data = _graph_get("/me", {"access_token": PAGE_ACCESS_TOKEN, "fields": "id,name"})
+    return jsonify({"status": st, "data": data}), st
+
+@app.get("/debug/page_binding")
+def debug_page_binding():
+    """
+    當你已經知道 page_id（可從 /debug/check_token 看到），
+    也可以帶 ?page_id= 直接檢查此 Page 是否綁定 IG。
+    """
+    page_id = request.args.get("page_id", "").strip()
+    if not page_id:
+        # 如果沒帶，就嘗試從 debug_token 找
+        try:
+            app_token = _app_access_token()
+            st, info = _graph_get("/debug_token", {
+                "input_token": PAGE_ACCESS_TOKEN,
+                "access_token": app_token
+            })
+            page_id = info.get("data", {}).get("user_id", "")
+        except Exception:
+            pass
+
+    if not page_id:
+        return jsonify({"error": "page_id missing and cannot be derived from token"}), 400
+
+    st2, page_info = _graph_get(f"/{page_id}", {
+        "access_token": PAGE_ACCESS_TOKEN,
+        "fields": "id,name,connected_instagram_account,instagram_business_account"
+    })
+    return jsonify({"status": st2, "page_info": page_info}), st2
 
 # -----------------------------------------------------------------------------
 # Routes
