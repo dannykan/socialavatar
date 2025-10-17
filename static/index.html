@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SocialAvatar - AI 驅動的 Instagram 人格分析</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <style>
+    body {
+      background: #0e1116;
+      color: #e0e0e0;
+      font-family: "Noto Sans TC", sans-serif;
+    }
+    .glass {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 20px;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 0 25px rgba(0, 0, 0, 0.3);
+    }
+  </style>
+</head>
+<body class="flex flex-col items-center min-h-screen py-12">
+
+  <div class="text-center mb-10">
+    <h1 class="text-4xl font-bold mb-2 text-white">SocialAvatar</h1>
+    <p class="text-gray-400">AI 驅動的 Instagram 人格分析</p>
+  </div>
+
+  <div id="loading" class="text-center hidden">
+    <div class="animate-spin rounded-full h-12 w-12 border-t-4 border-blue-500 mx-auto mb-4"></div>
+    <p>正在分析你的 Instagram 個人頁面，請稍候...</p>
+  </div>
+
+  <div id="login" class="text-center hidden">
+    <p class="mb-4 text-gray-300">請先登入 Instagram 授權分析：</p>
+    <button onclick="login()" class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-lg">
+      🔗 登入 Instagram
+    </button>
+  </div>
+
+  <div id="result" class="max-w-2xl glass p-8 hidden">
+    <h2 class="text-2xl font-bold mb-2 text-white">分析結果</h2>
+    <div id="profileInfo" class="text-gray-300 mb-4"></div>
+    <div id="mbti" class="text-xl font-semibold text-blue-400 mb-2"></div>
+    <p id="reason" class="text-gray-300 mb-6"></p>
+
+    <div id="thumbs" class="grid grid-cols-3 gap-2"></div>
+  </div>
+
+  <footer class="mt-12 text-gray-500 text-sm">
+    © 2025 SocialAvatar | 隱私權政策 · 服務條款
+  </footer>
+
+  <script>
+    const API_BASE = "https://socialavatar.onrender.com";
+
+    async function checkStatus() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const bindSuccess = urlParams.get("bind");
+      if (bindSuccess === "success") {
+        analyze();
+        return;
+      }
+
+      const res = await fetch(`${API_BASE}/auth/status`, { credentials: "include" });
+      const data = await res.json();
+      if (data.status === "bound") {
+        analyze();
+      } else {
+        document.getElementById("login").classList.remove("hidden");
+      }
+    }
+
+    async function login() {
+      window.location.href = `${API_BASE}/auth/login`;
+    }
+
+    async function analyze() {
+      document.getElementById("login").classList.add("hidden");
+      document.getElementById("loading").classList.remove("hidden");
+
+      const res = await fetch(`${API_BASE}/me/ig/analyze`, {
+        method: "POST",
+        credentials: "include",
+      });
+
+      const data = await res.json();
+      document.getElementById("loading").classList.add("hidden");
+
+      if (data.error) {
+        alert("分析失敗：" + JSON.stringify(data.error));
+        document.getElementById("login").classList.remove("hidden");
+        return;
+      }
+
+      document.getElementById("result").classList.remove("hidden");
+      document.getElementById("profileInfo").innerText =
+        `@${data.ig_account}｜粉絲 ${data.stats.followers}｜追蹤 ${data.stats.follows}｜貼文 ${data.stats.media_count}`;
+      document.getElementById("mbti").innerText = `MBTI 類型：${data.mbti}`;
+      document.getElementById("reason").innerText = data.reason;
+
+      const thumbs = document.getElementById("thumbs");
+      thumbs.innerHTML = "";
+      (data.thumbnails || []).forEach(url => {
+        const img = document.createElement("img");
+        img.src = url;
+        img.className = "w-full h-32 object-cover rounded-lg";
+        thumbs.appendChild(img);
+      });
+    }
+
+    checkStatus();
+  </script>
+
+</body>
+</html>
