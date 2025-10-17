@@ -4,159 +4,106 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>SocialAvatar</title>
-  <meta name="color-scheme" content="light dark" />
   <style>
-    :root{
-      --bg:#0b1220;--panel:#121b2e;--muted:#9fb0d0;--text:#e8eefc;--brand:#7aa2ff;--brand-2:#9cc2ff;
-      --ok:#2ecc71;--warn:#ffbf69;--err:#ff6b6b;
-    }
-    *{box-sizing:border-box}
-    body{margin:0;background:linear-gradient(180deg,#0a0f1e 0%,#0d1630 100%);color:var(--text);font:16px/1.6 system-ui,-apple-system,"Noto Sans TC","Segoe UI",Roboto,"Helvetica Neue",Arial;}
-    .wrap{max-width:980px;margin:0 auto;padding:56px 20px}
-    .card{background:linear-gradient(180deg,rgba(122,162,255,.08),rgba(122,162,255,.03));border:1px solid rgba(122,162,255,.18);backdrop-filter:blur(10px);border-radius:14px}
-    header{padding:28px 0 8px;text-align:center}
-    header h1{margin:0;font-size:36px;letter-spacing:.5px}
-    header p{margin:8px 0 0;color:var(--muted)}
-    .panel{padding:28px}
-    .row{display:flex;gap:10px}
-    input[type=text]{flex:1;padding:14px 16px;border-radius:10px;border:1px solid rgba(122,162,255,.25);background:#0c1426;color:var(--text);outline:none}
-    input[type=text]::placeholder{color:#7e8fb3}
-    button{padding:12px 18px;border:0;border-radius:10px;color:#0a1220;background:linear-gradient(180deg,var(--brand),var(--brand-2));font-weight:700;cursor:pointer}
-    button:disabled{opacity:.6;cursor:not-allowed}
-    .result{margin-top:18px;padding:18px;border-radius:12px;border:1px dashed rgba(122,162,255,.25);background:#0c1426}
-    .label{display:inline-block;min-width:120px;color:var(--muted)}
-    .val{font-weight:700}
-    .muted{color:var(--muted)}
-    .hidden{display:none}
-    .footer{margin-top:26px;text-align:center;color:var(--muted);font-size:14px}
-    .links a{color:var(--brand-2);text-decoration:none;margin:0 8px}
-    .toast{position:fixed;left:50%;top:16px;transform:translateX(-50%);background:#1d2740;color:var(--text);border:1px solid rgba(122,162,255,.3);padding:10px 14px;border-radius:10px;box-shadow:0 8px 22px rgba(0,0,0,.35);z-index:20}
-    @media (max-width:640px){
-      header h1{font-size:28px}
-      .panel{padding:18px}
-      .label{min-width:86px}
-    }
+    :root { color-scheme: dark; }
+    body { margin:0; font-family: system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial; background:#0b1220; color:#dbe4ff; }
+    .wrap { max-width: 860px; margin: 64px auto; padding: 0 20px; }
+    h1 { font-size: 36px; text-align: center; margin: 8px 0 24px; }
+    .card{ background:#0f172a; border:1px solid #233; border-radius: 14px; padding:24px; }
+    .row{ display:flex; gap:12px; }
+    .row>*{ flex:1; }
+    input,button{ font:inherit; padding:12px 14px; border-radius:10px; border:1px solid #2a2f48; background:#0b1220; color:#dbe4ff; }
+    button{ background:#6ea8fe; color:#051030; border: none; cursor:pointer; }
+    button.secondary{ background:#253049; color:#bcd; }
+    button:disabled{ opacity:.6; cursor:not-allowed; }
+    .mt{ margin-top:16px; }
+    .mt2{ margin-top:28px; }
+    .muted{ color:#8aa1c7; font-size:14px; }
+    .result{ background:#0b1328; border:1px dashed #234; padding:16px; border-radius:12px; min-height:128px; white-space:pre-wrap; }
+    .footer{ text-align:center; margin-top:36px; color:#8aa1c7; font-size:14px; }
+    .hint{ margin-top:12px; color:#9fb2da; }
   </style>
 </head>
 <body>
   <div class="wrap">
-    <header>
-      <h1>SocialAvatar</h1>
-      <p>AI 驅動的 Instagram 人格分析工具</p>
-    </header>
+    <h1>SocialAvatar</h1>
+    <p style="text-align:center" class="muted">AI 驅動的 Instagram 人格分析工具</p>
 
-    <section class="card panel">
-      <form id="analyze-form" autocomplete="off">
-        <label for="username" class="muted">輸入你的 IG 帳號名稱</label>
-        <div class="row" style="margin-top:8px">
-          <input id="username" type="text" placeholder="例如：dannytjkan" inputmode="latin" />
-          <button id="submit-btn" type="submit">開始分析</button>
-        </div>
-        <p class="muted" style="margin:10px 0 0">系統將分析用戶的公開資訊與貼文特徵，輸出 MBTI 與簡短理由。</p>
-      </form>
-
-      <div id="result" class="result hidden">
-        <div><span class="label">IG 帳號：</span><span class="val" id="ig-username">－</span></div>
-        <div><span class="label">Profile 名稱：</span><span class="val" id="profile-name">－</span></div>
-        <div><span class="label">MBTI 類型：</span><span class="val" id="mbti-type">－</span></div>
-        <div><span class="label">分析說明：</span><span class="val" id="explanation" class="muted">（暫無）</span></div>
+    <div class="card mt2">
+      <div class="row">
+        <input id="username" placeholder="輸入 IG 帳號（例如：dannytjkan）" />
+        <button id="btnAnalyze">開始分析</button>
+        <button id="btnBind" class="secondary" title="綁定你的 IG（一次）">連結 Instagram</button>
       </div>
 
-      <div id="hint" class="muted" style="margin-top:10px">（分析中，請稍候…）</div>
-    </section>
+      <div class="hint">系統將分析用戶公開資料與貼文特徵，輸出 <b>IG帳號</b>、<b>Profile 名稱</b>、<b>MBTI 類型</b> 與 <b>50字內分析說明</b>。</div>
+
+      <div class="mt result" id="result">尚未分析。</div>
+    </div>
 
     <div class="footer">
-      <div class="links">
-        <a href="privacy.html" target="_blank" rel="noopener">隱私權政策</a>｜
-        <a href="terms.html" target="_blank" rel="noopener">服務條款</a>｜
-        <a href="data-deletion.html" target="_blank" rel="noopener">資料刪除說明</a>
-      </div>
-      <div style="margin-top:10px">© 2025 SocialAvatar</div>
+      © 2025 SocialAvatar · <a href="privacy.html">隱私權政策</a> · <a href="terms.html">服務條款</a> · <a href="data-deletion.html">資料刪除說明</a>
     </div>
   </div>
 
-  <div id="toast" class="toast hidden"></div>
-
   <script>
-    // 允許用 ?api= 覆蓋後端，例如 index.html?api=https://xxx.onrender.com
-    const urlParams = new URLSearchParams(location.search);
-    const API_BASE = (urlParams.get('api') || 'https://socialavatar.onrender.com').replace(/\/$/, '');
+    const API = "https://socialavatar.onrender.com"; // 換成你的後端
 
-    const form = document.getElementById('analyze-form');
-    const usernameInput = document.getElementById('username');
-    const submitBtn = document.getElementById('submit-btn');
-    const resultBox = document.getElementById('result');
-    const igUsernameEl = document.getElementById('ig-username');
-    const profileNameEl = document.getElementById('profile-name');
-    const mbtiEl = document.getElementById('mbti-type');
-    const explanationEl = document.getElementById('explanation');
-    const hint = document.getElementById('hint');
-    const toastEl = document.getElementById('toast');
+    const $ = sel => document.querySelector(sel);
+    const btnAnalyze = $('#btnAnalyze');
+    const btnBind = $('#btnBind');
+    const $username = $('#username');
+    const $result = $('#result');
 
-    function toast(msg, ms=2600){
-      toastEl.textContent = msg;
-      toastEl.classList.remove('hidden');
-      setTimeout(()=>toastEl.classList.add('hidden'), ms);
+    // If redirect from /auth/callback
+    if (new URL(location.href).searchParams.get('bind') === 'success') {
+      showMsg('綁定成功！可以開始分析自己的 IG 了。');
+      history.replaceState({}, '', location.pathname);
     }
 
-    function cleanName(s){ return (s||'').trim(); }
-    function shortReason(s){
-      if(!s) return '';
-      // 移除多餘換行與空白，再截 50 字
-      const t = s.replace(/\s+/g,' ').trim();
-      return t.length>50 ? t.slice(0,50) : t;
-    }
+    btnBind.onclick = () => {
+      // 導去後端 OAuth
+      location.href = API + "/auth/login";
+    };
 
-    form.addEventListener('submit', async (e)=>{
-      e.preventDefault();
-      const username = (usernameInput.value||'').trim().replace(/^@+/,'');
-      if(!username){ toast('請輸入 IG 帳號'); return; }
+    btnAnalyze.onclick = async () => {
+      try {
+        btnAnalyze.disabled = true;
+        $result.textContent = '分析中…';
 
-      // 初始化 UI
-      submitBtn.disabled = true;
-      hint.textContent = '分析中，請稍候…';
-      igUsernameEl.textContent = '－';
-      profileNameEl.textContent = '－';
-      mbtiEl.textContent = '－';
-      explanationEl.textContent = '（暫無）';
-      resultBox.classList.add('hidden');
-
-      try{
-        const res = await fetch(`${API_BASE}/api/analyze`,{
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({ username })
-        });
-        const data = await res.json();
-
-        if(!res.ok){
-          toast(`分析失敗：${data.error || res.status}`);
-          hint.textContent = '請重新嘗試';
-          submitBtn.disabled = false;
+        // 確認是否已綁定
+        const st = await fetch(API + '/auth/status', { credentials: 'include' }).then(r=>r.json());
+        if (st.status !== 'bound') {
+          $result.textContent = '尚未綁定。請先點「連結 Instagram」完成一次授權。';
           return;
         }
+        // 後端 /me/ig/analyze 會用 session 內的 ig_user_id/page_token 執行分析
+        const r = await fetch(API + '/me/ig/analyze', {
+          method:'POST',
+          credentials:'include'
+        });
+        const data = await r.json();
 
-        const profile = data.profile || {};
-        // name 有些帳號真的沒有，退回 username
-        igUsernameEl.textContent = profile.username || username || '－';
-        profileNameEl.textContent = cleanName(profile.name) || profile.username || '－';
-        mbtiEl.textContent = data.mbti || 'N/A';
-        explanationEl.textContent = shortReason(data.explanation || data.reason) || '（暫無）';
-
-        resultBox.classList.remove('hidden');
-        hint.textContent = '完成';
-      }catch(err){
-        console.error(err);
-        toast('連線失敗，請稍後再試');
-        hint.textContent = '請重新嘗試';
-      }finally{
-        submitBtn.disabled = false;
+        if (!r.ok) {
+          $result.textContent = '分析失敗：' + JSON.stringify(data);
+          return;
+        }
+        // 顯示四個欄位
+        const lines = [
+          `IG 帳號： ${data.ig_account || '-'}`,
+          `Profile 名稱： ${data.profile_name || '-'}`,
+          `MBTI 類型： ${data.mbti || '-'}`,
+          `分析說明： ${data.reason || '-'}`,
+        ];
+        $result.textContent = lines.join('\n');
+      } catch (err) {
+        $result.textContent = '分析錯誤：' + err;
+      } finally {
+        btnAnalyze.disabled = false;
       }
-    });
+    };
 
-    // 預填：若網址含 ?u= 帳號參數，自動帶入
-    const u = urlParams.get('u');
-    if(u){ usernameInput.value = u.replace(/^@+/,''); }
+    function showMsg(msg){ $result.textContent = msg; }
   </script>
 </body>
 </html>
