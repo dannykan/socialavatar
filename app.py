@@ -1,87 +1,93 @@
+# app.py
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import os, re, requests, random
-
-OPENAI_API_KEY   = os.getenv("OPENAI_API_KEY")
-PAGE_ACCESS_TOKEN= os.getenv("PAGE_ACCESS_TOKEN")
-IG_USER_ID       = os.getenv("IG_USER_ID")
-GRAPH            = "https://graph.facebook.com/v24.0"
+import random
+import time
 
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}})  # 上線後可改成你的前端網域
+CORS(app)  # 允許跨網域，給前端 Vercel 呼叫
 
-def ig_get(path, params):
-    p = dict(params or {})
-    p["access_token"] = PAGE_ACCESS_TOKEN
-    r = requests.get(f"{GRAPH}/{path}", params=p, timeout=30)
-    r.raise_for_status()
-    return r.json()
+MBTI_TYPES = [
+    ("INTJ", "策略型，重視結構與長期目標，貼文常見統一風格與邏輯"),
+    ("INTP", "概念型，喜歡探索抽象與分析，圖片有思考與實驗感"),
+    ("ENTJ", "領導型，目標導向，傳達效率與成就，圖像常有節奏感"),
+    ("ENTP", "創意型，喜歡新穎與變化，貼文多樣、標題有趣"),
+    ("INFJ", "洞察型，注重意義和價值，色調溫潤、敘事性強"),
+    ("INFP", "理想型，重視自我表達與情感，圖片柔和、文案真誠"),
+    ("ENFJ", "溝通型，善於連結他人，內容常以人為中心、正向"),
+    ("ENFP", "靈感型，自由奔放，色彩鮮明、題材多元"),
+    ("ISTJ", "務實型，結構分明，視覺整齊、重視一致性"),
+    ("ISFJ", "照護型，溫暖踏實，圖片有細節與耐心"),
+    ("ESTJ", "執行型，偏向規劃與管理，資訊清楚、強調效率"),
+    ("ESFJ", "協作型，重視關係與互動，常見團體、活動照片"),
+    ("ISTP", "工匠型，注重工具/技能，畫面俐落、偏實用"),
+    ("ISFP", "美感型，重視審美與感受，色調乾淨、構圖講究"),
+    ("ESTP", "行動型，喜歡刺激與現場感，運動/旅行元素多"),
+    ("ESFP", "表演型，喜歡分享生活亮點，色彩鮮豔、活力滿滿"),
+]
 
-def clean_caption(s):
-    if not s: return ""
-    s = re.sub(r"http\S+","", s)
-    s = re.sub(r"#\S+|@\S+","", s)
-    s = re.sub(r"\s+"," ", s).strip()
-    return s
+STYLE_KEYWORDS = [
+    "簡約黑白", "奶油色調", "復古菲林", "高飽和霓虹", "自然光寫真", "旅行紀錄", "街頭紀實",
+    "美食紀錄", "人像特寫", "運動瞬間", "風景廣角", "隨手生活", "專題策展", "拼貼風格"
+]
 
-@app.route("/healthz")
-def healthz():
-    return {"ok": True}
+@app.route("/", methods=["GET"])
+def hello():
+    return jsonify({"ok": True, "service": "SocialAvatar API", "health": "alive"})
 
-@app.route("/run", methods=["POST"])
-def run():
-    body = request.json or {}
-    ig_user_id = body.get("ig_user_id", IG_USER_ID)
-    max_media  = int(body.get("max_media", 30))
-
-    # A) Profile
-    profile = ig_get(f"{ig_user_id}", {
-        "fields": "id,username,biography,followers_count,follows_count,media_count,profile_picture_url,name"
-    })
-
-    # B) Media list（一次抓多些，必要時沿 paging.next 繼續）
-    fields = "id,media_type,caption,permalink,media_url,thumbnail_url,timestamp,like_count,comments_count,children{media_type,media_url,thumbnail_url}"
-    medias = ig_get(f"{ig_user_id}/media", {
-        "fields": fields, "limit": min(max_media,50)
-    }).get("data", [])
-
-    # 整理 captions（給 AI）
-    captions = [clean_caption(m.get("caption")) for m in medias if m.get("caption")]
-    captions = [c for c in captions if c][:60]  # 上限 60 則，避免太長
-
-    # 這裡示意呼叫 AI（你可改成自己的多模態分析）
-    analysis = {
-        "mbti": "ENTJ",
-        "dimensions": {"E_I":"E","S_N":"N","T_F":"T","J_P":"J"},
-        "confidence": 0.72,
-        "rationale": [
-          "貼文語氣偏外向與主動；多為規劃、分享、帶領活動",
-          "主題集中於效率、成就、體育與旅行，顯示目標導向",
-          "用字偏直接简洁，重視可執行與行動"
-        ],
-        "tags": ["運動","旅行","咖啡"]
-    }
-
-    return jsonify({
-        "profile": {
-            "username": profile.get("username"),
-            "biography": profile.get("biography"),
-            "followers_count": profile.get("followers_count"),
-            "follows_count": profile.get("follows_count"),
-            "media_count": profile.get("media_count"),
-            "profile_picture_url": profile.get("profile_picture_url"),
+@app.route("/api/analyze", methods=["POST"])
+def analyze():
+    """
+    前端傳入：
+      { "username": "dannytjkan" }
+    回傳：
+      {
+        "ok": true,
+        "username": "...",
+        "mbti": "ENFP",
+        "confidence": 0.73,
+        "reason": "...",
+        "style_keywords": [...],
+        "samples": {
+            "posts_used": 30,
+            "images_used": 24
         },
-        "medias": [
-            {
-              "id": m["id"],
-              "type": m.get("media_type"),
-              "caption": m.get("caption"),
-              "media_url": m.get("media_url") or m.get("thumbnail_url"),
-              "permalink": m.get("permalink"),
-              "timestamp": m.get("timestamp"),
-              "like_count": m.get("like_count"),
-              "comments_count": m.get("comments_count")
-            } for m in medias
-        ],
-        "analysis": analysis
-    })
+        "generated_at": 1739777777
+      }
+    """
+    try:
+        payload = request.get_json(force=True, silent=True) or {}
+        username = (payload.get("username") or "").strip()
+
+        if not username:
+            return jsonify({"ok": False, "error": "缺少參數 username"}), 400
+
+        # 假分析（隨機產生）
+        mbti, hint = random.choice(MBTI_TYPES)
+        confidence = round(random.uniform(0.62, 0.88), 2)
+        keywords = random.sample(STYLE_KEYWORDS, k=5)
+
+        # 這裡可以接上你真正的 IG 抽取與圖像分析（待辦）
+        # ex: fetch_ig_profile(username) → get posts/media → run image embeddings/labels → summarize
+        # 現在先用 mock 結果
+        result = {
+            "ok": True,
+            "username": username,
+            "mbti": mbti,
+            "confidence": confidence,
+            "reason": f"根據最近貼文的色調、主題變化與敘事方式，呈現出「{hint}」的特徵。",
+            "style_keywords": keywords,
+            "samples": {
+                "posts_used": random.randint(18, 45),
+                "images_used": random.randint(12, 40),
+            },
+            "generated_at": int(time.time())
+        }
+        return jsonify(result)
+
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+if __name__ == "__main__":
+    # 本地啟動：python app.py
+    app.run(host="0.0.0.0", port=8000, debug=True)
