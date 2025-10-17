@@ -157,13 +157,23 @@ def simple_mbti_inference(profile, media_list):
 def health():
     return jsonify({"status": "ok", "frontend_allowed": FRONTEND_ORIGIN}), 200
 
-@app.post("/api/analyze")
+# ✅ 改成支援 GET + POST（並處理 OPTIONS）
+@app.route("/api/analyze", methods=["GET", "POST", "OPTIONS"])
 def analyze():
     try:
         _ensure_tokens()
 
-        body = request.get_json(silent=True) or {}
-        username = _cleanup_username(body.get("username", ""))
+        # Preflight
+        if request.method == "OPTIONS":
+            return ("", 204)
+
+        # 取 username：POST 從 JSON，GET 從 query string
+        if request.method == "POST":
+            body = request.get_json(silent=True) or {}
+            username = _cleanup_username(body.get("username", ""))
+        else:  # GET
+            username = _cleanup_username(request.args.get("username", ""))
+
         if not username:
             return jsonify({"error": "username is required"}), 400
 
