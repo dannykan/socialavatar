@@ -392,3 +392,15 @@ def check_token():
 if __name__ == "__main__":
     # 本地開發才會用；Render 會用 gunicorn/uvicorn 啟動
     app.run(host="0.0.0.0", port=int(os.getenv("PORT", "8000")), debug=True)
+
+
+@app.get("/debug/token")
+def debug_token():
+    try:
+        token = PAGE_ACCESS_TOKEN.strip()
+        url = f"https://graph.facebook.com/{GRAPH_VERSION}/debug_token"
+        params = {"input_token": token, "access_token": token}
+        r = requests.get(url, params=params, timeout=HTTP_TIMEOUT)
+        return jsonify(r.json()), r.status_code
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
