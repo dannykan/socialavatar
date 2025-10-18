@@ -3,6 +3,7 @@ import re
 import json
 import time 
 import requests
+from flask_cors import CORS
 from urllib.parse import urlencode
 from flask import (
     Flask, request, jsonify, redirect, session, send_from_directory
@@ -29,6 +30,17 @@ OAUTH_SCOPES = ["pages_show_list", "instagram_basic"]
 # Flask setup（同域靜態前端）
 # -----------------------------------------------------------------------------
 app = Flask(__name__, static_folder="static", static_url_path="/")
+
+# ✅ CORS：允許 vercel 前端帶 cookie 呼叫 API
+CORS(app, supports_credentials=True, origins=["https://socialavatar.vercel.app"])
+
+# ✅ Session 設定（確保 cookie 可跨域）
+app.secret_key = SESSION_SECRET or "change-me"
+app.config.update(
+    SESSION_COOKIE_SAMESITE="None",   # 允許跨網域
+    SESSION_COOKIE_SECURE=True,       # 必須 HTTPS
+)
+
 app.secret_key = SESSION_SECRET
 app.config.update(
     SESSION_COOKIE_SAMESITE="None",   # 跨站安全 cookie（雖然我們同域，但保險）
