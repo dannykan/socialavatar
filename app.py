@@ -214,26 +214,54 @@ def me_ig_analyze():
     except Exception as e:
         return jsonify({"ok": False, "where": "heuristic", "detail": str(e)}), 200
 
-    # 4) 如果你有加 OpenAI，建議包 try/except，失敗就 fallback
+    # 4) 如果有 OPENAI_API_KEY，使用 AI 生成更完整描述（可選）
     use_openai = bool(os.getenv("OPENAI_API_KEY"))
     if use_openai:
         try:
-            # ---- 你的 OpenAI 呼叫，失敗也不要 raise ----
-            #   summary = call_openai(prof, media_list, mbti)  # 自己的封裝
-            #   if summary: reason = summary[:100]
-            pass
+            from openai import OpenAI
+            client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+            prompt = f"""
+            這是一個 Instagram 使用者的公開資料：
+            名稱：{prof.get('name')}
+            簡介：{prof.get('biography')}
+            貼文數：{prof.get('media_count')}
+            粉絲數：{prof.get('followers_count')}
+            追蹤數：{prof.get('follows_count')}
+            MBTI 初步推論：{mbti}
+
+            請以心理學角度，用輕鬆口吻（100字內），生成一段分析說明，描述這個人的社群個性、風格與氛圍。
+            """
+            resp = client.responses.create(
+                model="gpt-4.1-mini",
+                input=prompt,
+                max_output_tokens=150
+            )
+            text = resp.output_text.strip()
+            if text:
+                reason = text[:100]
         except Exception as e:
-            # 記 log，但不要讓整個 API 失敗
             print("[OpenAI failed]", e)
 
-    out = {
+    # --------------------------
+    # ✅ 最後保底輸出邏輯
+    # --------------------------
+    if not prof or not isinstance(prof, dict):
+        prof = {"username": b.get("ig_username", ""), "name": ""}
+
+    if 'mbti' not in locals():
+        try:
+            mbti, reason = mbti_heuristic(prof, [])
+        except:
+            mbti, reason = "ISFJ", "保底輸出：資料不足，以保守穩健型給出暫時結果。"
+
+    return jsonify({
         "ok": True,
         "ig_account": prof.get("username") or b.get("ig_username") or "",
         "profile_name": prof.get("name") or "",
         "mbti": mbti,
-        "reason": reason  # <= 100 字可在前端裁切
-    }
-    return jsonify(out), 200
+        "reason": reason
+    }), 200
 
 @app.get("/me/ig/check")
 def me_ig_check():
