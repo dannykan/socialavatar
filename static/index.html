@@ -2,147 +2,187 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>SocialAvatar - AI 駕馭的 Instagram 人格分析</title>
   <style>
-    body {
-      background-color: #0d1117;
-      color: #e6edf3;
-      font-family: "Noto Sans TC", "Segoe UI", Arial, sans-serif;
+    :root {
+      --bg: #0d1117;
+      --panel: #161b22;
+      --border: #30363d;
+      --text: #e6edf3;
+      --muted: #9ca3af;
+      --primary: #238636;
+      --primary-hover: #2ea043;
+      --info: #58a6ff;
+      --danger: #ef4444;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      height: 100%;
       margin: 0;
-      padding: 0;
-      min-height: 100vh;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      text-align: center;
+      font-family: "Noto Sans TC", system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    .wrap {
+      min-height: 100%;
+      display: grid;
+      place-items: center;
+      padding: 24px;
     }
     .card {
-      background-color: #161b22;
-      border: 1px solid #30363d;
+      width: 100%;
+      max-width: 560px;
+      background: var(--panel);
+      border: 1px solid var(--border);
       border-radius: 16px;
-      padding: 2rem;
-      width: 90%;
-      max-width: 480px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+      padding: 24px;
+      box-shadow: 0 8px 28px rgba(0,0,0,.35);
+      text-align: center;
+      animation: fadeIn .25s ease-out;
     }
     h1 {
-      font-size: 1.6rem;
-      margin-bottom: 0.5rem;
+      margin: 0 0 8px;
+      font-size: clamp(20px, 4vw, 26px);
     }
-    p {
-      color: #9ca3af;
-      line-height: 1.6;
-    }
-    button {
-      background: #238636;
-      color: #fff;
+    p { color: var(--muted); line-height: 1.7; margin: 8px 0; }
+    .loading { color: var(--info); animation: pulse 1.5s infinite; }
+    .btn {
+      display: inline-block;
+      margin-top: 14px;
+      padding: 10px 16px;
+      border-radius: 10px;
       border: none;
-      border-radius: 8px;
-      padding: 0.7rem 1.2rem;
-      font-size: 1rem;
-      margin-top: 1rem;
+      color: #fff;
+      background: var(--primary);
+      font-size: 16px;
       cursor: pointer;
     }
-    button:hover {
-      background: #2ea043;
+    .btn:hover { background: var(--primary-hover); }
+    .btn-ghost {
+      background: transparent; color: var(--text);
+      border: 1px solid var(--border);
     }
-    .loading {
-      animation: pulse 1.5s infinite;
-      color: #58a6ff;
-    }
+    .danger { color: var(--danger); }
     @keyframes pulse {
-      0% { opacity: 0.4; }
-      50% { opacity: 1; }
-      100% { opacity: 0.4; }
+      0% { opacity: .4 } 50% { opacity: 1 } 100% { opacity: .4 }
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px) }
+      to   { opacity: 1; transform: translateY(0) }
     }
   </style>
 </head>
 <body>
-  <div class="card">
-    <h1>SocialAvatar</h1>
-    <p id="status">正在連線伺服器...</p>
-    <div id="result"></div>
-    <button id="retryBtn" style="display:none;">重新整理</button>
+  <div class="wrap">
+    <div class="card">
+      <h1>SocialAvatar</h1>
+      <p id="status">正在連線伺服器...</p>
+      <div id="result"></div>
+      <div id="actions" style="margin-top:12px;"></div>
+    </div>
   </div>
 
   <script>
-    const API_BASE = "https://socialavatar.onrender.com";
-    const statusEl = document.getElementById("status");
-    const resultEl = document.getElementById("result");
-    const retryBtn = document.getElementById("retryBtn");
+    // 重要：使用相對路徑，確保 session cookie 能正確被同源帶上
+    const statusEl  = document.getElementById('status');
+    const resultEl  = document.getElementById('result');
+    const actionsEl = document.getElementById('actions');
 
-    retryBtn.onclick = () => window.location.reload();
+    function setActions(html) { actionsEl.innerHTML = html; }
+    function goLogin() { window.location.href = '/auth/login'; }
+    function reload()  { window.location.reload(); }
 
-    async function checkBackend() {
+    async function ping() {
       try {
-        const health = await fetch(`${API_BASE}/health`);
-        if (!health.ok) throw new Error("server not ok");
-        console.log("✅ Backend reachable.");
-        checkAuth();
+        const r = await fetch('/health', { credentials: 'include' });
+        if (!r.ok) throw new Error('server not ok');
+        return true;
       } catch (e) {
-        console.error("❌ 無法連線伺服器:", e);
-        statusEl.textContent = "無法連線伺服器，請稍後重試。";
-        retryBtn.style.display = "inline-block";
+        console.error('[health] failed:', e);
+        return false;
       }
     }
 
     async function checkAuth() {
-      statusEl.textContent = "正在檢查登入狀態...";
+      statusEl.textContent = '正在檢查登入狀態...';
       try {
-        const res = await fetch(`${API_BASE}/auth/status`, { credentials: "include" });
-        const data = await res.json();
-        console.log("Auth status:", data);
-
-        if (data.status === "bound") {
-          startAnalyze();
-        } else {
-          statusEl.textContent = "尚未登入，前往 Facebook 登入...";
-          window.location.href = `${API_BASE}/auth/login`;
-        }
+        const r = await fetch('/auth/status', { credentials: 'include' });
+        const data = await r.json().catch(() => ({}));
+        console.log('[auth/status]:', data);
+        if (data && data.status === 'bound') return true;
       } catch (e) {
-        console.error("Auth check error:", e);
-        statusEl.textContent = "登入檢查失敗，請稍後重試。";
-        retryBtn.style.display = "inline-block";
+        console.error('[auth/status] error:', e);
       }
+      return false;
     }
 
-    async function startAnalyze() {
+    async function analyze() {
       statusEl.innerHTML = '<span class="loading">正在分析你的 Instagram 個人頁面...</span>';
+      setActions('');
+      resultEl.innerHTML = '';
+
       try {
-        const res = await fetch(`${API_BASE}/me/ig/analyze`, {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: "{}"
+        const r = await fetch('/me/ig/analyze', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: '{}'
         });
-        const data = await res.json();
-        console.log("Analyze result:", data);
+        const data = await r.json();
+        console.log('[analyze]:', data);
 
         if (data.ok) {
-          statusEl.textContent = "✨ 分析完成";
+          statusEl.textContent = '✨ 分析完成';
           resultEl.innerHTML = `
-            <p><strong>@${data.ig_account}</strong></p>
-            <p>${data.profile_name}</p>
-            <p><strong>社群MBTI：</strong> ${data.mbti}</p>
+            <p><strong>@${data.ig_account || '-'}</strong></p>
+            <p>${data.profile_name || '-'}</p>
+            <p><strong>社群 MBTI：</strong> ${data.mbti}</p>
             <p>${data.reason}</p>
           `;
-          retryBtn.textContent = "重新分析";
-          retryBtn.style.display = "inline-block";
-          retryBtn.onclick = () => (window.location.href = `${API_BASE}/auth/login`);
+          setActions(`
+            <button class="btn" onclick="goLogin()">重新登入</button>
+            <button class="btn btn-ghost" onclick="reload()">重新整理</button>
+          `);
         } else {
-          statusEl.textContent = "分析失敗";
-          resultEl.innerHTML = `<p>${JSON.stringify(data)}</p>`;
-          retryBtn.style.display = "inline-block";
+          statusEl.innerHTML = '分析失敗';
+          resultEl.innerHTML = `<p class="danger">${escapeHtml(JSON.stringify(data))}</p>`;
+          setActions(`
+            <button class="btn" onclick="goLogin()">前往登入</button>
+            <button class="btn btn-ghost" onclick="reload()">重新整理</button>
+          `);
         }
       } catch (e) {
-        console.error("Analyze failed:", e);
-        statusEl.textContent = "分析過程發生錯誤。";
-        retryBtn.style.display = "inline-block";
+        console.error('[analyze] network error:', e);
+        statusEl.textContent = '分析過程發生錯誤。';
+        setActions(`<button class="btn" onclick="reload()">重新整理</button>`);
       }
     }
 
-    checkBackend();
+    function escapeHtml(s='') {
+      return s.replace(/[&<>"']/g, c => (
+        { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]
+      ));
+    }
+
+    (async () => {
+      const ok = await ping();
+      if (!ok) {
+        statusEl.textContent = '無法連線伺服器，請稍後重試。';
+        setActions(`<button class="btn" onclick="reload()">重新整理</button>`);
+        return;
+      }
+
+      const bound = await checkAuth();
+      if (!bound) {
+        statusEl.textContent = '尚未登入，前往 Facebook 授權...';
+        setActions(`<button class="btn" onclick="goLogin()">前往登入</button>`);
+        // 也可以自動跳轉：
+        // goLogin();
+        return;
+      }
+      analyze();
+    })();
   </script>
 </body>
 </html>
