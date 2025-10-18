@@ -1,101 +1,305 @@
-<!DOCTYPE html>
-<html lang="zh-TW">
+<!doctype html>
+<html lang="zh-Hant">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SocialAvatar</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>SocialAvatar — IG 人格分析</title>
+  <meta name="color-scheme" content="dark light"/>
   <style>
+    :root {
+      --bg: #0b1220;
+      --card: #141b2a;
+      --muted: #9fb0c3;
+      --text: #e8f0ff;
+      --accent: #6aa6ff;
+      --ok: #2ecc71;
+      --warn: #ffb74d;
+      --danger: #ff6b6b;
+      --ring: rgba(255,255,255,.08);
+    }
+    html,body { height:100%; }
     body {
-      background-color: #0d1117;
-      color: #f0f6fc;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      margin: 0;
+      margin:0; background:var(--bg); color:var(--text);
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "PingFang TC",
+                   "Noto Sans TC", "Helvetica Neue", Arial, "Hiragino Sans", sans-serif;
+    }
+    .wrap {
+      min-height:100%;
+      display:flex; align-items:center; justify-content:center;
+      padding:24px;
+      position:relative; overflow:hidden;
+    }
+    .bg {
+      position:absolute; inset:0; z-index:0;
+      background: radial-gradient(ellipse at 70% -10%, rgba(106,166,255,.15), transparent 40%),
+                  radial-gradient(ellipse at 0% 100%, rgba(255,255,255,.06), transparent 50%);
+      filter:saturate(1.1);
+    }
+    .bg-img {
+      position:absolute; inset:-20px; z-index:-1; opacity:.18;
+      background-position:center; background-size:cover;
+      filter: blur(18px) saturate(1.05);
+      transform: scale(1.05);
     }
     .card {
-      background-color: #161b22;
-      border: 1px solid #30363d;
-      border-radius: 12px;
-      padding: 24px;
-      width: 90%;
-      max-width: 400px;
-      text-align: center;
+      width:min(1100px, 95vw);
+      background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+      border:1px solid var(--ring);
+      border-radius:20px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.35);
+      position:relative; z-index:2;
+      overflow:hidden;
     }
-    button {
-      background: #238636;
-      border: none;
-      color: white;
-      padding: 10px 16px;
-      border-radius: 6px;
-      cursor: pointer;
-      margin-top: 12px;
+    header {
+      display:flex; align-items:center; justify-content:space-between;
+      padding:16px 20px;
+      border-bottom:1px solid var(--ring);
+      background: rgba(10,15,25,.6);
+      backdrop-filter: blur(8px);
     }
-    button:hover { background: #2ea043; }
+    .brand { font-weight:700; letter-spacing:.2px; font-size:18px; }
+    .actions { display:flex; gap:8px; }
+    button, .btn {
+      appearance:none; border:1px solid var(--ring); color:var(--text);
+      background:rgba(255,255,255,.04); padding:8px 14px;
+      border-radius:12px; cursor:pointer; font-weight:600; font-size:14px;
+    }
+    .btn-primary { background: #2b5fff; border-color:#2b5fff; }
+    .btn-ghost { background:transparent; }
+    .btn-ok { background: #1f9d6c; border-color:#1f9d6c; }
+    .btn:disabled { opacity:.6; cursor:not-allowed; }
+
+    .hero {
+      display:grid; grid-template-columns: 130px 1fr; gap:18px; padding:18px 20px;
+      align-items:center;
+    }
+    .avatar {
+      width:110px; height:110px; border-radius:50%;
+      border:2px solid rgba(255,255,255,.25); object-fit:cover; background:#0a0f18;
+    }
+    .meta .name { font-size:24px; font-weight:800; line-height:1.15; }
+    .meta .username { color:var(--muted); margin-top:2px; }
+    .stats { display:flex; gap:16px; margin-top:10px; flex-wrap:wrap; }
+    .stat { background:rgba(255,255,255,.05); border:1px solid var(--ring);
+            padding:8px 12px; border-radius:10px; font-weight:700; }
+    .bio { margin-top:8px; color:var(--muted); }
+
+    .grid {
+      padding:8px 12px 18px; display:grid;
+      grid-template-columns: repeat(6, 1fr); gap:10px;
+    }
+    .tile { position:relative; border-radius:12px; overflow:hidden;
+            border:1px solid var(--ring); background:#0f1522; aspect-ratio:1/1; }
+    .tile img { width:100%; height:100%; object-fit:cover; display:block; }
+
+    .result {
+      padding:12px 16px 20px; border-top:1px solid var(--ring);
+      display:flex; gap:14px; flex-wrap:wrap; align-items:center;
+      background: rgba(0,0,0,.12);
+    }
+    .badge { background:rgba(255,255,255,.06); border:1px solid var(--ring);
+             padding:8px 12px; border-radius:10px; font-weight:800; letter-spacing:.6px; }
+    .badge.ok { background: rgba(33, 180, 115, .2); border-color: rgba(33,180,115,.4); }
+    .reason { color:var(--muted); line-height:1.6; }
+
+    .loading, .error-box, .empty {
+      text-align:center; padding:32px; color:var(--muted);
+    }
+    .foot {
+      padding:12px 20px; border-top:1px solid var(--ring);
+      display:flex; justify-content:flex-end; gap:10px; background: rgba(10,15,25,.6);
+      backdrop-filter: blur(8px);
+    }
+
+    @media (max-width:900px) {
+      .hero { grid-template-columns: 90px 1fr; }
+      .avatar { width:80px; height:80px; }
+      .meta .name { font-size:20px; }
+      .grid { grid-template-columns: repeat(3, 1fr); }
+    }
+    @media (max-width:520px) {
+      .wrap { padding:14px; }
+      .result { padding:12px; }
+    }
   </style>
 </head>
 <body>
-  <div class="card">
-    <h2>SocialAvatar</h2>
-    <p id="status">正在檢查登入狀態...</p>
-    <div id="result" style="display:none;">
-      <h3 id="mbti"></h3>
-      <p id="reason"></p>
+  <div class="wrap">
+    <div class="bg"></div>
+    <div id="bgImg" class="bg-img" aria-hidden="true"></div>
+
+    <div class="card" role="main" aria-live="polite">
+      <header>
+        <div class="brand">SocialAvatar</div>
+        <div class="actions">
+          <button class="btn btn-ghost" id="btnDebug">偵錯</button>
+          <button class="btn" id="btnRelogin">重新登入</button>
+        </div>
+      </header>
+
+      <div id="panelLoading" class="loading">正在讀取你的 Instagram 個人頁面…</div>
+      <div id="panelError" class="error-box" hidden>
+        登入檢查失敗，請稍後重試。
+        <div style="margin-top:10px">
+          <button class="btn" id="btnRetry">重試</button>
+        </div>
+      </div>
+
+      <section id="panelProfile" hidden>
+        <div class="hero">
+          <img id="avatar" class="avatar" alt="avatar"/>
+          <div class="meta">
+            <div class="name" id="name"></div>
+            <div class="username" id="username"></div>
+            <div class="stats">
+              <div class="stat"><span id="followers">0</span> 粉絲</div>
+              <div class="stat"><span id="follows">0</span> 追蹤中</div>
+              <div class="stat"><span id="mediaCount">0</span> 貼文</div>
+            </div>
+            <div class="bio" id="bio"></div>
+          </div>
+        </div>
+
+        <div id="grid" class="grid"></div>
+
+        <div class="result" id="panelResult" hidden>
+          <div class="badge ok" id="mbtiBadge">分析完成</div>
+          <div class="badge" id="mbtiType">MBTI</div>
+          <div class="reason" id="mbtiReason"></div>
+        </div>
+      </section>
+
+      <footer class="foot">
+        <button class="btn" id="btnRefresh">重新整理</button>
+        <button class="btn-primary" id="btnStartOver">開始分析</button>
+      </footer>
     </div>
-    <button id="loginBtn" style="display:none;">登入 Instagram</button>
-    <button id="analyzeBtn" style="display:none;">開始分析</button>
   </div>
 
   <script>
-    const API_BASE = "https://socialavatar.onrender.com";
+    const $ = (sel) => document.querySelector(sel);
+    const show = (el, yes=true) => { el.hidden = !yes; };
+    const setbg = (url) => { if(url) $('#bgImg').style.backgroundImage = `url("${url}")`; };
 
-    async function checkStatus() {
-      try {
-        const r = await fetch(`${API_BASE}/auth/status`, { credentials: "include" });
-        const j = await r.json();
-        console.log("status:", j);
-        if (j.status === "bound") {
-          document.getElementById("status").innerText = `已登入 IG：${j.ig_username}`;
-          document.getElementById("analyzeBtn").style.display = "inline-block";
-        } else {
-          document.getElementById("status").innerText = "尚未登入";
-          document.getElementById("loginBtn").style.display = "inline-block";
-        }
-      } catch {
-        document.getElementById("status").innerText = "無法連線伺服器。";
-      }
+    async function api(path, opts={}) {
+      const r = await fetch(path, {
+        credentials:'include',
+        headers: { 'Content-Type':'application/json' },
+        ...opts
+      });
+      if (!r.ok) throw new Error(`${path} ${r.status}`);
+      return r.json();
     }
 
-    async function doAnalyze() {
-      document.getElementById("status").innerText = "正在分析...";
-      try {
-        const r = await fetch(`${API_BASE}/me/ig/analyze`, {
-          method: "POST",
-          credentials: "include"
-        });
-        const j = await r.json();
-        if (j.ok) {
-          document.getElementById("result").style.display = "block";
-          document.getElementById("mbti").innerText = `${j.mbti}`;
-          document.getElementById("reason").innerText = j.reason;
-          document.getElementById("status").innerText = "分析完成 ✅";
-        } else {
-          document.getElementById("status").innerText = "分析失敗：" + j.error;
-        }
-      } catch {
-        document.getElementById("status").innerText = "連線失敗";
-      }
+    function mediaThumb(m) {
+      return m.media_url || m.thumbnail_url || '';
     }
 
-    document.getElementById("loginBtn").onclick = () => {
-      window.location.href = `${API_BASE}/auth/login`;
-    };
-    document.getElementById("analyzeBtn").onclick = doAnalyze;
+    function renderProfile(prof) {
+      $('#name').textContent = prof.name || '—';
+      $('#username').textContent = '@' + (prof.username || '—');
+      $('#followers').textContent = prof.followers_count ?? 0;
+      $('#follows').textContent   = prof.follows_count ?? 0;
+      $('#mediaCount').textContent= prof.media_count ?? 0;
+      $('#bio').textContent = prof.biography || '';
+      $('#avatar').src = prof.profile_picture_url || '';
+      $('#avatar').alt = `${prof.username || ''} 的頭像`;
+    }
 
-    checkStatus();
+    function renderGrid(list) {
+      const grid = $('#grid');
+      grid.innerHTML = '';
+      const top = (list || []).slice(0, 12);
+      top.forEach(m => {
+        const src = mediaThumb(m);
+        if (!src) return;
+        const d = document.createElement('div');
+        d.className = 'tile';
+        const img = document.createElement('img');
+        img.loading = 'lazy';
+        img.alt = m.caption || '貼文圖片';
+        img.src = src;
+        d.appendChild(img);
+        grid.appendChild(d);
+      });
+      // 背景用最新一張圖
+      if (top[0] && mediaThumb(top[0])) setbg(mediaThumb(top[0]));
+    }
+
+    function renderMBTI(data) {
+      $('#mbtiBadge').textContent = '分析完成 ✅';
+      $('#mbtiType').textContent = data.mbti || '—';
+      $('#mbtiReason').textContent = data.reason || '';
+      show($('#panelResult'), true);
+    }
+
+    async function run() {
+      show($('#panelLoading'), true);
+      show($('#panelError'), false);
+      show($('#panelProfile'), false);
+
+      // 0) 狀態
+      let st;
+      try {
+        st = await api('/auth/status');
+      } catch (e) {
+        show($('#panelLoading'), false);
+        show($('#panelError'), true);
+        return;
+      }
+      if (st.status !== 'bound') {
+        // 尚未登入 → 導向登入
+        location.href = '/auth/login';
+        return;
+      }
+
+      // 1) 基本資料
+      let profile;
+      try {
+        profile = await api('/me/ig/basic');
+      } catch (e) {
+        show($('#panelLoading'), false);
+        show($('#panelError'), true);
+        return;
+      }
+
+      // 2) 媒體
+      let media = { data: [] };
+      try {
+        media = await api('/me/ig/media');
+      } catch (e) {}
+
+      // 3) 分析
+      let analysis;
+      try {
+        analysis = await api('/me/ig/analyze', { method:'POST', body:'{}' });
+      } catch (e) {
+        // 分析失敗不擋住：只是不顯示結果
+      }
+
+      // render
+      renderProfile(profile);
+      renderGrid(media.data || []);
+      if (analysis && analysis.ok) renderMBTI(analysis);
+
+      show($('#panelLoading'), false);
+      show($('#panelProfile'), true);
+    }
+
+    // Buttons
+    $('#btnRelogin').addEventListener('click', () => location.href='/auth/login');
+    $('#btnRetry').addEventListener('click', () => location.reload());
+    $('#btnRefresh').addEventListener('click', () => location.reload());
+    $('#btnStartOver').addEventListener('click', () => location.href='/auth/login');
+    $('#btnDebug').addEventListener('click', () => {
+      const w = window.open('', '_blank');
+      w.document.write(`<pre>Fetching…</pre>`);
+      Promise.all([api('/auth/status'), api('/me/ig/check')])
+        .then(([a,b]) => w.document.body.innerHTML = `<pre>${JSON.stringify({status:a,check:b}, null,2)}</pre>`)
+        .catch(err => w.document.body.innerHTML = `<pre>fetch failed\n${err}</pre>`);
+    });
+
+    run();
   </script>
 </body>
 </html>
