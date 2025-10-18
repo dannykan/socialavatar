@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>SocialAvatar｜AI 個人社群分析</title>
   <meta name="description" content="一鍵登入 Instagram，AI 依你的貼文風格、縮圖與自介生成專屬 MBTI 社群人格分析報告。" />
   <meta name="theme-color" content="#0b1220" />
@@ -11,70 +11,87 @@
   <meta property="og:description" content="一鍵登入 Instagram，AI 依你的貼文風格、縮圖與自介生成專屬 MBTI 社群人格分析報告。" />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://socialavatar.vercel.app/" />
-  <meta property="og:image" content="https://socialavatar.vercel.app/og.jpg" />
-  <!-- Favicon（可替換為你的檔案） -->
+  <meta property="og:image" content="/og.jpg" />
   <link rel="icon" href="/favicon.ico" />
   <style>
     :root{
       --bg:#0a0f1a; --fg:#e6edf3; --muted:#a6b6d4; --accent:#7aa2ff; --accent2:#9b6bff;
       --glass:rgba(255,255,255,0.08); --line:rgba(255,255,255,0.12);
+      --maxw:1080px;
     }
     *{box-sizing:border-box}
     html,body{height:100%}
     body{
-      margin:0; color:var(--fg); font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Inter,"Noto Sans TC","PingFang TC",Helvetica,Arial;
+      margin:0; color:var(--fg);
+      font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Inter,"Noto Sans TC","PingFang TC",Helvetica,Arial;
       background: radial-gradient(1200px 800px at 20% 10%, rgba(122,162,255,.18), transparent 60%),
                   radial-gradient(1000px 700px at 80% 90%, rgba(155,107,255,.18), transparent 60%),
                   linear-gradient(180deg, #070b13 0%, #0b1220 100%);
       min-height:100%;
-      overflow-x:hidden;
+      -webkit-tap-highlight-color: transparent;
     }
-    /* 漂浮光暈 */
-    .halo{position:fixed;inset:0;pointer-events:none;mix-blend-mode:screen;opacity:.5}
-    .halo::before,.halo::after{
-      content:""; position:absolute; width:60vmax; height:60vmax; border-radius:50%;
-      filter:blur(60px); opacity:.25; animation:float 18s ease-in-out infinite alternate;
-    }
-    .halo::before{left:-10vmax; top:-10vmax; background:radial-gradient(circle,#7aa2ff, transparent 60%)}
-    .halo::after{right:-15vmax; bottom:-15vmax; background:radial-gradient(circle,#9b6bff, transparent 60%)}
-    @keyframes float{to{transform:translate3d(4vmax,2vmax,0) scale(1.04)}}
 
-    .shell{max-width:1080px;margin:0 auto;padding:24px 16px}
-    header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0}
+    /* 浮動光暈（自動降噪以尊重「減少動態」偏好） */
+    .halo{position:fixed;inset:0;pointer-events:none;mix-blend-mode:screen;opacity:.45}
+    .halo::before,.halo::after{
+      content:""; position:absolute; width:70vmax; height:70vmax; border-radius:50%;
+      filter:blur(70px); opacity:.22; animation:float 18s ease-in-out infinite alternate;
+    }
+    .halo::before{left:-12vmax; top:-12vmax; background:radial-gradient(circle,#7aa2ff, transparent 60%)}
+    .halo::after{right:-16vmax; bottom:-16vmax; background:radial-gradient(circle,#9b6bff, transparent 60%)}
+    @keyframes float{to{transform:translate3d(4vmax,2vmax,0) scale(1.04)}}
+    @media (prefers-reduced-motion: reduce){
+      .halo{display:none}
+      *{animation:none !important; transition:none !important}
+    }
+
+    .shell{max-width:var(--maxw);margin:0 auto;padding:clamp(12px,2.5vw,24px) clamp(10px,3.4vw,18px)}
+    header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:clamp(8px,1.8vw,12px) 0}
     .brand{display:flex;align-items:center;gap:10px}
     .logo{
-      width:36px;height:36px;border-radius:10px;display:grid;place-items:center;
+      width:clamp(30px,6vw,40px);height:clamp(30px,6vw,40px);border-radius:10px;display:grid;place-items:center;
       background:linear-gradient(135deg,var(--accent),var(--accent2)); box-shadow:0 8px 20px rgba(122,162,255,.35);
     }
-    .logo svg{width:22px;height:22px;fill:white}
-    .brand span{font-weight:800;letter-spacing:.3px}
+    .logo svg{width:60%;height:60%;fill:white}
+    .brand span{font-weight:800;letter-spacing:.3px;font-size:clamp(16px,3.5vw,20px)}
 
     .card{
-      margin:6vh auto 0; max-width:880px; padding:28px 26px;
+      margin:clamp(24px,6vh,56px) auto 0; max-width:920px; width:100%;
+      padding:clamp(16px,3.5vw,28px) clamp(14px,4vw,26px);
       background:var(--glass); border:1px solid var(--line); border-radius:18px;
-      backdrop-filter:blur(12px); box-shadow:0 20px 60px rgba(0,0,0,.35);
+      backdrop-filter:blur(12px); box-shadow:0 18px 50px rgba(0,0,0,.35);
       text-align:center;
     }
-    h1{margin:6px 0 10px; font-size:clamp(26px,4vw,40px); line-height:1.15}
-    p.lead{margin:0 auto 22px; color:var(--muted); max-width:700px; font-size:clamp(15px,2.2vw,18px); line-height:1.7}
-    .cta{
-      display:inline-flex; align-items:center; gap:10px; cursor:pointer;
-      border:none; color:white; background:linear-gradient(135deg,var(--accent),var(--accent2));
-      padding:14px 22px; border-radius:12px; font-weight:700; font-size:16px;
-      box-shadow:0 10px 26px rgba(122,162,255,.35); transition:transform .15s ease, box-shadow .2s ease;
-    }
-    .cta:hover{transform:translateY(-2px); box-shadow:0 14px 34px rgba(122,162,255,.5)}
-    .cta:active{transform:translateY(0)}
-    .features{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:22px}
-    .feature{border:1px dashed var(--line);border-radius:12px;padding:12px 12px;color:var(--muted);font-size:14px}
-    .feature b{color:var(--fg)}
-    footer{padding:22px 6px;color:var(--muted);text-align:center;font-size:13px}
-    .kbd{font-family:ui-monospace,Menlo,Consolas,monospace;background:#0a1323;border:1px solid var(--line);padding:2px 6px;border-radius:6px}
+    h1{margin:6px 0 10px; font-size:clamp(24px,6vw,40px); line-height:1.15}
+    p.lead{margin:0 auto clamp(14px,3.2vw,24px); color:var(--muted); max-width:760px; font-size:clamp(14px,4vw,18px); line-height:1.7}
 
-    @media (max-width:820px){
-      .features{grid-template-columns:1fr}
-      .card{padding:22px 18px}
+    .cta{
+      display:inline-flex; align-items:center; gap:10px; cursor:pointer; width:100%;
+      max-width:min(560px,88vw);
+      border:none; color:white; background:linear-gradient(135deg,var(--accent),var(--accent2));
+      padding:clamp(12px,3.6vw,16px) clamp(16px,4.6vw,22px); border-radius:14px;
+      font-weight:800; font-size:clamp(15px,4.5vw,18px); letter-spacing:.3px;
+      box-shadow:0 10px 28px rgba(122,162,255,.35);
+      transition:transform .15s ease, box-shadow .2s ease;
+      touch-action:manipulation;
     }
+    .cta:hover{transform:translateY(-1px); box-shadow:0 14px 34px rgba(122,162,255,.5)}
+    .cta:active{transform:translateY(0)}
+    .cta span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+    .features{
+      display:grid; gap:clamp(10px,2.6vw,14px); margin-top:clamp(14px,3.2vw,22px);
+      grid-template-columns:repeat(3,minmax(0,1fr));
+    }
+    .feature{border:1px dashed var(--line);border-radius:12px;padding:clamp(10px,2.8vw,12px) clamp(10px,2.8vw,12px);color:var(--muted);font-size:clamp(13px,3.8vw,14px);text-align:left}
+    .feature b{color:var(--fg)}
+    @media (max-width:900px){ .features{grid-template-columns:repeat(2,minmax(0,1fr))} }
+    @media (max-width:640px){ .features{grid-template-columns:1fr} .feature{text-align:center} }
+
+    footer{padding:clamp(14px,3vw,22px) 6px;color:var(--muted);text-align:center;font-size:clamp(12px,3.6vw,13px)}
+    .kbd{font-family:ui-monospace,Menlo,Consolas,monospace;background:#0a1323;border:1px solid var(--line);padding:2px 6px;border-radius:6px;color:#cfe0ff;text-decoration:none}
+    .toplink{display:none}
+    @media (min-width:760px){ .toplink{display:inline-block} }
   </style>
 </head>
 <body>
@@ -84,15 +101,14 @@
     <header aria-label="品牌導覽列">
       <div class="brand">
         <div class="logo" aria-hidden="true">
-          <!-- 簡單星形 Logo，可換你的檔案 -->
           <svg viewBox="0 0 24 24" role="img" aria-label="Logo">
             <path d="M12 2l2.3 5.9L20 9.1l-4.5 4 1.3 6-4.8-3-4.8 3 1.3-6L4 9.1l5.7-1.2L12 2z"/>
           </svg>
         </div>
         <span>SocialAvatar</span>
       </div>
-      <nav aria-label="次導覽">
-        <a href="https://socialavatar.onrender.com/" class="kbd" style="text-decoration:none;color:#cfe0ff" aria-label="直接前往分析系統">
+      <nav aria-label="快速連結">
+        <a href="https://socialavatar.onrender.com/" class="kbd toplink" aria-label="直接前往分析系統">
           直接開始 →
         </a>
       </nav>
@@ -106,11 +122,11 @@
           以「第一次打開個人頁」的直覺，生成你的 <b>MBTI 社群人格</b>與精準說明。
         </p>
         <button class="cta" onclick="start()" aria-label="開始分析我的 Instagram">
-          🚀 開始分析我的 IG
+          <span>🚀 開始分析我的 IG</span>
         </button>
 
         <div class="features" aria-label="重點特色">
-          <div class="feature"><b>第一眼判讀</b><br>像新訪客進你的頁面，從首屏資訊直接推論人格氛圍。</div>
+          <div class="feature"><b>第一眼判讀</b><br>像新訪客一樣看你的首屏資訊，直覺推論人格氛圍。</div>
           <div class="feature"><b>視覺＋文字線索</b><br>縮圖風格、用詞習慣、統計數據交叉佐證。</div>
           <div class="feature"><b>即時產出</b><br>登入後數秒內產生可分享的結果卡片。</div>
         </div>
@@ -125,13 +141,11 @@
 
   <script>
     function start(){
-      // 導向 Render 主站：整個 OAuth + 分析流程在那邊完成
-      window.location.href = "https://socialavatar.onrender.com/";
+      // 手機友善：用 replace 避免回上一頁混淆
+      window.location.replace("https://socialavatar.onrender.com/");
     }
-    // 鍵盤使用者也能直接 Enter 觸發
-    document.addEventListener("keydown", (e)=>{
-      if(e.key==="Enter") start();
-    });
+    // 鍵盤可達性：Enter 也能啟動
+    document.addEventListener("keydown", (e)=>{ if(e.key==="Enter") start(); });
   </script>
 </body>
 </html>
