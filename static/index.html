@@ -2,304 +2,341 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>SocialAvatar — IG 人格分析</title>
-  <meta name="color-scheme" content="dark light"/>
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"
+/>
+  <title>SocialAvatar</title>
+  <meta name="description" content="AI 驅動的 Instagram 人格分析工具" />
   <style>
-    :root {
-      --bg: #0b1220;
-      --card: #141b2a;
-      --muted: #9fb0c3;
-      --text: #e8f0ff;
-      --accent: #6aa6ff;
-      --ok: #2ecc71;
-      --warn: #ffb74d;
-      --danger: #ff6b6b;
-      --ring: rgba(255,255,255,.08);
+    :root{
+      --bg:#0b1220;
+      --panel:#121a2b;
+      --muted:#94a3b8;
+      --text:#e6edf3;
+      --accent:#74c0fc;
+      --accent-2:#2ecc71;
+      --danger:#ef4444;
+      --border:#22314f;
+      --chip:#1a243a;
     }
-    html,body { height:100%; }
-    body {
-      margin:0; background:var(--bg); color:var(--text);
-      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "PingFang TC",
-                   "Noto Sans TC", "Helvetica Neue", Arial, "Hiragino Sans", sans-serif;
-    }
-    .wrap {
-      min-height:100%;
-      display:flex; align-items:center; justify-content:center;
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      color:var(--text);
+      background: radial-gradient(1000px 600px at 20% -10%, #1b2a4b 0%, transparent 55%),
+                  radial-gradient(800px 500px at 110% 10%, #0f2450 0%, transparent 55%),
+                  var(--bg);
+      font-family: ui-sans-serif, system-ui, -apple-system, "PingFang TC", "Noto Sans TC", "Segoe UI", Roboto, "Helvetica Neue", Arial, "Microsoft JhengHei", "細明體", sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      display:flex;align-items:center;justify-content:center;
       padding:24px;
-      position:relative; overflow:hidden;
     }
-    .bg {
-      position:absolute; inset:0; z-index:0;
-      background: radial-gradient(ellipse at 70% -10%, rgba(106,166,255,.15), transparent 40%),
-                  radial-gradient(ellipse at 0% 100%, rgba(255,255,255,.06), transparent 50%);
-      filter:saturate(1.1);
+    .shell{
+      width:100%;
+      max-width:960px;
     }
-    .bg-img {
-      position:absolute; inset:-20px; z-index:-1; opacity:.18;
-      background-position:center; background-size:cover;
-      filter: blur(18px) saturate(1.05);
-      transform: scale(1.05);
+    header{
+      display:flex;align-items:center;justify-content:space-between;
+      margin-bottom:16px;gap:12px;
     }
-    .card {
-      width:min(1100px, 95vw);
-      background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
-      border:1px solid var(--ring);
-      border-radius:20px;
-      box-shadow: 0 20px 60px rgba(0,0,0,.35);
-      position:relative; z-index:2;
-      overflow:hidden;
+    .brand{
+      font-size: clamp(18px, 3vw, 22px);
+      font-weight:700;
+      letter-spacing:.4px;
+      display:flex;align-items:center;gap:10px;
     }
-    header {
-      display:flex; align-items:center; justify-content:space-between;
-      padding:16px 20px;
-      border-bottom:1px solid var(--ring);
-      background: rgba(10,15,25,.6);
-      backdrop-filter: blur(8px);
+    .brand .dot{width:10px;height:10px;border-radius:50%;background:var(--accent-2);box-shadow:0 0 10px 2px rgba(46,204,113,.5)}
+    .toolbar{display:flex;gap:8px;flex-wrap:wrap}
+    .btn{
+      background:var(--chip);color:var(--text);
+      border:1px solid var(--border);
+      padding:10px 14px;border-radius:12px;
+      cursor:pointer;transition:.15s;font-weight:600
     }
-    .brand { font-weight:700; letter-spacing:.2px; font-size:18px; }
-    .actions { display:flex; gap:8px; }
-    button, .btn {
-      appearance:none; border:1px solid var(--ring); color:var(--text);
-      background:rgba(255,255,255,.04); padding:8px 14px;
-      border-radius:12px; cursor:pointer; font-weight:600; font-size:14px;
+    .btn:hover{transform:translateY(-1px);border-color:#2c3e64}
+    .btn.primary{background:#1e2a44;border-color:#26406c;color:#dbeafe}
+    .btn.success{background:#183524;border-color:#265b3c;color:#d1f4dc}
+    .btn.danger{background:#361b1b;border-color:#5e2a2a;color:#ffd7d7}
+    .panel{
+      background:linear-gradient(180deg, rgba(26,36,58,.9), rgba(14,20,34,.92));
+      border:1px solid var(--border);
+      border-radius:18px;
+      padding:18px;
+      box-shadow:0 14px 50px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.03);
     }
-    .btn-primary { background: #2b5fff; border-color:#2b5fff; }
-    .btn-ghost { background:transparent; }
-    .btn-ok { background: #1f9d6c; border-color:#1f9d6c; }
-    .btn:disabled { opacity:.6; cursor:not-allowed; }
-
-    .hero {
-      display:grid; grid-template-columns: 130px 1fr; gap:18px; padding:18px 20px;
-      align-items:center;
+    .card{
+      border:1px solid #213050;border-radius:16px;background:rgba(18,26,43,.6);
+      padding:18px;margin-top:12px
     }
-    .avatar {
-      width:110px; height:110px; border-radius:50%;
-      border:2px solid rgba(255,255,255,.25); object-fit:cover; background:#0a0f18;
+    h1{
+      margin:0 0 6px;font-size: clamp(18px, 4vw, 24px);
+      font-weight:800;letter-spacing:.3px
     }
-    .meta .name { font-size:24px; font-weight:800; line-height:1.15; }
-    .meta .username { color:var(--muted); margin-top:2px; }
-    .stats { display:flex; gap:16px; margin-top:10px; flex-wrap:wrap; }
-    .stat { background:rgba(255,255,255,.05); border:1px solid var(--ring);
-            padding:8px 12px; border-radius:10px; font-weight:700; }
-    .bio { margin-top:8px; color:var(--muted); }
-
-    .grid {
-      padding:8px 12px 18px; display:grid;
-      grid-template-columns: repeat(6, 1fr); gap:10px;
+    .subtitle{color:var(--muted);font-size:14px}
+    .result{display:grid;grid-template-columns: 1.1fr .9fr;gap:16px;margin-top:14px}
+    @media (max-width:880px){.result{grid-template-columns:1fr}}
+    .section-title{
+      font-weight:700;font-size:15px;margin:0 0 10px;color:#c8d7ff
     }
-    .tile { position:relative; border-radius:12px; overflow:hidden;
-            border:1px solid var(--ring); background:#0f1522; aspect-ratio:1/1; }
-    .tile img { width:100%; height:100%; object-fit:cover; display:block; }
-
-    .result {
-      padding:12px 16px 20px; border-top:1px solid var(--ring);
-      display:flex; gap:14px; flex-wrap:wrap; align-items:center;
-      background: rgba(0,0,0,.12);
+    .pill{
+      display:inline-flex;align-items:center;gap:8px;
+      padding:8px 12px;border-radius:999px;
+      background:#15203a;border:1px solid #263556;color:#cfe4ff;font-weight:700
     }
-    .badge { background:rgba(255,255,255,.06); border:1px solid var(--ring);
-             padding:8px 12px; border-radius:10px; font-weight:800; letter-spacing:.6px; }
-    .badge.ok { background: rgba(33, 180, 115, .2); border-color: rgba(33,180,115,.4); }
-    .reason { color:var(--muted); line-height:1.6; }
-
-    .loading, .error-box, .empty {
-      text-align:center; padding:32px; color:var(--muted);
+    .ok{color:#86efac}
+    .spinner{
+      width:22px;height:22px;border:3px solid #2b3a5d;border-top-color:#86efac;border-radius:50%;
+      animation:spin .9s linear infinite
     }
-    .foot {
-      padding:12px 20px; border-top:1px solid var(--ring);
-      display:flex; justify-content:flex-end; gap:10px; background: rgba(10,15,25,.6);
-      backdrop-filter: blur(8px);
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .mbti{
+      font-size:32px;font-weight:900;letter-spacing:2px;margin:8px 0 6px
     }
-
-    @media (max-width:900px) {
-      .hero { grid-template-columns: 90px 1fr; }
-      .avatar { width:80px; height:80px; }
-      .meta .name { font-size:20px; }
-      .grid { grid-template-columns: repeat(3, 1fr); }
+    .reason{color:#d7e0f5;line-height:1.7;font-size:16px}
+    .meta{display:flex;flex-wrap:wrap;gap:10px;margin:10px 0 2px}
+    .meta .chip{background:var(--chip);border:1px solid var(--border);padding:6px 10px;border-radius:10px;color:#cbd5e1;font-weight:600}
+    .profile{
+      display:flex;gap:14px;align-items:center;margin-bottom:10px
     }
-    @media (max-width:520px) {
-      .wrap { padding:14px; }
-      .result { padding:12px; }
+    .avatar{width:52px;height:52px;border-radius:50%;object-fit:cover;border:1px solid #2b3c63;background:#0b1322}
+    .username{font-weight:800}
+    .pics{
+      display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-top:8px
     }
+    .thumb{
+      width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:10px;border:1px solid #223252;background:#0e1629
+    }
+    @media (max-width:640px){.thumb{border-radius:8px}}
+    .muted{color:#98a6c7}
+    .center{display:flex;align-items:center;justify-content:center}
+    .err{color:#ffb4b4}
+    .footer-note{color:#8692b3;font-size:12px;margin-top:8px}
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="bg"></div>
-    <div id="bgImg" class="bg-img" aria-hidden="true"></div>
+  <div class="shell">
+    <header>
+      <div class="brand"><span class="dot"></span> SocialAvatar</div>
+      <div class="toolbar">
+        <button class="btn" id="btnDebug">偵錯</button>
+        <button class="btn" id="btnRetry">重新整理</button>
+        <button class="btn primary" id="btnRelogin">重新登入</button>
+      </div>
+    </header>
 
-    <div class="card" role="main" aria-live="polite">
-      <header>
-        <div class="brand">SocialAvatar</div>
-        <div class="actions">
-          <button class="btn btn-ghost" id="btnDebug">偵錯</button>
-          <button class="btn" id="btnRelogin">重新登入</button>
-        </div>
-      </header>
+    <section class="panel">
+      <h1>AI 驅動的 Instagram 人格分析工具</h1>
+      <div class="subtitle" id="subtitle">系統將分析你的公開資訊與貼文特徵，輸出 MBTI 類型與 100 字說明。</div>
 
-      <div id="panelLoading" class="loading">正在讀取你的 Instagram 個人頁面…</div>
-      <div id="panelError" class="error-box" hidden>
-        登入檢查失敗，請稍後重試。
-        <div style="margin-top:10px">
-          <button class="btn" id="btnRetry">重試</button>
+      <div class="card" id="cardLoading" style="display:none">
+        <div class="center" style="gap:12px;padding:32px 4px;">
+          <div class="spinner" aria-label="loading"></div>
+          <div class="muted">正在分析你的 Instagram 個人頁面，請稍候…</div>
         </div>
       </div>
 
-      <section id="panelProfile" hidden>
-        <div class="hero">
-          <img id="avatar" class="avatar" alt="avatar"/>
-          <div class="meta">
-            <div class="name" id="name"></div>
-            <div class="username" id="username"></div>
-            <div class="stats">
-              <div class="stat"><span id="followers">0</span> 粉絲</div>
-              <div class="stat"><span id="follows">0</span> 追蹤中</div>
-              <div class="stat"><span id="mediaCount">0</span> 貼文</div>
+      <div class="card" id="cardLogin" style="display:none">
+        <div class="muted" style="margin-bottom:10px">尚未完成 Facebook 授權登入。</div>
+        <button class="btn success" id="btnGoLogin">前往登入</button>
+      </div>
+
+      <div class="result" id="resultWrap" style="display:none">
+        <div class="card">
+          <div class="section-title">分析結果 <span class="ok">✓</span></div>
+          <div id="profileRow" class="profile" style="display:none">
+            <img id="avatar" class="avatar" alt="">
+            <div>
+              <div class="username" id="name"></div>
+              <div class="muted" id="uname"></div>
             </div>
-            <div class="bio" id="bio"></div>
           </div>
+          <div class="meta" id="metaRow" style="display:none">
+            <div class="chip" id="mFollowers"></div>
+            <div class="chip" id="mFollows"></div>
+            <div class="chip" id="mPosts"></div>
+          </div>
+
+          <div class="pill" id="pill"><span>MBTI</span> <strong id="mbtiText">—</strong></div>
+          <div class="mbti" id="mbtiBig">—</div>
+          <div class="reason" id="reason">—</div>
         </div>
 
-        <div id="grid" class="grid"></div>
-
-        <div class="result" id="panelResult" hidden>
-          <div class="badge ok" id="mbtiBadge">分析完成</div>
-          <div class="badge" id="mbtiType">MBTI</div>
-          <div class="reason" id="mbtiReason"></div>
+        <div class="card">
+          <div class="section-title">最近貼文</div>
+          <div class="pics" id="pics"></div>
+          <div class="footer-note">僅展示最近 12 張公開貼文首圖。若無法讀取，仍不影響 MBTI 分析。</div>
         </div>
-      </section>
+      </div>
 
-      <footer class="foot">
-        <button class="btn" id="btnRefresh">重新整理</button>
-        <button class="btn-primary" id="btnStartOver">開始分析</button>
-      </footer>
-    </div>
+      <div class="card" id="cardError" style="display:none">
+        <div class="err" id="errTitle">分析失敗</div>
+        <pre class="muted" id="errDetail" style="white-space:pre-wrap;margin:10px 0 0"></pre>
+        <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn" id="btnShowStatus">/auth/status</button>
+          <button class="btn" id="btnShowSession">/debug/session</button>
+          <button class="btn" id="btnShowCheck">/me/ig/check</button>
+        </div>
+      </div>
+    </section>
   </div>
 
   <script>
-    const $ = (sel) => document.querySelector(sel);
-    const show = (el, yes=true) => { el.hidden = !yes; };
-    const setbg = (url) => { if(url) $('#bgImg').style.backgroundImage = `url("${url}")`; };
-
-    async function api(path, opts={}) {
-      const r = await fetch(path, {
-        credentials:'include',
-        headers: { 'Content-Type':'application/json' },
+    const api = (path, opts={}) =>
+      fetch(path, {
+        credentials: 'include',
+        headers: {'Content-Type':'application/json'},
         ...opts
-      });
-      if (!r.ok) throw new Error(`${path} ${r.status}`);
-      return r.json();
+      }).then(r => r.json());
+
+    const $ = sel => document.querySelector(sel);
+    const show = (id, on=true) => { const el=$(id); if(!el) return; el.style.display = on ? '' : 'none' };
+
+    const ui = {
+      setLoading() {
+        show('#cardLogin', false);
+        show('#cardError', false);
+        show('#resultWrap', false);
+        show('#cardLoading', true);
+      },
+      showLogin(){
+        show('#cardLoading', false);
+        show('#cardError', false);
+        show('#resultWrap', false);
+        show('#cardLogin', true);
+      },
+      showError(title, detail=''){
+        show('#cardLoading', false);
+        show('#cardLogin', false);
+        show('#resultWrap', false);
+        $('#errTitle').textContent = title || '分析失敗';
+        $('#errDetail').textContent = typeof detail==='string' ? detail : JSON.stringify(detail, null, 2);
+        show('#cardError', true);
+      },
+      renderResult({profile, media, analyze}){
+        show('#cardLoading', false);
+        show('#cardLogin', false);
+        show('#cardError', false);
+        show('#resultWrap', true);
+
+        // MBTI + reason
+        const mbti = analyze?.mbti || '—';
+        $('#mbtiText').textContent = mbti;
+        $('#mbtiBig').textContent = mbti;
+        $('#reason').textContent = analyze?.reason || '—';
+
+        // Profile
+        if (profile && typeof profile==='object') {
+          const {username, name, profile_picture_url, followers_count, follows_count, media_count} = profile;
+          if (profile_picture_url) { $('#avatar').src = profile_picture_url; }
+          $('#name').textContent = name || '';
+          $('#uname').textContent = username ? '@' + username : '';
+          show('#profileRow', !!(username || name));
+
+          if (followers_count!=null || follows_count!=null || media_count!=null) {
+            $('#mFollowers').textContent = `粉絲 ${toK(followers_count)}`;
+            $('#mFollows').textContent = `追蹤 ${toK(follows_count)}`;
+            $('#mPosts').textContent = `貼文 ${toK(media_count)}`;
+            show('#metaRow', true);
+          } else {
+            show('#metaRow', false);
+          }
+        } else {
+          show('#profileRow', false);
+          show('#metaRow', false);
+        }
+
+        // Media thumbnails
+        const pics = $('#pics');
+        pics.innerHTML = '';
+        const thumbs = (media?.data || []).slice(0, 12);
+        for (const m of thumbs) {
+          const url = m.thumbnail_url || m.media_url;
+          if (!url) continue;
+          const img = document.createElement('img');
+          img.src = url;
+          img.loading = 'lazy';
+          img.className = 'thumb';
+          img.alt = m.caption || '';
+          pics.appendChild(img);
+        }
+      }
+    };
+
+    function toK(n){
+      if(n==null || isNaN(n)) return '-';
+      if(n>=1000000) return (n/1000000).toFixed(1).replace(/\.0$/,'')+'M';
+      if(n>=1000) return (n/1000).toFixed(1).replace(/\.0$/,'')+'K';
+      return String(n);
     }
 
-    function mediaThumb(m) {
-      return m.media_url || m.thumbnail_url || '';
+    async function fetchBasic(){
+      try { return await api('/me/ig/basic'); } catch(e){ return null; }
+    }
+    async function fetchMedia(){
+      try { return await api('/me/ig/media'); } catch(e){ return null; }
+    }
+    async function analyze(){
+      try {
+        return await api('/me/ig/analyze', {method:'POST', body: JSON.stringify({})});
+      } catch(e){
+        return {ok:false, where:'network', detail: String(e)};
+      }
     }
 
-    function renderProfile(prof) {
-      $('#name').textContent = prof.name || '—';
-      $('#username').textContent = '@' + (prof.username || '—');
-      $('#followers').textContent = prof.followers_count ?? 0;
-      $('#follows').textContent   = prof.follows_count ?? 0;
-      $('#mediaCount').textContent= prof.media_count ?? 0;
-      $('#bio').textContent = prof.biography || '';
-      $('#avatar').src = prof.profile_picture_url || '';
-      $('#avatar').alt = `${prof.username || ''} 的頭像`;
-    }
+    async function boot(){
+      // wired buttons
+      $('#btnRelogin').onclick = () => location.href = '/auth/login';
+      $('#btnGoLogin').onclick = () => location.href = '/auth/login';
+      $('#btnRetry').onclick = () => location.reload();
+      $('#btnDebug').onclick = async () => {
+        try{
+          const s = await api('/auth/status');
+          alert('auth/status:\n\n' + JSON.stringify(s,null,2));
+        }catch(e){ alert('debug failed: ' + e) }
+      };
+      $('#btnShowStatus').onclick = async () => alert(JSON.stringify(await api('/auth/status'), null, 2));
+      $('#btnShowSession').onclick = async () => alert(JSON.stringify(await api('/debug/session'), null, 2));
+      $('#btnShowCheck').onclick = async () => alert(JSON.stringify(await api('/me/ig/check'), null, 2));
 
-    function renderGrid(list) {
-      const grid = $('#grid');
-      grid.innerHTML = '';
-      const top = (list || []).slice(0, 12);
-      top.forEach(m => {
-        const src = mediaThumb(m);
-        if (!src) return;
-        const d = document.createElement('div');
-        d.className = 'tile';
-        const img = document.createElement('img');
-        img.loading = 'lazy';
-        img.alt = m.caption || '貼文圖片';
-        img.src = src;
-        d.appendChild(img);
-        grid.appendChild(d);
-      });
-      // 背景用最新一張圖
-      if (top[0] && mediaThumb(top[0])) setbg(mediaThumb(top[0]));
-    }
+      ui.setLoading();
 
-    function renderMBTI(data) {
-      $('#mbtiBadge').textContent = '分析完成 ✅';
-      $('#mbtiType').textContent = data.mbti || '—';
-      $('#mbtiReason').textContent = data.reason || '';
-      show($('#panelResult'), true);
-    }
-
-    async function run() {
-      show($('#panelLoading'), true);
-      show($('#panelError'), false);
-      show($('#panelProfile'), false);
-
-      // 0) 狀態
+      // 先看是否綁定
       let st;
       try {
         st = await api('/auth/status');
       } catch (e) {
-        show($('#panelLoading'), false);
-        show($('#panelError'), true);
-        return;
-      }
-      if (st.status !== 'bound') {
-        // 尚未登入 → 導向登入
-        location.href = '/auth/login';
+        ui.showError('無法連線伺服器，請稍後重試。', String(e));
         return;
       }
 
-      // 1) 基本資料
-      let profile;
-      try {
-        profile = await api('/me/ig/basic');
-      } catch (e) {
-        show($('#panelLoading'), false);
-        show($('#panelError'), true);
+      if (!st || st.status !== 'bound') {
+        ui.showLogin();
         return;
       }
 
-      // 2) 媒體
-      let media = { data: [] };
-      try {
-        media = await api('/me/ig/media');
-      } catch (e) {}
+      // 已登入 → 併發抓資料
+      const [profile, media, analyzeRes] = await Promise.all([
+        fetchBasic(),
+        fetchMedia(),
+        analyze()
+      ]);
 
-      // 3) 分析
-      let analysis;
-      try {
-        analysis = await api('/me/ig/analyze', { method:'POST', body:'{}' });
-      } catch (e) {
-        // 分析失敗不擋住：只是不顯示結果
+      if (!analyzeRes || analyzeRes.ok !== true) {
+        ui.showError('分析失敗', analyzeRes || {});
+        return;
       }
 
-      // render
-      renderProfile(profile);
-      renderGrid(media.data || []);
-      if (analysis && analysis.ok) renderMBTI(analysis);
-
-      show($('#panelLoading'), false);
-      show($('#panelProfile'), true);
+      ui.renderResult({
+        profile,
+        media,
+        analyze: analyzeRes
+      });
     }
 
-    // Buttons
-    $('#btnRelogin').addEventListener('click', () => location.href='/auth/login');
-    $('#btnRetry').addEventListener('click', () => location.reload());
-    $('#btnRefresh').addEventListener('click', () => location.reload());
-    $('#btnStartOver').addEventListener('click', () => location.href='/auth/login');
-    $('#btnDebug').addEventListener('click', () => {
-      const w = window.open('', '_blank');
-      w.document.write(`<pre>Fetching…</pre>`);
-      Promise.all([api('/auth/status'), api('/me/ig/check')])
-        .then(([a,b]) => w.document.body.innerHTML = `<pre>${JSON.stringify({status:a,check:b}, null,2)}</pre>`)
-        .catch(err => w.document.body.innerHTML = `<pre>fetch failed\n${err}</pre>`);
-    });
-
-    run();
+    document.addEventListener('DOMContentLoaded', boot);
   </script>
 </body>
 </html>
