@@ -1,113 +1,157 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>SocialAvatar – 分析結果</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SocialAvatar - AI 駕馭的 Instagram 人格分析</title>
   <style>
-    :root{--bg:#0b1220;--panel:#121a2b;--muted:#9fb1d1;--text:#e6edf3;--line:#22304f;--accent:#6aa3ff}
-    *{box-sizing:border-box}
-    body{margin:0;background:var(--bg);color:var(--text);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Inter,"Noto Sans TC",PingFangTC,HeitiTC,Arial}
-    .shell{max-width:980px;margin:32px auto;padding:0 18px}
-    header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
-    .brand{font-weight:800;letter-spacing:.3px}
-    .btn{appearance:none;border:1px solid var(--line);background:#17223a;color:#cfe0ff;padding:10px 14px;border-radius:10px;cursor:pointer}
-    .btn:hover{border-color:#2b3e67}
-    .card{background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.03));border:1px solid var(--line);border-radius:16px;padding:18px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
-    .center{text-align:center}
-    .spinner{width:34px;height:34px;margin:22px auto;border:3px solid rgba(255,255,255,.15);border-left-color:var(--accent);border-radius:50%;animation:spin .9s linear infinite}
-    @keyframes spin{to{transform:rotate(360deg)}}
-    .row{display:flex;gap:16px;flex-wrap:wrap}
-    .col{flex:1 1 300px}
-    .mbti{font-size:28px;font-weight:800;color:var(--accent);margin:6px 0}
-    .reason{color:#cdd7ea;line-height:1.7}
-    .muted{color:var(--muted)}
-    .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px}
-    .grid img{width:100%;height:100px;object-fit:cover;border-radius:10px;border:1px solid var(--line)}
+    body {
+      font-family: "Noto Sans TC", "Segoe UI", Arial, sans-serif;
+      background: #0d1117;
+      color: #e6edf3;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 1.5rem;
+      box-sizing: border-box;
+    }
+
+    .card {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 16px;
+      padding: 2rem;
+      max-width: 480px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    }
+
+    h1 {
+      font-size: 1.8rem;
+      margin-bottom: 0.5rem;
+    }
+
+    p {
+      margin-top: 0.5rem;
+      font-size: 1rem;
+      line-height: 1.5;
+      color: #9ca3af;
+    }
+
+    button {
+      background: #238636;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 0.7rem 1.2rem;
+      font-size: 1rem;
+      margin-top: 1.5rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    button:hover {
+      background: #2ea043;
+    }
+
+    .loading {
+      animation: pulse 1.5s infinite;
+      color: #58a6ff;
+    }
+
+    @keyframes pulse {
+      0% { opacity: 0.4; }
+      50% { opacity: 1; }
+      100% { opacity: 0.4; }
+    }
+
+    .result {
+      margin-top: 1rem;
+      text-align: left;
+    }
+
+    .result h3 {
+      color: #58a6ff;
+      font-size: 1.2rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .result p {
+      color: #e6edf3;
+      font-size: 1rem;
+    }
   </style>
 </head>
 <body>
-  <div class="shell">
-    <header>
-      <div class="brand">SocialAvatar</div>
-      <div>
-        <button class="btn" id="relogin">重新登入</button>
-      </div>
-    </header>
-
-    <div id="loading" class="card center">
-      <div class="spinner"></div>
-      <div class="muted">AI 正在分析你的 Instagram 個人頁面…</div>
-    </div>
-
-    <div id="error" class="card center" style="display:none">
-      <div style="margin:10px 0 6px">分析失敗</div>
-      <div id="errText" class="muted" style="margin-bottom:12px"></div>
-      <button class="btn" id="retry">重試</button>
-    </div>
-
-    <div id="result" class="card" style="display:none">
-      <div class="row">
-        <div class="col">
-          <div id="title" style="font-size:20px;font-weight:700;margin-bottom:6px"></div>
-          <div id="stats" class="muted" style="margin-bottom:8px"></div>
-          <div id="mbti" class="mbti"></div>
-          <div id="reason" class="reason"></div>
-        </div>
-        <div class="col">
-          <div class="muted" style="margin-bottom:6px">最近貼文一覽</div>
-          <div id="thumbs" class="grid"></div>
-        </div>
-      </div>
-    </div>
+  <div class="card" id="card">
+    <h1>SocialAvatar</h1>
+    <p id="status">正在檢查登入狀態...</p>
+    <div class="result" id="result"></div>
+    <button id="retryBtn" style="display:none;">重新登入</button>
   </div>
 
   <script>
-    function show(id){document.getElementById(id).style.display=""}
-    function hide(id){document.getElementById(id).style.display="none"}
+    const API_BASE = "https://socialavatar.onrender.com";
+    const statusEl = document.getElementById("status");
+    const resultEl = document.getElementById("result");
+    const retryBtn = document.getElementById("retryBtn");
 
-    async function analyze() {
-      show("loading"); hide("error"); hide("result");
+    async function checkStatus() {
       try {
-        // 若尚未綁定 → 走登入
-        const st = await fetch("/auth/status",{credentials:"include"}).then(r=>r.json());
-        if (st.status !== "bound") {
-          location.assign("/auth/login"); return;
+        const res = await fetch(`${API_BASE}/auth/status`, { credentials: "include" });
+        const data = await res.json();
+        if (data.status === "bound") {
+          analyzeNow();
+        } else {
+          statusEl.textContent = "尚未登入，正在導向 Facebook 登入...";
+          window.location.href = `${API_BASE}/auth/login`;
         }
-
-        const data = await fetch("/analyze",{credentials:"include"}).then(r=>r.json());
-        if (data.error) throw data;
-
-        document.getElementById("title").textContent = `@${data.ig_account}`;
-        const s = data.stats || {};
-        document.getElementById("stats").textContent =
-          `名稱：${data.profile_name || "（未提供）"}｜粉絲 ${s.followers ?? "-"}｜追蹤 ${s.follows ?? "-"}｜貼文 ${s.media_count ?? "-"}`;
-        document.getElementById("mbti").textContent = `MBTI 類型：${data.mbti}`;
-        document.getElementById("reason").textContent = data.reason;
-
-        const thumbs = document.getElementById("thumbs");
-        thumbs.innerHTML = "";
-        (data.thumbnails || []).forEach(url => {
-          const img = document.createElement("img");
-          img.src = url;
-          thumbs.appendChild(img);
-        });
-
-        hide("loading"); show("result");
       } catch (e) {
-        hide("loading"); show("error");
-        document.getElementById("errText").textContent = (e && e.detail) ? e.detail : JSON.stringify(e);
+        statusEl.textContent = "無法連線伺服器，請稍後重試。";
+        console.error(e);
       }
     }
 
-    document.getElementById("retry").onclick = () => analyze();
-    document.getElementById("relogin").onclick = async () => {
-      try { await fetch("/auth/logout",{method:"POST",credentials:"include"});} catch(e){}
-      location.assign("/auth/login");
-    };
+    async function analyzeNow() {
+      statusEl.innerHTML = '<span class="loading">正在分析你的 Instagram 個人頁面，請稍候...</span>';
+      try {
+        const res = await fetch(`${API_BASE}/me/ig/analyze`, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: "{}"
+        });
+        const data = await res.json();
 
-    // 進頁即跑
-    analyze();
+        if (data.ok) {
+          statusEl.textContent = "✨ 分析完成！";
+          resultEl.innerHTML = `
+            <h3>@${data.ig_account}</h3>
+            <p><strong>${data.profile_name}</strong></p>
+            <p><strong>社群MBTI：</strong> ${data.mbti}</p>
+            <p>${data.reason}</p>
+          `;
+          retryBtn.style.display = "inline-block";
+          retryBtn.textContent = "重新分析";
+          retryBtn.onclick = () => window.location.href = `${API_BASE}/auth/login`;
+        } else {
+          throw new Error(JSON.stringify(data));
+        }
+      } catch (e) {
+        console.error(e);
+        statusEl.textContent = "分析失敗 😢";
+        resultEl.innerHTML = `<p>${e.message || "發生未知錯誤"}</p>`;
+        retryBtn.style.display = "inline-block";
+        retryBtn.textContent = "重新登入";
+        retryBtn.onclick = () => window.location.href = `${API_BASE}/auth/login`;
+      }
+    }
+
+    checkStatus();
   </script>
 </body>
 </html>
