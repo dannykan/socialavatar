@@ -1,188 +1,188 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>SocialAvatar - AI 駕馭的 Instagram 人格分析</title>
-  <style>
-    :root {
-      --bg: #0d1117;
-      --panel: #161b22;
-      --border: #30363d;
-      --text: #e6edf3;
-      --muted: #9ca3af;
-      --primary: #238636;
-      --primary-hover: #2ea043;
-      --info: #58a6ff;
-      --danger: #ef4444;
-    }
-    * { box-sizing: border-box; }
-    html, body {
-      height: 100%;
-      margin: 0;
-      font-family: "Noto Sans TC", system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-    }
-    .wrap {
-      min-height: 100%;
-      display: grid;
-      place-items: center;
-      padding: 24px;
-    }
-    .card {
-      width: 100%;
-      max-width: 560px;
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 24px;
-      box-shadow: 0 8px 28px rgba(0,0,0,.35);
-      text-align: center;
-      animation: fadeIn .25s ease-out;
-    }
-    h1 {
-      margin: 0 0 8px;
-      font-size: clamp(20px, 4vw, 26px);
-    }
-    p { color: var(--muted); line-height: 1.7; margin: 8px 0; }
-    .loading { color: var(--info); animation: pulse 1.5s infinite; }
-    .btn {
-      display: inline-block;
-      margin-top: 14px;
-      padding: 10px 16px;
-      border-radius: 10px;
-      border: none;
-      color: #fff;
-      background: var(--primary);
-      font-size: 16px;
-      cursor: pointer;
-    }
-    .btn:hover { background: var(--primary-hover); }
-    .btn-ghost {
-      background: transparent; color: var(--text);
-      border: 1px solid var(--border);
-    }
-    .danger { color: var(--danger); }
-    @keyframes pulse {
-      0% { opacity: .4 } 50% { opacity: 1 } 100% { opacity: .4 }
-    }
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(6px) }
-      to   { opacity: 1; transform: translateY(0) }
-    }
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>SocialAvatar</title>
+<style>
+  :root{
+    --bg:#0f1722;--card:#131c28;--text:#e6edf3;--muted:#97a3af;--brand:#7aa2f7;--bad:#f7768e;--ok:#a6da95;
+  }
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family: ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue","Noto Sans","Apple Color Emoji","Segoe UI Emoji",sans-serif;}
+  .wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;}
+  .card{width:min(980px,100%);background:var(--card);border:1px solid #1d2633;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.3);padding:28px;}
+  h1{margin:0 0 8px 0;font-size:24px}
+  .muted{color:var(--muted)}
+  .row{display:flex;gap:12px;flex-wrap:wrap;margin-top:18px}
+  .btn{background:#213047;color:var(--text);border:1px solid #2d3b52;border-radius:12px;padding:10px 16px;cursor:pointer;font-weight:600}
+  .btn:hover{background:#253650}
+  .btn.brand{background:var(--brand);border-color:var(--brand);color:#0b1020}
+  .btn.bad{background:#3c1f28;border-color:#5b2634;color:#ffb3c0}
+  .btn.ghost{background:transparent}
+  .center{display:flex;align-items:center;justify-content:center;min-height:160px}
+  .hr{height:1px;background:#1f2a39;margin:18px 0}
+  .grid{display:grid;grid-template-columns:1fr;gap:12px}
+  @media(min-width:640px){.grid{grid-template-columns:1fr 1fr}}
+  .pill{background:#1a2637;border:1px solid #263449;border-radius:999px;padding:6px 10px;display:inline-flex;gap:6px;align-items:center}
+  .title{font-size:18px;font-weight:700}
+  .kv{display:flex;gap:6px;align-items:center}
+  .k{color:var(--muted)}
+  .v{font-weight:700}
+  .mono{font-family: ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;}
+  .debug {position:fixed;right:16px;top:16px}
+  .debug-panel{display:none;position:fixed;inset:auto 16px 16px auto;max-width:min(720px,95vw);background:#0c131e;border:1px solid #1c2836;color:#a6b3c2;border-radius:12px;padding:14px;box-shadow:0 10px 30px rgba(0,0,0,.45)}
+  .debug-panel pre{white-space:pre-wrap;word-break:break-word;max-height:45vh;overflow:auto;background:#08101a;border-radius:8px;padding:10px}
+  .badge{display:inline-flex;align-items:center;gap:6px;border:1px solid #28364b;background:#0d1726;border-radius:999px;padding:6px 10px}
+</style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="card">
-      <h1>SocialAvatar</h1>
-      <p id="status">正在連線伺服器...</p>
-      <div id="result"></div>
-      <div id="actions" style="margin-top:12px;"></div>
+<div class="wrap">
+  <div class="card" id="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <div>
+        <div class="title">SocialAvatar</div>
+        <div class="muted" id="subtitle">AI 驅動的 Instagram 人格分析工具</div>
+      </div>
+      <div class="row">
+        <button class="btn ghost" id="debugBtn">偵錯</button>
+        <button class="btn" id="reloginBtn">重新登入</button>
+      </div>
+    </div>
+
+    <div class="hr"></div>
+
+    <div id="view-loading" class="center">
+      <div class="pill mono">正在檢查登入狀態…</div>
+    </div>
+
+    <div id="view-login" style="display:none" class="center">
+      <div>
+        <div class="muted" style="text-align:center;margin-bottom:12px;">尚未登入，請先前往 Facebook 授權。</div>
+        <div style="text-align:center"><button class="btn brand" id="loginBtn">前往登入</button></div>
+      </div>
+    </div>
+
+    <div id="view-error" style="display:none" class="center">
+      <div style="text-align:center">
+        <div class="muted" id="errMsg" style="margin-bottom:12px;">無法連線伺服器，請稍後重試。</div>
+        <button class="btn bad" id="retryBtn">重試</button>
+      </div>
+    </div>
+
+    <div id="view-result" style="display:none">
+      <div class="grid">
+        <div>
+          <div class="kv"><div class="k">IG 帳號：</div><div class="v" id="igAccount">-</div></div>
+          <div class="kv"><div class="k">Profile 名稱：</div><div class="v" id="profileName">-</div></div>
+          <div class="kv"><div class="k">MBTI 類型：</div>
+            <div class="v" id="mbti" style="font-size:24px;letter-spacing:.5px">-</div>
+          </div>
+        </div>
+        <div>
+          <div class="k">分析說明</div>
+          <div id="reason" style="margin-top:6px"></div>
+        </div>
+      </div>
+      <div class="hr"></div>
+      <div class="row">
+        <span class="badge"><span style="width:8px;height:8px;background:var(--ok);border-radius:999px"></span>分析完成</span>
+        <button class="btn" id="analyzeAgain">重新分析</button>
+      </div>
     </div>
   </div>
+</div>
 
-  <script>
-    // 重要：使用相對路徑，確保 session cookie 能正確被同源帶上
-    const statusEl  = document.getElementById('status');
-    const resultEl  = document.getElementById('result');
-    const actionsEl = document.getElementById('actions');
+<!-- 偵錯面板 -->
+<div class="debug-panel" id="debugPanel">
+  <div class="row" style="justify-content:space-between;margin-bottom:6px">
+    <div class="title">偵錯面板</div>
+    <div class="row">
+      <button class="btn" id="refreshDebug">重新抓取</button>
+      <button class="btn ghost" id="closeDebug">關閉</button>
+    </div>
+  </div>
+  <div class="grid">
+    <div>
+      <div class="k">/auth/status</div>
+      <pre id="dbgStatus">-</pre>
+    </div>
+    <div>
+      <div class="k">/debug/session</div>
+      <pre id="dbgSession">-</pre>
+    </div>
+  </div>
+</div>
 
-    function setActions(html) { actionsEl.innerHTML = html; }
-    function goLogin() { window.location.href = '/auth/login'; }
-    function reload()  { window.location.reload(); }
+<script>
+const $ = sel => document.querySelector(sel);
+const show = id => {["#view-loading","#view-login","#view-error","#view-result"].forEach(s=>$(s).style.display="none"); $(id).style.display="block";}
+const GET = (u)=>fetch(u,{credentials:"include",cache:"no-store"});
+const POST= (u,d)=>fetch(u,{method:"POST",headers:{"Content-Type":"application/json"},credentials:"include",cache:"no-store",body:JSON.stringify(d||{})});
 
-    async function ping() {
-      try {
-        const r = await fetch('/health', { credentials: 'include' });
-        if (!r.ok) throw new Error('server not ok');
-        return true;
-      } catch (e) {
-        console.error('[health] failed:', e);
-        return false;
-      }
+async function check(){
+  show("#view-loading");
+  try{
+    const r = await GET("/auth/status");
+    const st = await r.json();
+    if(st.status==="bound"){
+      await analyze();
+    }else{
+      show("#view-login");
     }
+  }catch(e){
+    $("#errMsg").textContent = "登入檢查失敗，請稍後重試。";
+    show("#view-error");
+  }
+}
 
-    async function checkAuth() {
-      statusEl.textContent = '正在檢查登入狀態...';
-      try {
-        const r = await fetch('/auth/status', { credentials: 'include' });
-        const data = await r.json().catch(() => ({}));
-        console.log('[auth/status]:', data);
-        if (data && data.status === 'bound') return true;
-      } catch (e) {
-        console.error('[auth/status] error:', e);
-      }
-      return false;
+async function analyze(){
+  $("#subtitle").textContent = "正在分析你的 Instagram 個人頁面，請稍候…";
+  show("#view-loading");
+  try{
+    const r = await POST("/me/ig/analyze",{});
+    const j = await r.json();
+    if(!j.ok){
+      $("#errMsg").textContent = `分析失敗：${JSON.stringify(j.detail||j)}`;
+      show("#view-error");
+      return;
     }
+    $("#igAccount").textContent = j.ig_account || "-";
+    $("#profileName").textContent = j.profile_name || "-";
+    $("#mbti").textContent = j.mbti || "-";
+    $("#reason").textContent = j.reason || "-";
+    $("#subtitle").textContent = "AI 驅動的 Instagram 人格分析工具";
+    show("#view-result");
+  }catch(e){
+    $("#errMsg").textContent = "分析失敗，請稍後重試。";
+    show("#view-error");
+  }
+}
 
-    async function analyze() {
-      statusEl.innerHTML = '<span class="loading">正在分析你的 Instagram 個人頁面...</span>';
-      setActions('');
-      resultEl.innerHTML = '';
+// 事件繫結
+$("#loginBtn")?.addEventListener("click",()=>location.href="/auth/login");
+$("#reloginBtn")?.addEventListener("click",()=>location.href="/auth/login");
+$("#retryBtn")?.addEventListener("click",()=>check());
+$("#analyzeAgain")?.addEventListener("click",()=>analyze());
 
-      try {
-        const r = await fetch('/me/ig/analyze', {
-          method: 'POST',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-          body: '{}'
-        });
-        const data = await r.json();
-        console.log('[analyze]:', data);
+// 偵錯面板
+$("#debugBtn")?.addEventListener("click",()=>{$("#debugPanel").style.display="block";loadDebug();});
+$("#closeDebug")?.addEventListener("click",()=>{$("#debugPanel").style.display="none";});
+$("#refreshDebug")?.addEventListener("click",()=>loadDebug());
 
-        if (data.ok) {
-          statusEl.textContent = '✨ 分析完成';
-          resultEl.innerHTML = `
-            <p><strong>@${data.ig_account || '-'}</strong></p>
-            <p>${data.profile_name || '-'}</p>
-            <p><strong>社群 MBTI：</strong> ${data.mbti}</p>
-            <p>${data.reason}</p>
-          `;
-          setActions(`
-            <button class="btn" onclick="goLogin()">重新登入</button>
-            <button class="btn btn-ghost" onclick="reload()">重新整理</button>
-          `);
-        } else {
-          statusEl.innerHTML = '分析失敗';
-          resultEl.innerHTML = `<p class="danger">${escapeHtml(JSON.stringify(data))}</p>`;
-          setActions(`
-            <button class="btn" onclick="goLogin()">前往登入</button>
-            <button class="btn btn-ghost" onclick="reload()">重新整理</button>
-          `);
-        }
-      } catch (e) {
-        console.error('[analyze] network error:', e);
-        statusEl.textContent = '分析過程發生錯誤。';
-        setActions(`<button class="btn" onclick="reload()">重新整理</button>`);
-      }
-    }
+async function loadDebug(){
+  try{
+    const a = await GET("/auth/status"); $("#dbgStatus").textContent = JSON.stringify(await a.json(),null,2);
+    const b = await GET("/debug/session"); $("#dbgSession").textContent = JSON.stringify(await b.json(),null,2);
+  }catch(e){
+    $("#dbgStatus").textContent = "fetch failed"; $("#dbgSession").textContent = "fetch failed";
+  }
+}
 
-    function escapeHtml(s='') {
-      return s.replace(/[&<>"']/g, c => (
-        { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]
-      ));
-    }
+// iOS / FB 會在 callback 後加 #_=_，這裡清掉避免影響導覽
+if(location.hash && location.hash.indexOf("_=_")>=0){ history.replaceState({}, "", location.pathname); }
 
-    (async () => {
-      const ok = await ping();
-      if (!ok) {
-        statusEl.textContent = '無法連線伺服器，請稍後重試。';
-        setActions(`<button class="btn" onclick="reload()">重新整理</button>`);
-        return;
-      }
-
-      const bound = await checkAuth();
-      if (!bound) {
-        statusEl.textContent = '尚未登入，前往 Facebook 授權...';
-        setActions(`<button class="btn" onclick="goLogin()">前往登入</button>`);
-        // 也可以自動跳轉：
-        // goLogin();
-        return;
-      }
-      analyze();
-    })();
-  </script>
+// 開頁就檢查
+check();
+</script>
 </body>
 </html>
