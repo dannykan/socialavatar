@@ -1,5 +1,7 @@
 import os
 import re
+import json
+import time 
 import requests
 from urllib.parse import urlencode
 from flask import (
@@ -175,8 +177,12 @@ def auth_callback():
 
     # 4) 寫入 session（頁面分析會使用）
     session["bind"] = {
-        **chosen,
-        "long_user_expires_at": int(time.time()) + expires_in
+        "page_id": pid,
+        "page_name": p.get("name"),
+        "page_token": ptoken,
+        "ig_user_id": ig["id"],
+        "ig_username": ig.get("username"),
+        "long_user_expires_at": int(time.time()) + int(data.get("expires_in") or 0),
     }
 
     # 5) 用回應物件來做 redirect + 設定 cookie + 防快取
