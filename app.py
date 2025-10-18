@@ -170,58 +170,106 @@ def auth_callback():
 # -----------------------------------------------------------------------------
 # 分析 API（前端 /result 會呼叫）
 # -----------------------------------------------------------------------------
-@app.get("/analyze")
-def analyze():
+@app.post("/me/ig/analyze")
+def me_ig_analyze():
+    """
+    回應：
+      ok: true/false
+      ig_account, profile_name, mbti, reason
+      如果失敗 -> ok:false, where:'哪步', detail:{...}
+    """
     try:
         b = require_bind()
+    except RuntimeError:
+        return jsonify({"ok": False, "where": "session", "detail": "not bound"}), 200
 
-        # 基本檔案
-        ok, prof, _ = graph_get(b["ig_user_id"], {
+    # 1) 取基本資料
+    ok, prof, _ = graph_get(
+        b["ig_user_id"],
+        {
             "fields": "id,username,name,biography,followers_count,media_count,follows_count,profile_picture_url",
             "access_token": b["page_token"],
-        })
-        if not ok:
-            return jsonify({"error": "profile_fetch_failed", "detail": prof}), 400
+        },
+    )
+    if not ok:
+        return jsonify({"ok": False, "where": "profile_fetch", "detail": prof}), 200
 
-        # 最近 30 則貼文（含縮圖）
-        ok, media, _ = graph_get(f"{b['ig_user_id']}/media", {
+    # 2) 取最近貼文
+    ok, media, _ = graph_get(
+        f"{b['ig_user_id']}/media",
+        {
             "fields": "id,media_type,caption,media_url,thumbnail_url,permalink,timestamp",
-            "limit": 30, "access_token": b["page_token"],
-        })
-        if not ok:
-            return jsonify({"error": "media_fetch_failed", "detail": media}), 400
+            "limit": 30,
+            "access_token": b["page_token"],
+        },
+    )
+    if not ok:
+        return jsonify({"ok": False, "where": "media_fetch", "detail": media}), 200
 
-        media_list = media.get("data", []) or []
+    media_list = media.get("data", []) or []
 
-        # 取前 12 張可用縮圖（IMAGE 用 media_url，其它用 thumbnail_url）
-        thumbs = []
-        for m in media_list:
-            url = m.get("thumbnail_url") or (m.get("media_url") if m.get("media_type") == "IMAGE" else None)
-            if url:
-                thumbs.append(url)
-            if len(thumbs) >= 12:
-                break
-
-        # Heuristic 推估 MBTI + 說明（之後你可換成 OpenAI 版本）
+    # 3) 先做 Heuristic（一定要有），OpenAI 只是加值（失敗也不該讓整個流程中止）
+    try:
         mbti, reason = mbti_heuristic(prof, media_list)
-
-        out = {
-            "ig_account": prof.get("username") or b.get("ig_username"),
-            "profile_name": prof.get("name") or (prof.get("username") or ""),
-            "mbti": mbti,
-            "reason": reason,
-            "thumbnails": thumbs,
-            "stats": {
-                "followers": int(prof.get("followers_count") or 0),
-                "follows": int(prof.get("follows_count") or 0),
-                "media_count": int(prof.get("media_count") or 0),
-            },
-        }
-        return jsonify(out)
-    except RuntimeError:
-        return jsonify({"error": "not bound"}), 401
     except Exception as e:
-        return jsonify({"error": "server_error", "detail": str(e)}), 500
+        return jsonify({"ok": False, "where": "heuristic", "detail": str(e)}), 200
+
+    # 4) 如果你有加 OpenAI，建議包 try/except，失敗就 fallback
+    use_openai = bool(os.getenv("OPENAI_API_KEY"))
+    if use_openai:
+        try:
+            # ---- 你的 OpenAI 呼叫，失敗也不要 raise ----
+            #   summary = call_openai(prof, media_list, mbti)  # 自己的封裝
+            #   if summary: reason = summary[:100]
+            pass
+        except Exception as e:
+            # 記 log，但不要讓整個 API 失敗
+            print("[OpenAI failed]", e)
+
+    out = {
+        "ok": True,
+        "ig_account": prof.get("username") or b.get("ig_username") or "",
+        "profile_name": prof.get("name") or "",
+        "mbti": mbti,
+        "reason": reason  # <= 100 字可在前端裁切
+    }
+    return jsonify(out), 200
+
+@app.get("/me/ig/check")
+def me_ig_check():
+    """一次把 profile 與 media 的 raw 給你看（masked）"""
+    try:
+        b = require_bind()
+    except RuntimeError:
+        return jsonify({"ok": False, "where":"session", "detail":"not bound"})
+    out = {"ok": True, "page_id": b["page_id"], "ig_user_id": b["ig_user_id"]}
+
+    ok, prof, _ = graph_get(
+        b["ig_user_id"],
+        {"fields":"id,username,name,followers_count,media_count","access_token": b["page_token"]}
+    )
+    out["profile_ok"] = ok
+    out["profile"] = prof
+
+    ok, media, _ = graph_get(
+        f"{b['ig_user_id']}/media",
+        {"fields":"id,media_type,timestamp","limit": 5, "access_token": b["page_token"]}
+    )
+    out["media_ok"] = ok
+    out["media_count"] = len(media.get("data",[])) if isinstance(media,dict) else None
+    if not ok:
+        out["media_error"] = media
+    return jsonify(out)
+
+@app.get("/debug/session")
+def debug_session():
+    """檢視 session（不含敏感 token）"""
+    b = session.get("bind")
+    if not b:
+        return jsonify({"ok": False, "detail": "not bound"})
+    masked = {k: v for k, v in b.items() if k != "page_token"}
+    masked["has_page_token"] = bool(b.get("page_token"))
+    return jsonify({"ok": True, "bind": masked})
 
 # -----------------------------------------------------------------------------
 # Health
