@@ -1,116 +1,113 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SocialAvatar - AI 驅動的 Instagram 人格分析</title>
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>SocialAvatar – 分析結果</title>
   <style>
-    body {
-      background: #0e1116;
-      color: #e0e0e0;
-      font-family: "Noto Sans TC", sans-serif;
-    }
-    .glass {
-      background: rgba(255, 255, 255, 0.05);
-      border-radius: 20px;
-      backdrop-filter: blur(10px);
-      box-shadow: 0 0 25px rgba(0, 0, 0, 0.3);
-    }
+    :root{--bg:#0b1220;--panel:#121a2b;--muted:#9fb1d1;--text:#e6edf3;--line:#22304f;--accent:#6aa3ff}
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--text);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Inter,"Noto Sans TC",PingFangTC,HeitiTC,Arial}
+    .shell{max-width:980px;margin:32px auto;padding:0 18px}
+    header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+    .brand{font-weight:800;letter-spacing:.3px}
+    .btn{appearance:none;border:1px solid var(--line);background:#17223a;color:#cfe0ff;padding:10px 14px;border-radius:10px;cursor:pointer}
+    .btn:hover{border-color:#2b3e67}
+    .card{background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.03));border:1px solid var(--line);border-radius:16px;padding:18px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+    .center{text-align:center}
+    .spinner{width:34px;height:34px;margin:22px auto;border:3px solid rgba(255,255,255,.15);border-left-color:var(--accent);border-radius:50%;animation:spin .9s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .row{display:flex;gap:16px;flex-wrap:wrap}
+    .col{flex:1 1 300px}
+    .mbti{font-size:28px;font-weight:800;color:var(--accent);margin:6px 0}
+    .reason{color:#cdd7ea;line-height:1.7}
+    .muted{color:var(--muted)}
+    .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px}
+    .grid img{width:100%;height:100px;object-fit:cover;border-radius:10px;border:1px solid var(--line)}
   </style>
 </head>
-<body class="flex flex-col items-center min-h-screen py-12">
+<body>
+  <div class="shell">
+    <header>
+      <div class="brand">SocialAvatar</div>
+      <div>
+        <button class="btn" id="relogin">重新登入</button>
+      </div>
+    </header>
 
-  <div class="text-center mb-10">
-    <h1 class="text-4xl font-bold mb-2 text-white">SocialAvatar</h1>
-    <p class="text-gray-400">AI 驅動的 Instagram 人格分析</p>
+    <div id="loading" class="card center">
+      <div class="spinner"></div>
+      <div class="muted">AI 正在分析你的 Instagram 個人頁面…</div>
+    </div>
+
+    <div id="error" class="card center" style="display:none">
+      <div style="margin:10px 0 6px">分析失敗</div>
+      <div id="errText" class="muted" style="margin-bottom:12px"></div>
+      <button class="btn" id="retry">重試</button>
+    </div>
+
+    <div id="result" class="card" style="display:none">
+      <div class="row">
+        <div class="col">
+          <div id="title" style="font-size:20px;font-weight:700;margin-bottom:6px"></div>
+          <div id="stats" class="muted" style="margin-bottom:8px"></div>
+          <div id="mbti" class="mbti"></div>
+          <div id="reason" class="reason"></div>
+        </div>
+        <div class="col">
+          <div class="muted" style="margin-bottom:6px">最近貼文一覽</div>
+          <div id="thumbs" class="grid"></div>
+        </div>
+      </div>
+    </div>
   </div>
-
-  <div id="loading" class="text-center hidden">
-    <div class="animate-spin rounded-full h-12 w-12 border-t-4 border-blue-500 mx-auto mb-4"></div>
-    <p>正在分析你的 Instagram 個人頁面，請稍候...</p>
-  </div>
-
-  <div id="login" class="text-center hidden">
-    <p class="mb-4 text-gray-300">請先登入 Instagram 授權分析：</p>
-    <button onclick="login()" class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-lg">
-      🔗 登入 Instagram
-    </button>
-  </div>
-
-  <div id="result" class="max-w-2xl glass p-8 hidden">
-    <h2 class="text-2xl font-bold mb-2 text-white">分析結果</h2>
-    <div id="profileInfo" class="text-gray-300 mb-4"></div>
-    <div id="mbti" class="text-xl font-semibold text-blue-400 mb-2"></div>
-    <p id="reason" class="text-gray-300 mb-6"></p>
-
-    <div id="thumbs" class="grid grid-cols-3 gap-2"></div>
-  </div>
-
-  <footer class="mt-12 text-gray-500 text-sm">
-    © 2025 SocialAvatar | 隱私權政策 · 服務條款
-  </footer>
 
   <script>
-    const API_BASE = "https://socialavatar.onrender.com";
-
-    async function checkStatus() {
-      const urlParams = new URLSearchParams(window.location.search);
-      const bindSuccess = urlParams.get("bind");
-      if (bindSuccess === "success") {
-        analyze();
-        return;
-      }
-
-      const res = await fetch(`${API_BASE}/auth/status`, { credentials: "include" });
-      const data = await res.json();
-      if (data.status === "bound") {
-        analyze();
-      } else {
-        document.getElementById("login").classList.remove("hidden");
-      }
-    }
-
-    async function login() {
-      window.location.href = `${API_BASE}/auth/login`;
-    }
+    function show(id){document.getElementById(id).style.display=""}
+    function hide(id){document.getElementById(id).style.display="none"}
 
     async function analyze() {
-      document.getElementById("login").classList.add("hidden");
-      document.getElementById("loading").classList.remove("hidden");
+      show("loading"); hide("error"); hide("result");
+      try {
+        // 若尚未綁定 → 走登入
+        const st = await fetch("/auth/status",{credentials:"include"}).then(r=>r.json());
+        if (st.status !== "bound") {
+          location.assign("/auth/login"); return;
+        }
 
-      const res = await fetch(`${API_BASE}/me/ig/analyze`, {
-        method: "POST",
-        credentials: "include",
-      });
+        const data = await fetch("/analyze",{credentials:"include"}).then(r=>r.json());
+        if (data.error) throw data;
 
-      const data = await res.json();
-      document.getElementById("loading").classList.add("hidden");
+        document.getElementById("title").textContent = `@${data.ig_account}`;
+        const s = data.stats || {};
+        document.getElementById("stats").textContent =
+          `名稱：${data.profile_name || "（未提供）"}｜粉絲 ${s.followers ?? "-"}｜追蹤 ${s.follows ?? "-"}｜貼文 ${s.media_count ?? "-"}`;
+        document.getElementById("mbti").textContent = `MBTI 類型：${data.mbti}`;
+        document.getElementById("reason").textContent = data.reason;
 
-      if (data.error) {
-        alert("分析失敗：" + JSON.stringify(data.error));
-        document.getElementById("login").classList.remove("hidden");
-        return;
+        const thumbs = document.getElementById("thumbs");
+        thumbs.innerHTML = "";
+        (data.thumbnails || []).forEach(url => {
+          const img = document.createElement("img");
+          img.src = url;
+          thumbs.appendChild(img);
+        });
+
+        hide("loading"); show("result");
+      } catch (e) {
+        hide("loading"); show("error");
+        document.getElementById("errText").textContent = (e && e.detail) ? e.detail : JSON.stringify(e);
       }
-
-      document.getElementById("result").classList.remove("hidden");
-      document.getElementById("profileInfo").innerText =
-        `@${data.ig_account}｜粉絲 ${data.stats.followers}｜追蹤 ${data.stats.follows}｜貼文 ${data.stats.media_count}`;
-      document.getElementById("mbti").innerText = `MBTI 類型：${data.mbti}`;
-      document.getElementById("reason").innerText = data.reason;
-
-      const thumbs = document.getElementById("thumbs");
-      thumbs.innerHTML = "";
-      (data.thumbnails || []).forEach(url => {
-        const img = document.createElement("img");
-        img.src = url;
-        img.className = "w-full h-32 object-cover rounded-lg";
-        thumbs.appendChild(img);
-      });
     }
 
-    checkStatus();
-  </script>
+    document.getElementById("retry").onclick = () => analyze();
+    document.getElementById("relogin").onclick = async () => {
+      try { await fetch("/auth/logout",{method:"POST",credentials:"include"});} catch(e){}
+      location.assign("/auth/login");
+    };
 
+    // 進頁即跑
+    analyze();
+  </script>
 </body>
 </html>
