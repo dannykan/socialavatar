@@ -33,6 +33,14 @@ app.config.update(
     SESSION_COOKIE_SECURE=True        # Render 走 HTTPS → True
 )
 
+# 所有回應都禁快取，避免 /auth/status 被舊值蓋住
+@app.after_request
+def add_no_cache_headers(resp):
+    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    resp.headers["Pragma"] = "no-cache"
+    resp.headers["Expires"] = "0"
+    return resp
+
 # -----------------------------------------------------------------------------
 # Helpers
 # -----------------------------------------------------------------------------
@@ -121,14 +129,14 @@ def auth_callback():
     ok, data, _ = graph_get("oauth/access_token", {
         "client_id": FB_APP_ID,
         "client_secret": FB_APP_SECRET,
-        "redirect_uri": REDIRECT_URI,
+        "redirect_uri": REDIRECT_URI,   # 記得與 FB 後台一致
         "code": code,
     })
     if not ok:
-        return jsonify({"error": data}), 400
+        return jsonify({"step": "code_to_short", "error": data}), 400
     short_user_token = data["access_token"]
 
-    # 2) 短期 -> 長期 user token
+    # 2) 短期 -> 長期 user token（可拿來查 pages）
     ok, data, _ = graph_get("oauth/access_token", {
         "grant_type": "fb_exchange_token",
         "client_id": FB_APP_ID,
@@ -136,13 +144,14 @@ def auth_callback():
         "fb_exchange_token": short_user_token,
     })
     if not ok:
-        return jsonify({"error": data}), 400
+        return jsonify({"step": "short_to_long", "error": data}), 400
     long_user_token = data["access_token"]
+    expires_in = int(data.get("expires_in") or 0)
 
     # 3) 找有連 IG 的 Page，取 page_token + ig_user_id
     ok, pages, _ = graph_get("me/accounts", {"access_token": long_user_token})
     if not ok:
-        return jsonify({"error": pages}), 400
+        return jsonify({"step": "me_accounts", "error": pages}), 400
 
     chosen = None
     for p in pages.get("data", []):
@@ -164,8 +173,25 @@ def auth_callback():
     if not chosen:
         return "No connected Instagram account found", 400
 
-    session["bind"] = chosen
-    return redirect("/result")  # 登入完成 → 前端卡片頁
+    # 4) 寫入 session（頁面分析會使用）
+    session["bind"] = {
+        **chosen,
+        "long_user_expires_at": int(time.time()) + expires_in
+    }
+
+    # 5) 用回應物件來做 redirect + 設定 cookie + 防快取
+    # 如果前端頁也放在後端同一網域，就導向 /result；如果是獨立網域，換成 FRONTEND_ORIGIN + '/result'
+    # resp = redirect(f"{FRONTEND_ORIGIN}/result")
+    resp = redirect("/result")
+
+    # 額外種一顆測試 cookie（不是必要，只是方便你在 DevTools 看到瀏覽器確實收到了 cookie）
+    resp.set_cookie("sa_bound", "1", max_age=86400, secure=True, samesite="None")
+
+    # 再保險一次：別被快取
+    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    resp.headers["Pragma"] = "no-cache"
+    resp.headers["Expires"] = "0"
+    return resp
 
 # -----------------------------------------------------------------------------
 # 分析 API（前端 /result 會呼叫）
