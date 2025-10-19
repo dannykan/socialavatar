@@ -12,11 +12,11 @@
          background: radial-gradient(900px 560px at 15% -10%, #1b2a4b 0%, transparent 55%),
                     radial-gradient(800px 500px at 110% 10%, #0f2450 0%, transparent 55%),
                     var(--bg);
-         display:flex;align-items:center;justify-content:center;padding:20px}
+         display:flex;align-items:center;justify-content:center;padding:16px}
     .wrap{width:100%;max-width:960px}
     header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
     .brand{font-weight:800;letter-spacing:.3px}
-    .panel{background:linear-gradient(180deg, rgba(26,36,58,.9), rgba(14,20,34,.92));border:1px solid var(--border);border-radius:18px;padding:18px}
+    .panel{background:linear-gradient(180deg, rgba(26,36,58,.9), rgba(14,20,34,.92));border:1px solid var(--border);border-radius:18px;padding:16px}
     .btn{background:#162544;border:1px solid #2b4473;color:#dbeafe;font-weight:700;padding:10px 14px;border-radius:12px;cursor:pointer}
     .btn:disabled{opacity:.6;cursor:not-allowed}
     .muted{color:var(--muted)}
@@ -44,7 +44,7 @@
     </header>
 
     <section class="panel">
-      <div class="muted" id="desc">只使用 Instagram Basic Display：登入後上傳你的 IG 個人頁截圖 → 由本機 OCR 解析 → 與登入帳號比對一致後才允許分析。</div>
+      <div class="muted" id="desc">流程：IG Basic Display 登入 → 上傳個人頁截圖 → 本機 OCR → 與登入帳號比對一致 → 產生 MBTI 結果。</div>
 
       <div class="card" id="cardLogin" style="display:none">
         <div class="row"><button class="btn" onclick="location.href='/bd/login'">前往 IG 登入</button></div>
@@ -103,24 +103,18 @@ function extract(text){
   };
   let followers = pickNum(t.match(/粉絲|followers|팔로워|フォロワー|seguidores/i)? RegExp.rightContext : '');
   let following = pickNum(t.match(/追蹤|following|팔로잉|フォロー中|seguidos/i)? RegExp.rightContext : '');
-  let posts = pickNum(t.match(/貼文|posts|게시물|投稿|publicaciones/i)? RegExp.rightContext : '');
-
+  let posts     = pickNum(t.match(/貼文|posts|게시물|投稿|publicaciones/i)? RegExp.rightContext : '');
   return {username, followers, following, posts};
 }
 
 async function boot(){
-  // wiring
   $('#btnStatus').onclick = async ()=> alert(JSON.stringify(await api('/bd/status'), null, 2));
   $('#btnLogin').onclick = ()=> location.href='/bd/login';
 
-  // status
   const st = await api('/bd/status').catch(()=>null);
-  if(!st || st.status!=='bound'){
-    show('#cardLogin', true); return;
-  }
+  if(!st || st.status!=='bound'){ show('#cardLogin', true); return; }
   show('#cardUpload', true);
 
-  // file select
   const file = $('#file'); const btnOCR = $('#btnOCR'); const btnSubmit = $('#btnSubmit');
   file.onchange = ()=> btnOCR.disabled = !file.files?.length;
 
@@ -164,7 +158,7 @@ async function boot(){
       return;
     }
     $('#msg').innerHTML = `✅ 通過：@${res.username}（followers: ${res.followers ?? '-'}）`;
-    // 直接開始分析
+    // 直接分析
     const out = await api('/bd/analyze', {method:'POST', body:'{}'});
     if(!out.ok){
       show('#cardError', true);
