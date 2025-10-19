@@ -5,40 +5,118 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>IG 人格分析（MBTI）</title>
   <style>
-    :root { --bg:#0b0d12; --card:#131722; --line:#232a3a; --text:#e9eef5; --muted:#9fb0d1; --accent:#5b8cff; }
+    :root {
+      --bg:#0b0d12; --card:#0f1420; --line:#1f2a44; --text:#eaf0ff; --muted:#9fb0d1; --accent:#6ea8ff;
+      --grad1:linear-gradient(135deg,#1a2b6e 0%, #6236ff 50%, #ff6bd6 100%);
+      --glass: rgba(255,255,255,.06);
+    }
     *{ box-sizing:border-box; }
     body{ margin:0; font-family: system-ui,-apple-system,"Noto Sans TC",sans-serif; background:var(--bg); color:var(--text);}
-    .wrap{ max-width:780px; margin:0 auto; padding:20px; }
-    .hero{ text-align:center; padding:12px 0 18px; }
-    .hero h1{ margin:8px 0 4px; font-size:26px; }
-    .hero p{ margin:0; color:var(--muted);}
-    .card{ background:var(--card); border:1px solid var(--line); border-radius:16px; padding:16px; box-shadow:0 8px 24px rgba(0,0,0,.35);}
-    .row{ display:flex; flex-wrap:wrap; gap:12px;}
-    .col{ flex:1 1 240px;}
-    label{ display:block; margin-bottom:6px; color:var(--muted); font-size:14px;}
-    input,select,button{ width:100%; padding:12px; border-radius:12px; border:1px solid var(--line); background:#0f1420; color:var(--text); }
-    input::file-selector-button{ padding:8px 12px; border-radius:8px; border:1px solid var(--line); background:#182033; color:var(--text); margin-right:10px;}
-    button{ background:var(--accent); border:none; font-weight:700; cursor:pointer;}
-    button:disabled{ opacity:.5; cursor:not-allowed;}
+    a{ color:var(--accent); text-decoration:none; }
+
+    .wrap{ max-width:860px; margin:0 auto; padding:20px; }
+    .hero{ text-align:center; padding:8px 0 18px; }
+    .hero h1{ margin:6px 0 2px; font-size:26px; }
+    .hero p{ margin:0; color:var(--muted); }
+
+    .panel{ background:var(--card); border:1px solid var(--line); border-radius:16px; padding:16px; box-shadow:0 8px 24px rgba(0,0,0,.35); }
+    .row{ display:flex; flex-wrap:wrap; gap:12px; }
+    .col{ flex:1 1 240px; }
+
+    label{ display:block; margin-bottom:8px; color:var(--muted); font-size:14px;}
+    input,select,button{ width:100%; padding:12px; border-radius:12px; border:1px solid var(--line); background:#0b1120; color:var(--text); }
+    input::file-selector-button{ padding:8px 12px; border-radius:8px; border:1px solid var(--line); background:#162040; color:var(--text); margin-right:10px;}
+    button{ background:var(--accent); border:none; font-weight:800; cursor:pointer; letter-spacing:.5px; }
+    button:disabled{ opacity:.5; cursor:not-allowed; }
     .hint{ color:var(--muted); font-size:13px; line-height:1.6; }
-    .result{ white-space:pre-wrap; background:#0f1420; border:1px dashed var(--line); padding:12px; border-radius:12px; margin-top:12px;}
-    .sp{ height:10px;}
+    .sp{ height:10px; }
+
+    /* 結果卡面 */
+    .card-wrap{ margin-top:16px; display:none; }
+    .card{ position:relative; border-radius:20px; overflow:hidden; border:1px solid var(--line); background:var(--grad1); }
+    .card::before{
+      content:""; position:absolute; inset:0; background:radial-gradient(60% 60% at 20% 10%, rgba(255,255,255,.25), transparent 60%);
+      mix-blend-mode: screen; pointer-events:none;
+    }
+    .card-inner{ position:relative; padding:18px; backdrop-filter: blur(4px); min-height: 260px; display:grid; grid-template-columns: 1fr 140px; gap:14px; }
+    @media (max-width: 560px){
+      .card-inner{ grid-template-columns: 1fr; }
+    }
+
+    .id-line{ display:flex; align-items:center; gap:8px; }
+    .pfp{
+      width:48px; height:48px; border-radius:50%;
+      background:var(--glass); border:1px solid rgba(255,255,255,.2);
+      display:flex; align-items:center; justify-content:center; font-weight:800;
+    }
+    .nameblock b{ font-size:18px; display:block; }
+    .nameblock span{ color:rgba(255,255,255,.85); font-size:13px; }
+
+    .mbti-tag{
+      display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:999px;
+      background:rgba(0,0,0,.25); border:1px solid rgba(255,255,255,.25); font-weight:900; letter-spacing:1px;
+      box-shadow:0 6px 18px rgba(0,0,0,.25); transform: translateZ(0);
+      animation: float 4s ease-in-out infinite;
+    }
+    @keyframes float{
+      0%,100%{ transform: translateY(0) }
+      50%{ transform: translateY(-4px) }
+    }
+
+    .stats{ display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;}
+    .stat{
+      background:var(--glass); border:1px solid rgba(255,255,255,.25); border-radius:12px; padding:8px 10px;
+      display:flex; flex-direction:column; min-width:90px;
+    }
+    .stat small{ opacity:.85; }
+    .stat b{ font-size:18px; }
+
+    .reason{
+      margin-top:10px; background:rgba(0,0,0,.25); border:1px solid rgba(255,255,255,.25);
+      border-radius:14px; padding:10px 12px; line-height:1.5;
+    }
+
+    .right{
+      display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px;
+    }
+    .badge{
+      background:rgba(0,0,0,.25); border:1px solid rgba(255,255,255,.3); border-radius:999px; padding:6px 10px; font-weight:700;
+      box-shadow:0 5px 16px rgba(0,0,0,.25);
+    }
+    .vehicle{
+      font-size:46px; filter: drop-shadow(0 12px 24px rgba(0,0,0,.4)); transform-origin: 50% 100%;
+      animation: wobble 2.8s ease-in-out infinite;
+    }
+    @keyframes wobble{
+      0%,100%{ transform: rotate(0deg) }
+      50%{ transform: rotate(-3deg) }
+    }
+
     .footer{ text-align:center; color:var(--muted); font-size:12px; margin-top:18px;}
+    .hidden { display:none !important; }
+
+    /* 顯示過場動畫 */
+    .card-wrap.show { display:block; animation: fadeUp .35s ease both; }
+    @keyframes fadeUp{
+      from{ opacity:0; transform: translateY(6px) }
+      to{ opacity:1; transform: translateY(0) }
+    }
   </style>
 </head>
 <body>
   <div class="wrap">
     <div class="hero">
       <h1>IG 人格分析（MBTI）</h1>
-      <p>上傳你的 IG 個人頁截圖（可加 1–9 張首圖），AI 會產生 MBTI 與 100 字說明。</p>
+      <p>上傳 IG 個人頁截圖（可加 1–9 張首圖），AI 產生 MBTI 與 100 字解讀，並給你一台專屬「載具」。</p>
     </div>
 
-    <div class="card">
+    <!-- 上傳面板 -->
+    <div class="panel" id="panel-upload">
       <div class="row">
         <div class="col">
           <label>IG 個人頁截圖（必填）</label>
           <input id="shot" type="file" accept="image/*" required>
-          <div class="hint">建議要看得到：username、名稱、bio、粉絲/追蹤/貼文數。</div>
+          <div class="hint">建議畫面包含：username、名稱、bio、粉絲/追蹤/貼文數。</div>
         </div>
       </div>
 
@@ -48,7 +126,7 @@
         <div class="col">
           <label>九宮格首圖（最多 9 張，可選）</label>
           <input id="grid" type="file" accept="image/*" multiple>
-          <div class="hint">挑最近最能代表風格的 3–9 張，分析會更準。</div>
+          <div class="hint">挑最近 3–9 張代表作，分析會更準。</div>
         </div>
       </div>
 
@@ -69,48 +147,104 @@
       </div>
 
       <div class="sp"></div>
-
       <button id="go">開始分析</button>
-      <div id="out" class="result" style="display:none;"></div>
+    </div>
+
+    <!-- 結果卡 -->
+    <div class="card-wrap" id="card-wrap">
+      <div class="card">
+        <div class="card-inner">
+          <div>
+            <div class="id-line">
+              <div class="pfp" id="pfp">IG</div>
+              <div class="nameblock">
+                <b id="name">—</b>
+                <span id="username">@—</span>
+              </div>
+              <span class="mbti-tag" id="mbti-tag">MBTI</span>
+            </div>
+
+            <div class="stats">
+              <div class="stat"><small>Followers</small><b id="followers">0</b></div>
+              <div class="stat"><small>Following</small><b id="following">0</b></div>
+              <div class="stat"><small>Posts</small><b id="posts">0</b></div>
+            </div>
+
+            <div class="reason" id="reason">—</div>
+          </div>
+
+          <div class="right">
+            <div class="badge" id="tier-label">載具：walk</div>
+            <div class="vehicle" id="vehicle-emoji">🚶‍♂️</div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="footer">提示：本服務僅分析你主動上傳的公開截圖，結果屬娛樂性質。</div>
   </div>
 
   <script>
-    const API = "/api/analyze"; // 同網域 API，不需 CORS
-
+    const API = "/api/analyze";
     const $ = s => document.querySelector(s);
-    $("#go").addEventListener("click", async () => {
+
+    // 載具 → emoji + 中文標籤
+    const VEHICLE_UI = {
+      walk:       { emoji: "🚶‍♂️", label: "步行" },
+      tricycle:   { emoji: "🛴",   label: "三輪車" },
+      scooter:    { emoji: "🛹",   label: "滑板車" },
+      motorcycle: { emoji: "🏍️",  label: "機車" },
+      car:        { emoji: "🚗",   label: "汽車" },
+      plane:      { emoji: "✈️",   label: "飛機" },
+      rocket:     { emoji: "🚀",   label: "火箭" },
+      spaceship:  { emoji: "🛸",   label: "飛船" },
+      mothership: { emoji: "🛰️",   label: "母艦" }
+    };
+
+    function initials(name) {
+      const t = (name || "").trim();
+      if(!t) return "IG";
+      const parts = t.split(/\s+/).slice(0,2);
+      return parts.map(p => p[0]).join("").toUpperCase();
+    }
+
+    $("#go").addEventListener("click", async ()=>{
       const shot = $("#shot").files[0];
-      if (!shot) { alert("請先選擇 IG 個人頁截圖"); return; }
+      if(!shot){ alert("請先上傳 IG 個人頁截圖"); return; }
 
       const fd = new FormData();
       fd.append("ig_screenshot", shot);
-      [...$("#grid").files].slice(0, 9).forEach(f => fd.append("grid[]", f));
+      [...$("#grid").files].slice(0,9).forEach(f => fd.append("grid[]", f));
       fd.append("nickname", $("#nickname").value || "");
       fd.append("gender", $("#gender").value || "");
 
       $("#go").disabled = true; $("#go").textContent = "分析中…";
-      $("#out").style.display = "none";
 
-      try {
-        const r = await fetch(API, { method: "POST", body: fd });
+      try{
+        const r = await fetch(API, { method:"POST", body: fd });
         const j = await r.json();
+        if(!j.ok) throw new Error(j.error || "分析失敗，請稍後再試");
 
-        if (!j.ok) { throw new Error(j.error || "分析失敗，請重試"); }
+        // 填寫卡片
+        $("#name").textContent = j.name || $("#nickname").value || "—";
+        $("#username").textContent = j.username ? `@${j.username}` : "@—";
+        $("#followers").textContent = j.followers ?? 0;
+        $("#following").textContent = j.following ?? 0;
+        $("#posts").textContent     = j.posts ?? 0;
+        $("#mbti-tag").textContent  = (j.mbti || "MBTI").toUpperCase();
+        $("#reason").textContent    = j.reason100 || "依上傳截圖初步推斷，僅供娛樂參考。";
+        $("#pfp").textContent       = initials(j.name || $("#nickname").value);
 
-        $("#out").style.display = "block";
-        $("#out").textContent =
-`IG：${j.username || "-"}
-名稱：${j.name || "-"}
-粉絲/追蹤/貼文：${j.followers}/${j.following}/${j.posts}
-MBTI：${j.mbti}
-說明：${j.reason100}
-載具：${j.tier}`;
-      } catch (e) {
+        const v = VEHICLE_UI[j.tier] || VEHICLE_UI.walk;
+        $("#vehicle-emoji").textContent = v.emoji;
+        $("#tier-label").textContent    = `載具：${v.label}`;
+
+        $("#panel-upload").classList.add("hidden");
+        $("#card-wrap").classList.add("show");
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }catch(e){
         alert(e.message || "發生錯誤，稍後再試");
-      } finally {
+      }finally{
         $("#go").disabled = false; $("#go").textContent = "開始分析";
       }
     });
