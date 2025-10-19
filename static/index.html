@@ -1,96 +1,119 @@
 <!doctype html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>IG 人格分析｜上傳截圖</title>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>IG 人格分析（MBTI）</title>
   <style>
-    body { font-family: system-ui, -apple-system, "Noto Sans TC", sans-serif; margin:0; background:#0b0d12; color:#e9eef5;}
-    .wrap { max-width:720px; margin:0 auto; padding:20px; }
-    .card { background:#131722; border:1px solid #232a3a; border-radius:16px; padding:16px; box-shadow:0 8px 24px rgba(0,0,0,.35); }
-    .row{ display:flex; gap:12px; flex-wrap:wrap;}
+    :root { --bg:#0b0d12; --card:#131722; --line:#232a3a; --text:#e9eef5; --muted:#9fb0d1; --accent:#5b8cff; }
+    *{ box-sizing:border-box; }
+    body{ margin:0; font-family: system-ui,-apple-system,"Noto Sans TC",sans-serif; background:var(--bg); color:var(--text);}
+    .wrap{ max-width:780px; margin:0 auto; padding:20px; }
+    .hero{ text-align:center; padding:12px 0 18px; }
+    .hero h1{ margin:8px 0 4px; font-size:26px; }
+    .hero p{ margin:0; color:var(--muted);}
+    .card{ background:var(--card); border:1px solid var(--line); border-radius:16px; padding:16px; box-shadow:0 8px 24px rgba(0,0,0,.35);}
+    .row{ display:flex; flex-wrap:wrap; gap:12px;}
     .col{ flex:1 1 240px;}
-    input, select, button{ width:100%; padding:12px; border-radius:12px; border:1px solid #2a3348; background:#0f1420; color:#e9eef5;}
-    input::file-selector-button{ padding:8px 12px; border-radius:8px; border:1px solid #2a3348; background:#182033; color:#e9eef5; margin-right:10px;}
-    button{ background:#5b8cff; border:none; font-weight:600; }
-    button:disabled{ opacity:.5;}
-    .hint{ color:#9fb0d1; font-size:13px; line-height:1.5;}
-    .title{ font-size:20px; font-weight:700; margin:8px 0 12px;}
-    .result{ white-space:pre-wrap; background:#0f1420; border:1px dashed #2a3348; padding:12px; border-radius:12px; margin-top:12px;}
+    label{ display:block; margin-bottom:6px; color:var(--muted); font-size:14px;}
+    input,select,button{ width:100%; padding:12px; border-radius:12px; border:1px solid var(--line); background:#0f1420; color:var(--text); }
+    input::file-selector-button{ padding:8px 12px; border-radius:8px; border:1px solid var(--line); background:#182033; color:var(--text); margin-right:10px;}
+    button{ background:var(--accent); border:none; font-weight:700; cursor:pointer;}
+    button:disabled{ opacity:.5; cursor:not-allowed;}
+    .hint{ color:var(--muted); font-size:13px; line-height:1.6; }
+    .result{ white-space:pre-wrap; background:#0f1420; border:1px dashed var(--line); padding:12px; border-radius:12px; margin-top:12px;}
+    .sp{ height:10px;}
+    .footer{ text-align:center; color:var(--muted); font-size:12px; margin-top:18px;}
   </style>
 </head>
 <body>
   <div class="wrap">
-    <h1 style="font-size:26px; margin:12px 0">上傳 IG 個人頁截圖</h1>
+    <div class="hero">
+      <h1>IG 人格分析（MBTI）</h1>
+      <p>上傳你的 IG 個人頁截圖（可加 1–9 張首圖），AI 會產生 MBTI 與 100 字說明。</p>
+    </div>
+
     <div class="card">
-      <div class="title">必要素材</div>
       <div class="row">
         <div class="col">
           <label>IG 個人頁截圖（必填）</label>
-          <input type="file" id="igShot" accept="image/*" required />
-          <div class="hint">需看得到 username、名稱、bio、粉絲/追蹤/貼文數（盡量完整）</div>
+          <input id="shot" type="file" accept="image/*" required>
+          <div class="hint">建議要看得到：username、名稱、bio、粉絲/追蹤/貼文數。</div>
         </div>
       </div>
-      <div class="title" style="margin-top:16px;">可選素材（越多越準）</div>
+
+      <div class="sp"></div>
+
       <div class="row">
         <div class="col">
-          <label>九宮格首圖（最多 9 張）</label>
-          <input type="file" id="grid" accept="image/*" multiple />
-          <div class="hint">挑你最近最能代表風格的貼文首圖 3–9 張</div>
+          <label>九宮格首圖（最多 9 張，可選）</label>
+          <input id="grid" type="file" accept="image/*" multiple>
+          <div class="hint">挑最近最能代表風格的 3–9 張，分析會更準。</div>
         </div>
       </div>
-      <div class="title" style="margin-top:16px;">基本資料（非必填）</div>
+
+      <div class="sp"></div>
+
       <div class="row">
         <div class="col">
-          <input type="text" id="nickname" placeholder="暱稱（顯示在卡片上）"/>
+          <label>暱稱（卡面顯示，可選）</label>
+          <input id="nickname" type="text" placeholder="例如：Danny">
         </div>
         <div class="col">
+          <label>性別（可選）</label>
           <select id="gender">
-            <option value="">性別（選填）</option>
+            <option value="">不設定</option>
             <option>女</option><option>男</option><option>非二元</option><option>不透露</option>
           </select>
         </div>
       </div>
-      <button id="go" style="margin-top:16px;">開始分析</button>
+
+      <div class="sp"></div>
+
+      <button id="go">開始分析</button>
       <div id="out" class="result" style="display:none;"></div>
     </div>
+
+    <div class="footer">提示：本服務僅分析你主動上傳的公開截圖，結果屬娛樂性質。</div>
   </div>
 
   <script>
-  const $ = (s)=>document.querySelector(s);
-  const API = "https://socialavatar.onrender.com/api/analyze"; // 你的後端
+    const API = "/api/analyze"; // 同網域 API，不需 CORS
 
-  $("#go").addEventListener("click", async ()=>{
-    const shot = $("#igShot").files[0];
-    if(!shot){ alert("請上傳 IG 個人頁截圖"); return; }
-    const fd = new FormData();
-    fd.append("ig_screenshot", shot);
-    const grids = $("#grid").files;
-    [...grids].slice(0,9).forEach(f=> fd.append("grid[]", f));
-    fd.append("nickname", $("#nickname").value || "");
-    fd.append("gender", $("#gender").value || "");
+    const $ = s => document.querySelector(s);
+    $("#go").addEventListener("click", async () => {
+      const shot = $("#shot").files[0];
+      if (!shot) { alert("請先選擇 IG 個人頁截圖"); return; }
 
-    $("#go").disabled = true; $("#go").textContent = "分析中…";
-    $("#out").style.display = "none";
+      const fd = new FormData();
+      fd.append("ig_screenshot", shot);
+      [...$("#grid").files].slice(0, 9).forEach(f => fd.append("grid[]", f));
+      fd.append("nickname", $("#nickname").value || "");
+      fd.append("gender", $("#gender").value || "");
 
-    try{
-      const r = await fetch(API, { method:"POST", body: fd });
-      const j = await r.json();
-      if(!j.ok){ throw new Error(j.error || "分析失敗"); }
-      $("#out").style.display = "block";
-      $("#out").textContent =
-        `IG：${j.username || "-"}\n`+
-        `名稱：${j.name || "-"}\n`+
-        `粉絲/追蹤/貼文：${j.followers}/${j.following}/${j.posts}\n`+
-        `MBTI：${j.mbti}\n`+
-        `說明：${j.reason100}\n`+
-        `載具：${j.tier}`;
-    }catch(e){
-      alert(e.message || "發生錯誤");
-    }finally{
-      $("#go").disabled = false; $("#go").textContent = "開始分析";
-    }
-  });
+      $("#go").disabled = true; $("#go").textContent = "分析中…";
+      $("#out").style.display = "none";
+
+      try {
+        const r = await fetch(API, { method: "POST", body: fd });
+        const j = await r.json();
+
+        if (!j.ok) { throw new Error(j.error || "分析失敗，請重試"); }
+
+        $("#out").style.display = "block";
+        $("#out").textContent =
+`IG：${j.username || "-"}
+名稱：${j.name || "-"}
+粉絲/追蹤/貼文：${j.followers}/${j.following}/${j.posts}
+MBTI：${j.mbti}
+說明：${j.reason100}
+載具：${j.tier}`;
+      } catch (e) {
+        alert(e.message || "發生錯誤，稍後再試");
+      } finally {
+        $("#go").disabled = false; $("#go").textContent = "開始分析";
+      }
+    });
   </script>
 </body>
 </html>
