@@ -142,17 +142,16 @@ def analyze():
 
 
 def decide_tier(followers: int) -> str:
-    # 你的等級對照（可自由調整）
     tiers = [
-        (0, 1000, "walk"),
-        (1000, 5000, "tricycle"),
-        (5000, 10000, "scooter"),
-        (10000, 50000, "motorcycle"),
-        (50000, 100000, "car"),
-        (100000, 500000, "plane"),
-        (500000, 1000000, "rocket"),
-        (1000000, 10_000_000, "spaceship"),
-        (10_000_000, 10_000_000_000, "mothership"),
+        (0,          1_000,       "walk"),        # 步行
+        (1_000,      5_000,       "tricycle"),    # 三輪車
+        (5_000,      10_000,      "scooter"),     # 滑板車
+        (10_000,     50_000,      "motorcycle"),  # 機車
+        (50_000,     100_000,     "car"),         # 汽車
+        (100_000,    500_000,     "plane"),       # 飛機
+        (500_000,    1_000_000,   "rocket"),      # 火箭
+        (1_000_000,  5_000_000,   "spaceship"),   # 飛船
+        (5_000_000,  1_000_000_000, "mothership"),# 母艦
     ]
     for lo, hi, name in tiers:
         if lo <= followers < hi:
