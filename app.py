@@ -103,7 +103,7 @@ def analyze():
     if client:
         try:
             resp = client.responses.create(
-                model="gpt-4o-mini",   # 可換成你帳號可用的多模態模型，如 gpt-4o
+                model="gpt-4o",   # 可換成你帳號可用的多模態模型，如 gpt-4o
                 input=[
                     {"role": "system", "content": sys_prompt},
                     {"role": "user", "content": content},
