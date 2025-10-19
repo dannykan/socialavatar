@@ -1,258 +1,178 @@
-import os
-import io
-import base64
-import re
+# app.py
+import os, io, re, json, base64
 from datetime import datetime
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
+from PIL import Image
 
-# ========== 基本設定 ==========
-app = Flask(__name__, static_url_path="/static", static_folder="static")
-CORS(app, supports_credentials=True)
-
-# 檔案儲存路徑
-UPLOAD_DIR = os.path.join(os.getcwd(), "uploads")
+# ---------- 基本設定 ----------
+UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-# AI 可用與否（僅在 key 存在時才載入 OpenAI client）
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "").strip()
-AI_ENABLED = bool(OPENAI_API_KEY)
+MAX_SIDE = int(os.getenv("MAX_IMG_SIDE", "1280"))      # 後端縮圖最長邊
+JPEG_QUALITY = int(os.getenv("JPEG_QUALITY", "72"))    # 後端 JPEG 轉檔畫質
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 
-client = None
-if AI_ENABLED:
-    try:
-        from openai import OpenAI
-        client = OpenAI(api_key=OPENAI_API_KEY)
-    except Exception as e:
-        # 若 openai 套件或初始化失敗，仍保證系統能運行
-        print("[WARN] OpenAI client init failed:", e)
-        AI_ENABLED = False
-        client = None
+# Flask
+app = Flask(__name__, static_folder="static", static_url_path="/")
+app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024  # 10MB 上限
+CORS(app, resources={r"/*": {"origins": "*"}})
 
-# 方便 /debug/last_ai 檢查的暫存
-_last_ai_text = ""
+# 最近一次 AI 文字（debug 用）
+_last_ai = {"text": ""}
 
+# ---------- 工具：dataURL -> Pillow Image、縮圖、存檔 ----------
+_dataurl_re = re.compile(r"^data:(?P<mime>[^;]+);base64,(?P<b64>.+)$", re.I)
 
-def save_file_from_data_url(data_url: str, filename_prefix: str) -> str:
-    """
-    data_url: 'data:image/png;base64,xxxx'
-    return: filepath
-    """
-    m = re.match(r"^data:(?P<mime>[^;]+);base64,(?P<b64>.+)$", data_url)
+def decode_data_url_to_image(data_url: str) -> Image.Image:
+    m = _dataurl_re.match(data_url or "")
     if not m:
         raise ValueError("Invalid data URL")
-    mime = m.group("mime")
-    b64 = m.group("b64")
-    ext = "jpg"
-    if "png" in mime:
-        ext = "png"
-    elif "jpeg" in mime or "jpg" in mime:
-        ext = "jpg"
-    elif "webp" in mime:
-        ext = "webp"
+    raw = base64.b64decode(m.group("b64"))
+    im = Image.open(io.BytesIO(raw))
+    return im
 
-    raw = base64.b64decode(b64)
-    fname = f"{filename_prefix}_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}.{ext}"
+def save_file_from_data_url(data_url: str, filename_prefix: str) -> str:
+    im = decode_data_url_to_image(data_url)
+    im = im.convert("RGB")
+    w, h = im.size
+    scale = min(1.0, MAX_SIDE / max(w, h))
+    if scale < 1:
+        im = im.resize((int(w * scale), int(h * scale)), Image.LANCZOS)
+
+    fname = f"{filename_prefix}_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}.jpg"
     fpath = os.path.join(UPLOAD_DIR, fname)
-    with open(fpath, "wb") as f:
-        f.write(raw)
+    im.save(fpath, format="JPEG", quality=JPEG_QUALITY, optimize=True)
     return fpath
 
+def to_raw_b64_from_dataurl(data_url: str) -> str:
+    m = _dataurl_re.match(data_url or "")
+    if not m:
+        return ""
+    return m.group("b64")
 
-def call_openai_summary(images_b64: list, fallback_mbti: str = "ISFJ") -> dict:
+# ---------- Heuristic MBTI（保底） ----------
+def heuristic_mbti(summary_hint: str = ""):
     """
-    回傳:
-      {
-        "username": "...",
-        "name": "...",
-        "bio": "...",
-        "followers": 123,
-        "following": 99,
-        "posts": 45,
-        "mbti": "ESFJ",
-        "reason100": "..."
-      }
-    若 AI_DISABLED 或失敗 -> 以簡單 Heuristic / 預設值回傳
+    非嚴謹：根據簡單字詞/提示給一個 MBTI、和 100 字內說明。
     """
-    global _last_ai_text
+    text = (summary_hint or "").lower()
+    score_e = 1 if any(k in text for k in ["旅", "展演", "派對", "event", "travel"]) else 0
+    score_n = 1 if any(k in text for k in ["概念", "創作", "design", "vision"]) else 0
+    score_t = 1 if any(k in text for k in ["分析", "研究", "engineer", "數據"]) else 0
+    score_p = 1 if any(k in text for k in ["隨性", "vlog", "日常", "動態"]) else 0
 
-    # 預設（AI 失敗時）
-    default = {
-        "username": "",
-        "name": "",
-        "bio": "",
-        "followers": 0,
-        "following": 0,
-        "posts": 0,
-        "mbti": fallback_mbti,
-        "reason100": "依上傳截圖初步推斷，僅供娛樂參考。"
-    }
+    E = "E" if score_e else "I"
+    N = "N" if score_n else "S"
+    T = "T" if score_t else "F"
+    P = "P" if score_p else "J"
+    mbti = f"{E}{N}{T}{P}"
 
-    if not AI_ENABLED or client is None:
-        _last_ai_text = "(AI disabled) fallback used"
-        return default
+    reason = (
+        "根據截圖中呈現的關鍵元素與風格，推斷此帳號偏向 "
+        f"{mbti}。內容呈現與互動線索顯示其社交取向、思維傾向與表達方式；"
+        "此結果僅供娛樂參考。"
+    )
+    return mbti, reason[:100]
 
-    try:
-        # OpenAI Multi-modal 推理（多圖）
-        content = [
-            {"type": "text",
-             "text": (
-                 "你是社群人格觀察員。請從 IG 個人頁截圖與首圖中，"
-                 "判讀：username、顯示名稱、bio、followers、following、posts，"
-                 "並根據整體風格推一個 MBTI（四個字母），並寫 100 字以內的中文敘述。"
-                 "用 JSON 回覆，不要其他字元。格式："
-                 '{"username":"","name":"","bio":"","followers":0,"following":0,"posts":0,"mbti":"ESFJ","reason100":""}'
-             )}
-        ]
-        # 依序加入圖片
-        for b64 in images_b64:
-            content.append({
-                "type": "input_image",
-                "image_data": b64  # 你前端已提供純 base64（不含 data: 前綴）
-            })
+# ---------- OpenAI（可選） ----------
+def call_openai_summary(profile_b64: str, posts_b64: list, mbti_hint: str = "") -> str:
+    """
+    使用多圖 + 系統提示請模型輸出 80~100 字中文摘要。
+    需要環境變數 OPENAI_API_KEY；失敗就拋出例外，外層會 fallback。
+    """
+    from openai import OpenAI
+    client = OpenAI(api_key=OPENAI_API_KEY)
 
-        resp = client.responses.create(
-            model="gpt-4o",   # 模型建議用 gpt-4o，較穩定
-            input=[{"role": "user", "content": content}]
-        )
+    content = [
+        {"type": "text", "text":
+            "你是一位社群觀察員。根據以下 Instagram 個人頁截圖與數張貼文首圖，"
+            "輸出 80~100 字中文摘要，描述此帳號的社群個性與風格；"
+            "語氣自然、正向、中立，不要帶貶義、不評判；不要加標題或列表。"}
+    ]
+    # 個人頁
+    content.append({"type":"input_image","image_url":{"url":"data:image/jpeg;base64,"+profile_b64}})
+    # 貼文最多 3~4 張即可
+    for b64 in (posts_b64 or [])[:4]:
+        content.append({"type":"input_image","image_url":{"url":"data:image/jpeg;base64,"+b64}})
 
-        text = getattr(resp, "output_text", "") or ""
-        _last_ai_text = text or "(empty)"
+    # 可加 MBTI 提示，但不要讓模型只回 MBTI
+    if mbti_hint:
+        content.append({"type":"text","text":f"可參考 MBTI 提示：{mbti_hint}，但仍以圖片為主輸出摘要。"})
 
-        # 嘗試把結果 parse 成 dict
-        import json
-        parsed = json.loads(text)
-        # 基本容錯
-        for k in default.keys():
-            if k not in parsed:
-                parsed[k] = default[k]
-        # 型別校正
-        for nkey in ["followers", "following", "posts"]:
-            try:
-                parsed[nkey] = int(parsed[nkey])
-            except Exception:
-                parsed[nkey] = 0
-        parsed["mbti"] = (parsed.get("mbti") or fallback_mbti).upper()[:4]
-        parsed["reason100"] = (parsed.get("reason100") or default["reason100"])[:120]
-        return parsed
+    resp = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role":"user","content":content}],
+        temperature=0.6,
+        max_tokens=220
+    )
+    text = (resp.choices[0].message.content or "").strip()
+    return text[:120]
 
-    except Exception as e:
-        print("[OpenAI failed]", e)
-        _last_ai_text = f"(exception) {e}"
-        return default
-
-
-# ========== API ==========
-
-@app.get("/")
-def root():
-    # 直接把使用者導向結果頁（單頁 App）
-    return send_from_directory("static", "index.html")
-
-
+# ---------- API ----------
 @app.post("/api/analyze")
 def api_analyze():
-    """
-    接收：
-      {
-        "username_input": "danny",
-        "profile_screenshot": "data:image/png;base64,....",   # 必填
-        "post_images": ["data:image/png;base64,...", ...]     # 可選 0~9 張
-      }
-    回傳：
-      {
-        "ok": true,
-        "data": {
-          "displayName": "...",
-          "username": "...",
-          "followers": 123, "following": 45, "posts": 87,
-          "mbti": "ESFJ",
-          "reason": "100 字",
-          "vehicle": "步行/腳踏車/汽車/火箭"
-        }
-      }
-    """
-    body = request.get_json(silent=True) or {}
-    profile_shot = body.get("profile_screenshot", "")
-    post_images = body.get("post_images", []) or []
-    username_input = (body.get("username_input") or "").strip()
-
-    if not profile_shot:
-        return jsonify({"ok": False, "error": "profile_screenshot required"}), 400
-
-    # 存檔（可省略）
     try:
-        save_file_from_data_url(profile_shot, "profile")
-        for i, p in enumerate(post_images[:9]):
-            save_file_from_data_url(p, f"post{i+1}")
+        body = request.get_json(silent=True) or {}
+        profile = body.get("profile_screenshot")
+        posts = (body.get("post_images") or [])[:4]
+        username_input = (body.get("username_input") or "").strip()
+
+        if not profile:
+            return jsonify({"ok": False, "error": "profile screenshot missing"}), 400
+
+        # 先存成壓縮後 JPEG（可用於除錯、日後溯源）
+        profile_path = save_file_from_data_url(profile, "profile")
+        post_paths = []
+        for i, p in enumerate(posts):
+            try:
+                post_paths.append(save_file_from_data_url(p, f"post{i+1}"))
+            except Exception:
+                pass
+
+        # Heuristic 先給一個 MBTI 與 100字內說明（AI 失敗時會用）
+        mbti_guess, reason = heuristic_mbti(username_input)
+
+        # 有 OpenAI 就嘗試多圖分析 → 覆蓋 reason
+        if OPENAI_API_KEY:
+            try:
+                prof_b64 = to_raw_b64_from_dataurl(profile)
+                posts_b64 = [to_raw_b64_from_dataurl(p) for p in posts if p]
+                ai_text = call_openai_summary(prof_b64, posts_b64, mbti_guess)
+                if ai_text:
+                    reason = ai_text[:120]
+                    _last_ai["text"] = reason
+            except Exception as e:
+                # 不中斷，回 fallback
+                _last_ai["text"] = f"(AI失敗，fallback) {e}"
+
+        data = {
+            "display_name": (username_input or "用戶"),
+            "username": "",  # 若未做 OCR/解析，可留空
+            "followers": None,
+            "following": None,
+            "posts": None,
+            "mbti": mbti_guess,
+            "reason": reason,
+            "vehicle": "步行"  # 你的載具分級邏輯可自行放入
+        }
+        return jsonify({"ok": True, "data": data})
     except Exception as e:
-        print("[save failed]", e)
-
-    # 轉成純 base64，給 OpenAI
-    def to_raw_b64(data_url: str) -> str:
-        if data_url.startswith("data:"):
-            return data_url.split(",", 1)[1]
-        return data_url
-
-    imgs_b64 = [to_raw_b64(profile_shot)] + [to_raw_b64(p) for p in post_images[:9]]
-
-    # 呼叫 AI（或 fallback）
-    parsed = call_openai_summary(imgs_b64)
-
-    # 統一顯示名稱
-    display_name = parsed.get("name") or username_input or "匿名使用者"
-    uname = parsed.get("username") or username_input
-
-    # 載具分級（示意）
-    followers = int(parsed.get("followers") or 0)
-    if followers >= 100000:
-        vehicle = "火箭"
-    elif followers >= 20000:
-        vehicle = "超跑"
-    elif followers >= 5000:
-        vehicle = "汽車"
-    elif followers >= 1000:
-        vehicle = "腳踏車"
-    else:
-        vehicle = "步行"
-
-    out = {
-        "displayName": display_name,
-        "username": uname,
-        "followers": followers,
-        "following": int(parsed.get("following") or 0),
-        "posts": int(parsed.get("posts") or 0),
-        "mbti": parsed.get("mbti") or "ISFJ",
-        "reason": parsed.get("reason100") or "依上傳截圖初步推斷，僅供娛樂參考。",
-        "vehicle": vehicle
-    }
-    return jsonify({"ok": True, "data": out})
-
-
-# ======== Debug routes ========
-
-@app.get("/debug/config")
-def debug_config():
-    """檢查伺服器上的 AI 狀態與 Key 有無"""
-    return jsonify({
-        "ai_enabled": AI_ENABLED,
-        "has_key": bool(OPENAI_API_KEY),
-        "client_ready": bool(client) if AI_ENABLED else False
-    })
-
+        return jsonify({"ok": False, "error": str(e)}), 500
 
 @app.get("/debug/last_ai")
 def debug_last_ai():
-    """看 AI 最後回傳的原始字串（便於定位解析問題）"""
-    return jsonify({"text": _last_ai_text})
+    return jsonify(_last_ai)
 
+# 靜態頁（首頁就是 index.html）
+@app.get("/")
+def root():
+    return app.send_static_file("index.html")
 
-# ========== 靜態檔 ==========
-
-@app.get("/result")
-def result():
-    return send_from_directory("static", "index.html")
-
+# Render 健康檢查
+@app.get("/health")
+def health():
+    return jsonify({"status":"ok","max_side":MAX_SIDE,"jpeg_q":JPEG_QUALITY})
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.getenv("PORT", "8000")), debug=True)
+    app.run(host="0.0.0.0", port=int(os.getenv("PORT","10000")), debug=True)
