@@ -1,178 +1,251 @@
-# app.py
-import os, io, re, json, base64
+import os
+import io
+import json
+import math
 from datetime import datetime
-from flask import Flask, request, jsonify, send_from_directory
-from flask_cors import CORS
-from PIL import Image
+from PIL import Image, ImageOps
+from flask import Flask, request, jsonify, send_from_directory, abort
 
-# ---------- 基本設定 ----------
-UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "uploads")
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+# ---------- Config ----------
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "").strip()
+AI_ON = bool(OPENAI_API_KEY)
+MAX_IMG_SIDE = int(os.getenv("MAX_IMG_SIDE", "1280"))
+JPEG_QUALITY = int(os.getenv("JPEG_QUALITY", "72"))
 
-MAX_SIDE = int(os.getenv("MAX_IMG_SIDE", "1280"))      # 後端縮圖最長邊
-JPEG_QUALITY = int(os.getenv("JPEG_QUALITY", "72"))    # 後端 JPEG 轉檔畫質
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+app = Flask(__name__)
 
-# Flask
-app = Flask(__name__, static_folder="static", static_url_path="/")
-app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024  # 10MB 上限
-CORS(app, resources={r"/*": {"origins": "*"}})
+# 用來查看最後一次 AI 回傳內容（方便 debug）
+_LAST_AI_TEXT = {"text": ""}
 
-# 最近一次 AI 文字（debug 用）
-_last_ai = {"text": ""}
-
-# ---------- 工具：dataURL -> Pillow Image、縮圖、存檔 ----------
-_dataurl_re = re.compile(r"^data:(?P<mime>[^;]+);base64,(?P<b64>.+)$", re.I)
-
-def decode_data_url_to_image(data_url: str) -> Image.Image:
-    m = _dataurl_re.match(data_url or "")
-    if not m:
-        raise ValueError("Invalid data URL")
-    raw = base64.b64decode(m.group("b64"))
-    im = Image.open(io.BytesIO(raw))
-    return im
-
-def save_file_from_data_url(data_url: str, filename_prefix: str) -> str:
-    im = decode_data_url_to_image(data_url)
-    im = im.convert("RGB")
-    w, h = im.size
-    scale = min(1.0, MAX_SIDE / max(w, h))
-    if scale < 1:
-        im = im.resize((int(w * scale), int(h * scale)), Image.LANCZOS)
-
-    fname = f"{filename_prefix}_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}.jpg"
-    fpath = os.path.join(UPLOAD_DIR, fname)
-    im.save(fpath, format="JPEG", quality=JPEG_QUALITY, optimize=True)
-    return fpath
-
-def to_raw_b64_from_dataurl(data_url: str) -> str:
-    m = _dataurl_re.match(data_url or "")
-    if not m:
-        return ""
-    return m.group("b64")
-
-# ---------- Heuristic MBTI（保底） ----------
-def heuristic_mbti(summary_hint: str = ""):
-    """
-    非嚴謹：根據簡單字詞/提示給一個 MBTI、和 100 字內說明。
-    """
-    text = (summary_hint or "").lower()
-    score_e = 1 if any(k in text for k in ["旅", "展演", "派對", "event", "travel"]) else 0
-    score_n = 1 if any(k in text for k in ["概念", "創作", "design", "vision"]) else 0
-    score_t = 1 if any(k in text for k in ["分析", "研究", "engineer", "數據"]) else 0
-    score_p = 1 if any(k in text for k in ["隨性", "vlog", "日常", "動態"]) else 0
-
-    E = "E" if score_e else "I"
-    N = "N" if score_n else "S"
-    T = "T" if score_t else "F"
-    P = "P" if score_p else "J"
-    mbti = f"{E}{N}{T}{P}"
-
-    reason = (
-        "根據截圖中呈現的關鍵元素與風格，推斷此帳號偏向 "
-        f"{mbti}。內容呈現與互動線索顯示其社交取向、思維傾向與表達方式；"
-        "此結果僅供娛樂參考。"
-    )
-    return mbti, reason[:100]
-
-# ---------- OpenAI（可選） ----------
-def call_openai_summary(profile_b64: str, posts_b64: list, mbti_hint: str = "") -> str:
-    """
-    使用多圖 + 系統提示請模型輸出 80~100 字中文摘要。
-    需要環境變數 OPENAI_API_KEY；失敗就拋出例外，外層會 fallback。
-    """
-    from openai import OpenAI
-    client = OpenAI(api_key=OPENAI_API_KEY)
-
-    content = [
-        {"type": "text", "text":
-            "你是一位社群觀察員。根據以下 Instagram 個人頁截圖與數張貼文首圖，"
-            "輸出 80~100 字中文摘要，描述此帳號的社群個性與風格；"
-            "語氣自然、正向、中立，不要帶貶義、不評判；不要加標題或列表。"}
-    ]
-    # 個人頁
-    content.append({"type":"input_image","image_url":{"url":"data:image/jpeg;base64,"+profile_b64}})
-    # 貼文最多 3~4 張即可
-    for b64 in (posts_b64 or [])[:4]:
-        content.append({"type":"input_image","image_url":{"url":"data:image/jpeg;base64,"+b64}})
-
-    # 可加 MBTI 提示，但不要讓模型只回 MBTI
-    if mbti_hint:
-        content.append({"type":"text","text":f"可參考 MBTI 提示：{mbti_hint}，但仍以圖片為主輸出摘要。"})
-
-    resp = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[{"role":"user","content":content}],
-        temperature=0.6,
-        max_tokens=220
-    )
-    text = (resp.choices[0].message.content or "").strip()
-    return text[:120]
-
-# ---------- API ----------
-@app.post("/api/analyze")
-def api_analyze():
+# ---------- Utils ----------
+def clamp_int(x, lo=0, hi=10**12):
     try:
-        body = request.get_json(silent=True) or {}
-        profile = body.get("profile_screenshot")
-        posts = (body.get("post_images") or [])[:4]
-        username_input = (body.get("username_input") or "").strip()
+        x = int(x)
+        return max(lo, min(hi, x))
+    except:
+        return 0
 
-        if not profile:
-            return jsonify({"ok": False, "error": "profile screenshot missing"}), 400
+def resize_to_max_side(im: Image.Image, max_side: int) -> Image.Image:
+    w, h = im.size
+    if max(w, h) <= max_side:
+        return im
+    if w >= h:
+        new_w = max_side
+        new_h = int(h * (max_side / w))
+    else:
+        new_h = max_side
+        new_w = int(w * (max_side / h))
+    return im.resize((new_w, new_h), Image.LANCZOS)
 
-        # 先存成壓縮後 JPEG（可用於除錯、日後溯源）
-        profile_path = save_file_from_data_url(profile, "profile")
-        post_paths = []
-        for i, p in enumerate(posts):
-            try:
-                post_paths.append(save_file_from_data_url(p, f"post{i+1}"))
-            except Exception:
-                pass
+def img_to_jpeg_bytes(im: Image.Image, q: int) -> bytes:
+    if im.mode not in ("RGB", "L"):
+        im = im.convert("RGB")
+    out = io.BytesIO()
+    im.save(out, format="JPEG", quality=q, optimize=True)
+    return out.getvalue()
 
-        # Heuristic 先給一個 MBTI 與 100字內說明（AI 失敗時會用）
-        mbti_guess, reason = heuristic_mbti(username_input)
+def vehicle_from_profile(followers: int, posts: int) -> str:
+    score = followers * 0.7 + posts * 0.3
+    if score < 2000:
+        return "步行"
+    elif score < 10000:
+        return "腳踏車"
+    elif score < 50000:
+        return "機車"
+    elif score < 200000:
+        return "汽車"
+    elif score < 500000:
+        return "跑車"
+    return "飛機"
 
-        # 有 OpenAI 就嘗試多圖分析 → 覆蓋 reason
-        if OPENAI_API_KEY:
-            try:
-                prof_b64 = to_raw_b64_from_dataurl(profile)
-                posts_b64 = [to_raw_b64_from_dataurl(p) for p in posts if p]
-                ai_text = call_openai_summary(prof_b64, posts_b64, mbti_guess)
-                if ai_text:
-                    reason = ai_text[:120]
-                    _last_ai["text"] = reason
-            except Exception as e:
-                # 不中斷，回 fallback
-                _last_ai["text"] = f"(AI失敗，fallback) {e}"
+def mbti_fallback() -> str:
+    # 簡單保底：固定一個，或照你喜歡隨機
+    return "ISFJ"
 
-        data = {
-            "display_name": (username_input or "用戶"),
-            "username": "",  # 若未做 OCR/解析，可留空
-            "followers": None,
-            "following": None,
-            "posts": None,
-            "mbti": mbti_guess,
-            "reason": reason,
-            "vehicle": "步行"  # 你的載具分級邏輯可自行放入
-        }
-        return jsonify({"ok": True, "data": data})
+def heuristic_summary(mbti: str) -> str:
+    base = {
+        "ISFJ":"根據截圖中的關鍵元素與風格，推斷此帳號偏向 ISFJ。內容呈現與互動線索顯示其社交取向、思維傾向與表達方式；此結果僅供娛樂參考。",
+        "ESFJ":"粉絲量與內容安排顯示其外向、感覺與情感導向；貼文風格偏向判斷型。"
+    }
+    return base.get(mbti, base["ISFJ"])[:100]
+
+# ---------- OpenAI ----------
+def call_openai_vision(profile_bytes: bytes, post_bytes_list: list[bytes]) -> dict | None:
+    """
+    請 OpenAI 看圖並輸出結構化 JSON。
+    失敗回傳 None；成功回傳 dict：
+    {
+      display_name, username, followers, following, posts, mbti, summary, vehicle
+    }
+    """
+    if not AI_ON:
+        return None
+
+    try:
+        from openai import OpenAI
+        client = OpenAI(api_key=OPENAI_API_KEY)
     except Exception as e:
-        return jsonify({"ok": False, "error": str(e)}), 500
+        print("[OpenAI import failed]", e)
+        return None
+
+    # 建構 multi-part 圖像訊息
+    # gpt-4o-mini 支援 image_url 與 image input；這裡用 base64 data url。
+    import base64
+    def b64url(b: bytes):
+        return "data:image/jpeg;base64," + base64.b64encode(b).decode("utf-8")
+
+    images_parts = [{"type":"image_url","image_url":{"url": b64url(profile_bytes)}}]
+    for b in post_bytes_list[:4]:
+        images_parts.append({"type":"image_url","image_url":{"url": b64url(b)}})
+
+    system_prompt = (
+        "你是一個嚴謹的資料擷取與性格分析助理。"
+        "使用者會提供 Instagram 個人頁截圖與最多 4 張首圖。"
+        "請從畫面中擷取可讀資訊（若不清楚或看不到請填 null 或 0），再綜合影像風格給出 MBTI 推斷與 100 字摘要。"
+        "必須只輸出 JSON，鍵如下：\n"
+        "{\n"
+        '  "display_name": string|null,\n'
+        '  "username": string|null,\n'
+        '  "followers": number,\n'
+        '  "following": number,\n'
+        '  "posts": number,\n'
+        '  "mbti": "ISTJ|ISFJ|INFJ|INTJ|ISTP|ISFP|INFP|INTP|ESTP|ESFP|ENFP|ENTP|ESTJ|ESFJ|ENFJ|ENTJ",\n'
+        '  "summary": string,  // 繁體中文，不超過 100 字\n'
+        '  "vehicle": "步行|腳踏車|機車|汽車|跑車|飛機"\n'
+        "}\n"
+        "注意：若無法辨識數值（粉絲/追蹤/貼文），請填 0；不要臆測精確數字。"
+    )
+
+    user_prompt = (
+        "請閱讀這些圖像。從個人頁面截圖中嘗試擷取名稱、帳號、粉絲數、追蹤數、貼文數；"
+        "綜合首圖風格推斷 MBTI，並產出 100 字以內的繁中摘要。"
+        "若畫面不清楚，數字請給 0；不可輸出多餘文字，僅能輸出 JSON。"
+    )
+
+    try:
+        resp = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role":"system","content": system_prompt},
+                {"role":"user","content":[{"type":"text","text":user_prompt}, *images_parts]}
+            ],
+            temperature=0.2,
+            max_tokens=400
+        )
+        text = resp.choices[0].message.content.strip()
+        _LAST_AI_TEXT["text"] = text
+        # 嘗試解析 JSON
+        data = json.loads(text)
+        # 基本清洗
+        out = {
+            "display_name": (data.get("display_name") or "")[:80],
+            "username": (data.get("username") or "")[:80],
+            "followers": clamp_int(data.get("followers", 0)),
+            "following": clamp_int(data.get("following", 0)),
+            "posts": clamp_int(data.get("posts", 0)),
+            "mbti": (data.get("mbti") or "").upper()[:4],
+            "summary": (data.get("summary") or "")[:200],
+            "vehicle": (data.get("vehicle") or "")[:10],
+        }
+        return out
+    except Exception as e:
+        print("[OpenAI vision failed]", e)
+        return None
+
+# ---------- Routes ----------
+@app.get("/health")
+def health():
+    return jsonify({"status":"ok","max_side":MAX_IMG_SIDE,"jpeg_q":JPEG_QUALITY})
+
+@app.get("/debug/config")
+def debug_config():
+    return jsonify({
+        "ai_on": AI_ON,
+        "max_side": MAX_IMG_SIDE,
+        "jpeg_q": JPEG_QUALITY
+    })
 
 @app.get("/debug/last_ai")
 def debug_last_ai():
-    return jsonify(_last_ai)
+    return jsonify(_LAST_AI_TEXT)
 
-# 靜態頁（首頁就是 index.html）
+@app.post("/bd/analyze")
+def bd_analyze():
+    """
+    期待 form-data：
+      - profile: 單一 IG 個人頁截圖（必填）
+      - posts: 0~4 張首圖（可選）
+    回傳：
+    {
+      ai_used: bool,
+      display_name, username,
+      followers, following, posts,
+      mbti, summary, vehicle
+    }
+    """
+    if "profile" not in request.files:
+        return jsonify({"error":"profile image required"}), 400
+
+    try:
+        prof_img = Image.open(request.files["profile"].stream).convert("RGB")
+    except Exception:
+        return jsonify({"error":"invalid profile image"}), 400
+
+    # 縮圖 + 壓縮
+    prof_img = resize_to_max_side(prof_img, MAX_IMG_SIDE)
+    prof_bytes = img_to_jpeg_bytes(prof_img, JPEG_QUALITY)
+
+    # 讀取最多 4 張首圖
+    posts_files = request.files.getlist("posts")
+    post_bytes_list = []
+    for f in posts_files[:4]:
+        try:
+            im = Image.open(f.stream).convert("RGB")
+            im = resize_to_max_side(im, MAX_IMG_SIDE)
+            post_bytes_list.append(img_to_jpeg_bytes(im, JPEG_QUALITY))
+        except Exception:
+            continue
+
+    # 先試 AI
+    ai_used = False
+    result = None
+    if AI_ON:
+        result = call_openai_vision(prof_bytes, post_bytes_list)
+        ai_used = bool(result)
+
+    # 保底
+    if not result:
+        m = mbti_fallback()
+        result = {
+            "display_name": "",
+            "username": "",
+            "followers": 0,
+            "following": 0,
+            "posts": 0,
+            "mbti": m,
+            "summary": heuristic_summary(m),
+            "vehicle": vehicle_from_profile(0, 0)
+        }
+
+    # 若 AI 沒產生 vehicle，用規則補
+    if not result.get("vehicle"):
+        result["vehicle"] = vehicle_from_profile(result.get("followers",0), result.get("posts",0))
+
+    result["ai_used"] = ai_used
+    return jsonify(result), 200
+
+# ---------- Static (前端) ----------
 @app.get("/")
 def root():
-    return app.send_static_file("index.html")
+    return send_from_directory("static", "index.html")
 
-# Render 健康檢查
-@app.get("/health")
-def health():
-    return jsonify({"status":"ok","max_side":MAX_SIDE,"jpeg_q":JPEG_QUALITY})
+@app.get("/result")
+def result_page():
+    return send_from_directory("static", "index.html")
+
+@app.get("/static/<path:fn>")
+def static_files(fn):
+    return send_from_directory("static", fn)
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.getenv("PORT","10000")), debug=True)
+    app.run(host="0.0.0.0", port=int(os.getenv("PORT", "8000")))
