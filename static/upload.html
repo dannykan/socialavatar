@@ -42,6 +42,41 @@
   </div>
 
   <script>
+
+    // …(原本的 Firebase 初始化)
+    // ★ 先擋：有結果就不讓停留上傳頁
+    if (sessionStorage.getItem('BD_RESULT')) {
+      location.replace('./result.html');
+    }
+  
+    firebase.onAuthStateChanged(auth, async (u)=>{
+      if(!u){ location.replace("./landing.html"); return; }
+      // …(原本讀取 Firestore analyzed 的程式)
+    });
+  
+    // 登出：要清乾淨前端 session，再回登入
+    document.getElementById('btnLogout').onclick = ()=>{
+      sessionStorage.removeItem('BD_PROFILE');
+      sessionStorage.removeItem('BD_POSTS');
+      sessionStorage.removeItem('BD_UID');
+      // 不移除 BD_RESULT，保持「已完成就只能看結果」的行為
+      firebase.signOut(auth).then(()=>location.replace('./landing.html'));
+    };
+  
+    // 註銷：清所有暫存（含結果），回登入
+    document.getElementById('btnDelete').onclick = async ()=>{
+      if(!confirm("確定註銷？")) return;
+      try{
+        if(userDocRef) await firebase.deleteDoc(userDocRef);
+        if(auth.currentUser) await firebase.deleteUser(auth.currentUser);
+      }catch(e){ console.warn(e); }
+      // ★ 清所有 client 端痕跡
+      sessionStorage.clear();
+      await firebase.signOut(auth);
+      location.replace('./landing.html');
+    };
+
+    
     // TODO: 填入你的 Firebase 設定
     const firebaseConfig = {
       apiKey: "YOUR_KEY",
