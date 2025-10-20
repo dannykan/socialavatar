@@ -200,5 +200,67 @@
       }
     };
   </script>
+
+<script type="module">
+  // 1) CDN imports
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+  import {
+    getAuth, onAuthStateChanged, signInWithPopup,
+    GoogleAuthProvider, FacebookAuthProvider, signOut, deleteUser
+  } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+  import {
+    getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc
+  } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+
+  // 2) 你的 config（從 Console 貼）
+  const firebaseConfig = {
+    apiKey: "AI...your key...",
+    authDomain: "your-project-id.firebaseapp.com",
+    projectId: "your-project-id",
+    storageBucket: "your-project-id.appspot.com",
+    messagingSenderId: "...",
+    appId: "1:...:web:..."
+  };
+
+  // 3) 初始化
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db   = getFirestore(app);
+
+  // 4) 讓別的 script 可取用（可選）
+  window.firebase = { app, auth, db,
+    onAuthStateChanged, signInWithPopup, GoogleAuthProvider, FacebookAuthProvider,
+    signOut, deleteUser, doc, getDoc, setDoc, updateDoc, deleteDoc
+  };
+</script>
+
+<script type="module">
+  const { auth, db, onAuthStateChanged, doc, getDoc } = window.firebase;
+
+  // 已有結果就直接去 result
+  if (sessionStorage.getItem("BD_RESULT")) location.replace("./result.html");
+
+  onAuthStateChanged(auth, async (u)=>{
+    if (!u) { location.replace("./landing.html"); return; }
+    const ref = doc(db, "users", u.uid);
+    const snap = await getDoc(ref);
+    const email = snap.data()?.email || u.email || "";
+    document.getElementById("userEmail").textContent = email; // 你的畫面顯示
+  });
+
+  // 開始分析前你已經把圖檔→/bd/analyze，成功後：
+  async function onAnalyzeFinished(aiResult) {
+    // 存前端快取
+    sessionStorage.setItem("BD_RESULT", JSON.stringify(aiResult));
+    // Firestore 記 analyzed
+    const ref = doc(db, "users", auth.currentUser.uid);
+    await updateDoc(ref, {
+      analyzed: true,
+      result: { ...aiResult, updatedAt: Date.now() }
+    });
+    location.replace("./result.html");
+  }
+</script>
+  
 </body>
 </html>
