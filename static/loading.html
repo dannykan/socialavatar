@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <title>正在分析…</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="./app.css">
+  <!-- Firebase CDN -->
+  <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js"></script>
+</head>
+<body>
+  <div class="loading-full"><div class="spinner"></div></div>
+
+  <script>
+    // TODO: 填入你的 Firebase 設定
+    const firebaseConfig = {
+      apiKey: "YOUR_KEY",
+      authDomain: "YOUR_PROJECT.firebaseapp.com",
+      projectId: "YOUR_PROJECT",
+      storageBucket: "YOUR_PROJECT.appspot.com",
+      messagingSenderId: "SENDER",
+      appId: "APP_ID"
+    };
+    const app = firebase.initializeApp(firebaseConfig);
+    const auth = firebase.getAuth();
+    const db   = firebase.getFirestore();
+
+    (async function main(){
+      const b64 = sessionStorage.getItem('BD_PROFILE');
+      const posts = JSON.parse(sessionStorage.getItem('BD_POSTS')||'[]');
+      const uid = sessionStorage.getItem('BD_UID');
+
+      if(!b64){ location.href="./upload.html"; return; }
+
+      // 上傳到你的 /bd/analyze
+      // 注意：這裡仍用 multipart/form-data，server 端支援 base64 也可改寫
+      async function dataURLtoBlob(durl){
+        const res = await fetch(durl); return await res.blob();
+      }
+      const fd = new FormData();
+      fd.append('profile', new File([await dataURLtoBlob(b64)], 'profile.jpg', {type:'image/jpeg'}));
+      for(let i=0;i<posts.length;i++){
+        fd.append('posts', new File([await dataURLtoBlob(posts[i])], `post${i+1}.jpg`, {type:'image/jpeg'}));
+      }
+
+      let ai = null;
+      try{
+        const resp = await fetch('/bd/analyze', { method:'POST', body:fd });
+        const data = await resp.json();
+        ai = data?.ai || data; // 兼容你的回應格式
+        sessionStorage.setItem('BD_RESULT', JSON.stringify(ai||{}));
+      }catch(e){
+        sessionStorage.setItem('BD_RESULT', JSON.stringify({error:true, message:String(e)}));
+      }
+
+      // 標記使用者已分析
+      try{
+        if(uid){
+          await firebase.updateDoc(firebase.doc(db,'users',uid),{
+            analyzed:true, lastAnalyzedAt: Date.now()
+          });
+        }
+      }catch(e){ console.warn('failed to set analyzed:',e); }
+
+      location.href = "./result.html";
+    })();
+  </script>
+</body>
+</html>
