@@ -17,6 +17,7 @@
     .btn-ghost{background:transparent;color:#fff;border:1px solid #ffffff33;width:100%}
     .btn-facebook{background:#1877f2;color:#fff;width:100%}
     .btn-google{background:#fff;color:#333;width:100%;border:1px solid #ddd}
+    .btn-secondary{background:#7c3aed;color:#fff;width:100%}
     .col{display:flex;flex-direction:column;gap:10px;margin-top:16px}
     small{opacity:.75;font-size:13px}
     .divider{display:flex;align-items:center;gap:12px;margin:20px 0;opacity:.6}
@@ -26,12 +27,18 @@
     @keyframes spin{to{transform:rotate(360deg)}}
     .error{background:#dc2626;color:#fff;padding:12px;border-radius:8px;margin-top:12px;font-size:14px;display:none}
     .user-info{background:#065f46;color:#d1fae5;padding:12px;border-radius:8px;margin-top:12px;font-size:14px;display:none}
+    .loading-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.8);display:none;align-items:center;justify-content:center;z-index:1000}
+    .loading-spinner{width:48px;height:48px;border:4px solid #ffffff33;border-top-color:#22d3ee;border-radius:50%;animation:spin 1s linear infinite}
   </style>
 </head>
 <body>
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-spinner"></div>
+  </div>
+
   <div class="card">
     <h1>🎭 IG 社群 MBTI 分析</h1>
-    <p>登入後上傳你的 IG 個人頁截圖，我們會用 AI 給你一張「社群人格卡」。</p>
+    <p id="mainDescription">登入後上傳你的 IG 個人頁截圖，我們會用 AI 給你一張「社群人格卡」。</p>
     
     <div id="loginSection">
       <div class="col">
@@ -62,26 +69,21 @@
 
     <div id="loggedInSection" style="display:none">
       <div class="user-info" id="userInfo"></div>
-      <div class="col">
-        <a class="btn btn-primary" href="/static/upload.html">
-          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
-          </svg>
-          開始分析
-        </a>
-        <button class="btn btn-ghost" onclick="logout()">登出</button>
+      <div class="col" id="actionButtons">
+        <!-- Buttons will be dynamically inserted here -->
       </div>
     </div>
 
     <div class="error" id="errorMsg"></div>
     
-    <p style="margin-top:20px"><small>💡 提示：登入後即可開始分析你的 IG 社群人格。</small></p>
+    <p style="margin-top:20px" id="hintText"><small>💡 提示：登入後即可開始分析你的 IG 社群人格。</small></p>
   </div>
 
   <!-- Firebase SDK -->
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
     import { getAuth, signInWithPopup, FacebookAuthProvider, GoogleAuthProvider, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+    import { getFirestore, doc, getDoc, setDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
     // Firebase configuration
     const firebaseConfig = {
@@ -96,32 +98,45 @@
     // Initialize Firebase
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
+    const db = getFirestore(app);
 
     // Check authentication state
-    onAuthStateChanged(auth, (user) => {
+    onAuthStateChanged(auth, async (user) => {
+      const loadingOverlay = document.getElementById('loadingOverlay');
+      loadingOverlay.style.display = 'flex';
+
       if (user) {
-        // User is signed in
-        showLoggedInState(user);
-        
-        // Check if there's a valid result to show
-        try {
-          const raw = sessionStorage.getItem('sa_result');
-          if (raw) {
-            const data = JSON.parse(raw);
-            if (data && data.ok === true && data.mbti) {
-              location.href = '/static/result.html';
-            }
-          }
-        } catch (e) {
-          sessionStorage.removeItem('sa_result');
-        }
+        // User is signed in - check if they have previous analysis
+        await checkUserAnalysis(user);
       } else {
         // User is signed out
         showLoggedOutState();
       }
+      
+      loadingOverlay.style.display = 'none';
     });
 
-    function showLoggedInState(user) {
+    async function checkUserAnalysis(user) {
+      try {
+        // Check Firestore for existing analysis
+        const userDocRef = doc(db, 'users', user.uid);
+        const userDoc = await getDoc(userDocRef);
+        
+        if (userDoc.exists() && userDoc.data().hasAnalysis) {
+          // User has previous analysis
+          const analysisData = userDoc.data().latestAnalysis;
+          showLoggedInStateWithResult(user, analysisData);
+        } else {
+          // First time user or no previous analysis
+          showLoggedInStateNewUser(user);
+        }
+      } catch (error) {
+        console.error('Error checking user analysis:', error);
+        showLoggedInStateNewUser(user);
+      }
+    }
+
+    function showLoggedInStateNewUser(user) {
       document.getElementById('loginSection').style.display = 'none';
       document.getElementById('loggedInSection').style.display = 'block';
       
@@ -129,7 +144,69 @@
       userInfo.style.display = 'block';
       userInfo.innerHTML = `✓ 已登入：${user.displayName || user.email || 'User'}`;
       
-      // Store user info for later use
+      const mainDesc = document.getElementById('mainDescription');
+      mainDesc.textContent = '歡迎！現在可以開始上傳你的 IG 截圖進行分析。';
+      
+      const actionButtons = document.getElementById('actionButtons');
+      actionButtons.innerHTML = `
+        <a class="btn btn-primary" href="/static/upload.html">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+          </svg>
+          開始分析
+        </a>
+        <button class="btn btn-ghost" onclick="logout()">登出</button>
+      `;
+      
+      document.getElementById('hintText').innerHTML = '<small>💡 上傳截圖後，你的分析結果會永久保存。</small>';
+      
+      storeUserSession(user);
+    }
+
+    function showLoggedInStateWithResult(user, analysisData) {
+      document.getElementById('loginSection').style.display = 'none';
+      document.getElementById('loggedInSection').style.display = 'block';
+      
+      const userInfo = document.getElementById('userInfo');
+      userInfo.style.display = 'block';
+      userInfo.innerHTML = `✓ 已登入：${user.displayName || user.email || 'User'}`;
+      
+      const mainDesc = document.getElementById('mainDescription');
+      mainDesc.textContent = `你的社群人格：${analysisData.mbti || '已分析'}`;
+      
+      const actionButtons = document.getElementById('actionButtons');
+      actionButtons.innerHTML = `
+        <a class="btn btn-primary" href="/static/result.html">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M12 6v6l4 2"/>
+          </svg>
+          檢視我的 Social Avatar
+        </a>
+        <button class="btn btn-secondary" onclick="reanalyze()">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+          </svg>
+          重新分析
+        </button>
+        <button class="btn btn-ghost" onclick="logout()">登出</button>
+      `;
+      
+      document.getElementById('hintText').innerHTML = `<small>📅 最後分析時間：${formatDate(analysisData.timestamp)}</small>`;
+      
+      // Store analysis in session for result page
+      sessionStorage.setItem('sa_result', JSON.stringify(analysisData));
+      storeUserSession(user);
+    }
+
+    function showLoggedOutState() {
+      document.getElementById('loginSection').style.display = 'block';
+      document.getElementById('loggedInSection').style.display = 'none';
+      sessionStorage.removeItem('user');
+      sessionStorage.removeItem('sa_result');
+    }
+
+    function storeUserSession(user) {
       sessionStorage.setItem('user', JSON.stringify({
         uid: user.uid,
         email: user.email,
@@ -138,10 +215,16 @@
       }));
     }
 
-    function showLoggedOutState() {
-      document.getElementById('loginSection').style.display = 'block';
-      document.getElementById('loggedInSection').style.display = 'none';
-      sessionStorage.removeItem('user');
+    function formatDate(timestamp) {
+      if (!timestamp) return '未知';
+      const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+      return date.toLocaleDateString('zh-TW', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
     }
 
     function showError(message) {
@@ -172,7 +255,7 @@
       } catch (error) {
         console.error('Facebook login error:', error);
         showError('Facebook 登入失敗：' + error.message);
-        location.reload(); // Reset button state
+        location.reload();
       }
     };
 
@@ -187,7 +270,7 @@
       } catch (error) {
         console.error('Google login error:', error);
         showError('Google 登入失敗：' + error.message);
-        location.reload(); // Reset button state
+        location.reload();
       }
     };
 
@@ -195,14 +278,24 @@
     window.logout = async function() {
       try {
         await signOut(auth);
-        sessionStorage.removeItem('sa_result');
-        sessionStorage.removeItem('user');
+        sessionStorage.clear();
         location.reload();
       } catch (error) {
         console.error('Logout error:', error);
         showError('登出失敗：' + error.message);
       }
     };
+
+    // Reanalyze - clear previous data and go to upload
+    window.reanalyze = function() {
+      if (confirm('確定要重新分析？這將覆蓋你目前的分析結果。')) {
+        sessionStorage.removeItem('sa_result');
+        location.href = '/static/upload.html';
+      }
+    };
+
+    // Export db for use in other pages
+    window.firestoreDB = db;
   </script>
 </body>
 </html>
