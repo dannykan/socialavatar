@@ -120,31 +120,53 @@
           return;
         }
 
+        console.log('[DEBUG] Analysis successful, saving to Firestore...');
+
         // Store user info along with result
         const user = JSON.parse(sessionStorage.getItem('user'));
         data.user = user;
         data.timestamp = new Date().toISOString();
 
+        console.log('[DEBUG] User UID:', user.uid);
+        console.log('[DEBUG] Data to save:', data);
+
         // Save to Firestore
         try {
           const userDocRef = doc(db, 'users', user.uid);
-          await setDoc(userDocRef, {
+          
+          const firestoreData = {
             uid: user.uid,
             email: user.email,
             displayName: user.displayName,
             photoURL: user.photoURL,
             hasAnalysis: true,
             latestAnalysis: {
-              ...data,
-              timestamp: serverTimestamp(),
-              ok: true
+              ok: data.ok,
+              mbti: data.mbti,
+              display_name: data.display_name,
+              username: data.username,
+              followers: data.followers,
+              following: data.following,
+              posts: data.posts,
+              summary: data.summary,
+              vehicle: data.vehicle,
+              diagnose: data.diagnose,
+              timestamp: serverTimestamp()
             },
             updatedAt: serverTimestamp()
-          });
-          console.log('Analysis saved to Firestore');
+          };
+          
+          console.log('[DEBUG] Saving to Firestore:', firestoreData);
+          
+          await setDoc(userDocRef, firestoreData);
+          
+          console.log('[DEBUG] ✅ Successfully saved to Firestore!');
         } catch (firestoreError) {
-          console.error('Failed to save to Firestore:', firestoreError);
+          console.error('[ERROR] Failed to save to Firestore:', firestoreError);
+          console.error('[ERROR] Error code:', firestoreError.code);
+          console.error('[ERROR] Error message:', firestoreError.message);
           // Continue anyway - user can still see results
+          alert('⚠️ 分析完成，但儲存到雲端時發生錯誤。\n\n錯誤：' + firestoreError.message + '\n\n你仍可以查看結果，但下次登入時可能需要重新分析。');
         }
 
         // Store in sessionStorage for result.html
