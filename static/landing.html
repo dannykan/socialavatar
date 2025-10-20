@@ -86,5 +86,77 @@
       if(u) location.href = "./upload.html";
     });
   </script>
+<script type="module">
+  // 1) CDN imports
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+  import {
+    getAuth, onAuthStateChanged, signInWithPopup,
+    GoogleAuthProvider, FacebookAuthProvider, signOut, deleteUser
+  } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+  import {
+    getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc
+  } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+
+  // 2) 你的 config（從 Console 貼）
+  const firebaseConfig = {
+    apiKey: "AI...your key...",
+    authDomain: "your-project-id.firebaseapp.com",
+    projectId: "your-project-id",
+    storageBucket: "your-project-id.appspot.com",
+    messagingSenderId: "...",
+    appId: "1:...:web:..."
+  };
+
+  // 3) 初始化
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db   = getFirestore(app);
+
+  // 4) 讓別的 script 可取用（可選）
+  window.firebase = { app, auth, db,
+    onAuthStateChanged, signInWithPopup, GoogleAuthProvider, FacebookAuthProvider,
+    signOut, deleteUser, doc, getDoc, setDoc, updateDoc, deleteDoc
+  };
+</script>
+<button id="btnGoogle">用 Google 登入</button>
+<button id="btnFacebook">用 Facebook 登入</button>
+
+<script type="module">
+  const { auth, db, signInWithPopup, GoogleAuthProvider, FacebookAuthProvider, doc, getDoc, setDoc, onAuthStateChanged } = window.firebase;
+
+  async function afterLogin(user) {
+    const ref = doc(db, "users", user.uid);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) {
+      await setDoc(ref, {
+        email: user.email || "",
+        provider: (user.providerData[0]?.providerId || "").replace(".com",""),
+        createdAt: Date.now(),
+        analyzed: false,
+        result: null
+      }, { merge: true });
+    }
+    // 你的策略：若已有結果，去 result；否則去 upload
+    const hasResult = !!sessionStorage.getItem("BD_RESULT");
+    location.replace(hasResult ? "./result.html" : "./upload.html");
+  }
+
+  document.getElementById("btnGoogle").onclick = async () => {
+    const provider = new GoogleAuthProvider();
+    await signInWithPopup(auth, provider).then(({user}) => afterLogin(user));
+  };
+
+  document.getElementById("btnFacebook").onclick = async () => {
+    const provider = new FacebookAuthProvider();
+    await signInWithPopup(auth, provider).then(({user}) => afterLogin(user));
+  };
+
+  onAuthStateChanged(auth, (u) => {
+    if (u) {
+      const hasResult = !!sessionStorage.getItem("BD_RESULT");
+      location.replace(hasResult ? "./result.html" : "./upload.html");
+    }
+  });
+</script>
 </body>
 </html>
