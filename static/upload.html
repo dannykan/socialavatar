@@ -1,132 +1,112 @@
 <!doctype html>
 <html lang="zh-Hant">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>上傳素材（登入後）</title>
-<link rel="icon" href="data:," />
-<style>
-  :root{color-scheme:dark}
-  body{margin:0;background:#0f1115;color:#e6e9ef;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto}
-  .wrap{min-height:100svh;display:grid;place-items:center;padding:32px}
-  .card{width:min(900px,94vw);background:#0b0d12;border:1px solid #262a33;border-radius:16px;padding:26px;box-shadow:0 10px 40px rgba(0,0,0,.45)}
-  h1{font-size:24px;margin:0 0 16px}
-  .row{margin:14px 0}
-  .btn{padding:12px 16px;border-radius:12px;border:1px solid #2f3441;background:#12151c;color:#e6e9ef;cursor:pointer}
-  .btn:hover{background:#171b23}
-  .danger{color:#ffb4b4}
-  #err{white-space:pre-wrap;background:#1a0f0f;border:1px solid #432626;border-radius:12px;padding:12px;margin-top:12px;display:none}
-  .hint{opacity:.7;font-size:13px}
-</style>
-</head>
-<body>
-<div class="wrap">
-  <div class="card">
-    <h1>上傳素材（登入後）</h1>
-    <div id="uinfo" class="row">已綁定 Email：<span id="email">—</span></div>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>上傳素材｜Social Avatar</title>
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
+         margin:0;background:#0b1220;color:#e5e7eb;min-height:100vh}
+    header{padding:16px 20px;border-bottom:1px solid #1f2937;background:#0b1220;position:sticky;top:0}
+    main{max-width:760px;margin:0 auto;padding:20px}
+    .card{background:#111827;border:1px solid #1f2937;border-radius:14px;padding:18px;margin:14px 0}
+    h1{margin:6px 0 0}
+    .muted{opacity:.8}
+    label{display:block;margin:10px 0 6px}
+    input[type=file]{width:100%;background:#0b1220;border:1px dashed #374151;border-radius:10px;padding:14px;color:#e5e7eb}
+    .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+    button{border:0;border-radius:12px;padding:12px 16px;font-weight:600;cursor:pointer}
+    .primary{background:#22d3ee;color:#0b1220}
+    .ghost{background:transparent;border:1px solid #374151;color:#e5e7eb}
+    .hint{font-size:13px;opacity:.8}
+    .err{background:#7f1d1d;color:#fecaca;border:1px solid #ef4444;padding:12px;border-radius:10px;display:none;margin-top:10px;white-space:pre-wrap}
+    .ok{background:#052e1a;color:#bbf7d0;border:1px solid #22c55e;padding:12px;border-radius:10px;display:none;margin-top:10px}
+  </style>
+  <script>
+    // 若已分析，導回結果頁；避免重複分析
+    (function(){
+      try{
+        const r = localStorage.getItem('sa_result');
+        if (r) location.href='/static/result.html';
+      }catch(e){}
+    })();
 
-    <div class="row">
-      <label>上傳 IG 個人頁截圖（<b>必填，1 張</b>）</label><br/>
-      <input id="profile" type="file" accept="image/*" />
-    </div>
+    async function startAnalyze(){
+      const errBox = document.getElementById('err');
+      const okBox  = document.getElementById('ok');
+      errBox.style.display='none'; okBox.style.display='none'; errBox.textContent='';
 
-    <div class="row">
-      <label>上傳貼文首圖（<b>選填，最多 4 張</b>）</label><br/>
-      <input id="posts" type="file" accept="image/*" multiple />
-    </div>
+      const fProfile = document.getElementById('profile');
+      const fPosts   = document.getElementById('posts');
 
-    <div class="row">
-      <button id="demo" class="btn" type="button">載入示例檔</button>
-      <button id="go" class="btn" type="button" style="margin-left:8px">開始分析</button>
-    </div>
-
-    <div id="err" class="row"></div>
-    <div class="hint">提示：本頁只做上傳與分析，其他欄位不顯示。分析中會出現全螢幕 Loading。</div>
-  </div>
-</div>
-
-<script>
-  // 若已分析完成，就直接看結果頁
-  (function () {
-    try {
-      const raw = localStorage.getItem("sa_result");
-      if (raw && JSON.parse(raw)) location.replace("/static/result.html");
-    } catch {}
-  })();
-
-  // 必須登入
-  (function () {
-    const u = localStorage.getItem("sa_user");
-    if (!u) { location.replace("/static/landing.html"); return; }
-    try {
-      const j = JSON.parse(u);
-      document.getElementById("email").textContent = j.email || "—";
-    } catch { location.replace("/static/landing.html"); }
-  })();
-
-  const elErr = document.getElementById("err");
-
-  function showErr(text) {
-    elErr.style.display = "block";
-    elErr.textContent = text;
-  }
-  function clearErr(){ elErr.style.display="none"; elErr.textContent=""; }
-
-  // 影像壓縮
-  async function compressImage(file, maxSide=1600, quality=0.8) {
-    const img = await createImageBitmap(file);
-    const w = img.width, h = img.height;
-    const ratio = (w > h ? maxSide / w : maxSide / h);
-    const nw = Math.round(w * Math.min(1, ratio));
-    const nh = Math.round(h * Math.min(1, ratio));
-    const canvas = new OffscreenCanvas(nw, nh);
-    const ctx = canvas.getContext("2d");
-    ctx.drawImage(img, 0, 0, nw, nh);
-    const blob = await canvas.convertToBlob({ type: "image/jpeg", quality });
-    return new File([blob], file.name.replace(/\.\w+$/, ".jpg"), { type:"image/jpeg" });
-  }
-
-  // Demo
-  document.getElementById("demo").onclick = async () => {
-    clearErr();
-    alert("Demo：請用你手邊的 IG 截圖；此按鈕僅保留占位目的。");
-  };
-
-  // 送出分析
-  document.getElementById("go").onclick = async () => {
-    clearErr();
-    const pf = document.getElementById("profile").files?.[0];
-    if (!pf) { showErr("請先選擇 IG 個人頁截圖（必填）"); return; }
-
-    try {
-      // 壓縮
-      const pComp = await compressImage(pf);
-      const fd = new FormData();
-      fd.append("profile", pComp);
-
-      const posts = Array.from(document.getElementById("posts").files || []).slice(0,4);
-      for (const f of posts) {
-        const img = await compressImage(f);
-        fd.append("posts", img);
-      }
-
-      // 送出
-      const res = await fetch("/bd/analyze", { method:"POST", body:fd });
-      const data = await res.json().catch(()=> ({}));
-
-      // 將「最後一次分析請求來源」標示，避免跨頁 Race
-      localStorage.setItem("sa_last_req", String(Date.now()));
-
-      // 若伺服器回 ok:true 日後可用；此處一律進 Loading 去 poll（避免後端還在跑）
-      if (data.ok === false && data.error) {
-        showErr("伺服器立即返回錯誤：\n" + JSON.stringify(data, null, 2));
+      if (!fProfile.files || fProfile.files.length===0){
+        errBox.textContent='請先上傳 IG 個人頁截圖（必填）';
+        errBox.style.display='block';
         return;
       }
-      location.replace("/static/loading.html");
-    } catch (e) {
-      showErr("上傳/分析發生錯誤：\n" + (e?.stack || e?.message || String(e)));
+
+      const fd = new FormData();
+      fd.append('profile', fProfile.files[0]);
+      if (fPosts.files && fPosts.files.length>0){
+        for (const f of fPosts.files) fd.append('posts', f);
+      }
+
+      try{
+        const resp = await fetch('/bd/analyze', { method:'POST', body: fd });
+        const data = await resp.json();
+        console.log('[ANALYZE RESP]', data);
+
+        if (!data.ok){
+          errBox.textContent='分析失敗：' + (data.error || JSON.stringify(data));
+          errBox.style.display='block';
+          return;
+        }
+
+        // 存起來給 loading/result 用
+        localStorage.setItem('sa_result', JSON.stringify(data));
+        okBox.textContent='已送出，前往分析中畫面…';
+        okBox.style.display='block';
+        setTimeout(()=> location.href='/static/loading.html', 400);
+      }catch(e){
+        errBox.textContent='網路錯誤：' + e.message;
+        errBox.style.display='block';
+      }
     }
-  };
-</script>
+  </script>
+</head>
+<body>
+  <header>
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <div><strong>Social Avatar</strong></div>
+      <nav class="row">
+        <a class="ghost" href="/static/landing.html">首頁</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <h1>上傳素材</h1>
+    <p class="muted">只需兩步：<br>① 上傳 IG 個人頁截圖（必填）<br>②（可選）上傳 1～9 張最近貼文首圖，有助 AI 更準確。</p>
+
+    <div class="card">
+      <label>IG 個人頁截圖（必填）</label>
+      <input id="profile" type="file" accept="image/*" />
+      <p class="hint">圖像清晰、包含名稱、bio、粉絲/追蹤/貼文數。建議長邊 &lt;= 3000px。</p>
+    </div>
+
+    <div class="card">
+      <label>貼文首圖（選填，可多選）</label>
+      <input id="posts" type="file" accept="image/*" multiple />
+      <p class="hint">可上傳 1～9 張，系統會自動壓縮以節省用量。</p>
+    </div>
+
+    <div class="row">
+      <button class="primary" onclick="startAnalyze()">開始分析</button>
+      <a class="ghost" href="/health" target="_blank">系統狀態</a>
+    </div>
+
+    <div id="err" class="err"></div>
+    <div id="ok"  class="ok"></div>
+  </main>
 </body>
 </html>
