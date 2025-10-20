@@ -62,11 +62,10 @@ def _fallback_result() -> dict:
         "vehicle": "步行",
     }
 
-
 def _call_openai_vision(profile_b64: str, post_b64_list: list) -> str:
     """
-    使用 OpenAI（Vision / Multimodal）做一次總結。
-    回傳為純文字（我們再去剝 JSON）。
+    使用 OpenAI Responses API（multimodal）。
+    注意：image_url 需為字串（可為 data URI），不可再包 {"url": "..."}。
     """
     if not OPENAI_API_KEY:
         raise RuntimeError("OPENAI_API_KEY missing")
@@ -87,14 +86,15 @@ def _call_openai_vision(profile_b64: str, post_b64_list: list) -> str:
         "Content-Type": "application/json",
     }
 
+    # 注意這裡：image_url 直接放字串 profile_b64（data URI）
     contents = [
         {"type": "input_text", "text": "以下是使用者的 IG 個人頁截圖。"},
-        {"type": "input_image", "image_url": {"url": profile_b64}},
+        {"type": "input_image", "image_url": profile_b64},
     ]
     if post_b64_list:
         contents.append({"type": "input_text", "text": "以下為 1-4 張最新貼文首圖："})
         for b in post_b64_list:
-            contents.append({"type": "input_image", "image_url": {"url": b}})
+            contents.append({"type": "input_image", "image_url": b})
 
     body = {
         "model": "gpt-4o-mini",
@@ -116,10 +116,9 @@ def _call_openai_vision(profile_b64: str, post_b64_list: list) -> str:
         raise RuntimeError(f"OpenAI HTTP {resp.status_code}: {resp.text}")
 
     data = resp.json()
-    # Responses API 便捷欄位
     text = data.get("output_text")
     if not text:
-        # 後備解析
+        # 後備解析：從 output[0].content 裡找 output_text
         try:
             chunks = data["output"][0]["content"]
             text = "".join([c.get("text", "") for c in chunks if c.get("type") == "output_text"])
