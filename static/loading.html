@@ -5,157 +5,59 @@
   <title>分析中… | IG 人格分析 (MBTI)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    :root {
-      --bg1: #1b1730; --bg2: #2b2150;
-      --fg: #f2f3f5; --muted:#b7b9c0; --accent:#6ea8ff;
-    }
-    html, body {
-      height: 100%; margin: 0;
-      font-family: ui-sans-serif, system-ui, -apple-system, "Noto Sans TC", "Segoe UI", Roboto, Arial;
-      background: radial-gradient(1200px 800px at 30% 20%, var(--bg2), var(--bg1));
-      color: var(--fg);
-      overflow: hidden;
-    }
-    .wrap {
-      position: relative;
-      width: 100%; height: 100%;
-      display:flex; align-items:center; justify-content:center;
-    }
-    .card {
-      width: min(640px, 92vw);
-      padding: 32px 28px;
-      background: rgba(255,255,255,0.06);
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 16px;
-      backdrop-filter: blur(6px);
-      box-shadow: 0 10px 40px rgba(0,0,0,.35);
-      text-align: center;
-    }
-    h1 { margin: 0 0 10px; font-size: 24px; letter-spacing: .5px; }
-    p  { margin: 6px 0; color: var(--muted); }
-
-    /* Spinner */
-    .spinner {
-      width: 68px; height: 68px; margin: 18px auto 10px;
-      border-radius: 50%;
-      border: 6px solid rgba(255,255,255,.15);
-      border-top-color: var(--accent);
-      animation: spin 0.9s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(1turn); } }
-
-    /* Progress text */
-    .step {
-      margin-top: 6px; font-size: 14px; color: #dbe6ff;
-    }
-
-    /* Subtle dots background */
-    .dots {
-      position: absolute; inset: 0; pointer-events: none;
-      background-image: radial-gradient(rgba(255,255,255,.08) 1px, transparent 1px);
-      background-size: 26px 26px;
-      opacity: .2;
-      mask-image: radial-gradient(800px 600px at 50% 50%, #000 50%, transparent 100%);
-    }
-
-    .err {
-      margin-top: 14px;
-      color: #ffb4b4;
-      font-size: 13px;
-      display: none;
-    }
-    .btn {
-      margin-top: 10px;
-      background: #3c67ff; color: white; border: none;
-      padding: 10px 14px; border-radius: 10px; cursor: pointer;
-    }
-    .btn:disabled { opacity: .6; cursor: not-allowed; }
+    :root{--bg1:#121321;--bg2:#1a1d33;--card:#181a2a;--line:#262a44;--fg:#eef1ff;--muted:#aeb6d9;--accent:#5f86ff}
+    html,body{height:100%;margin:0;background:radial-gradient(1200px 800px at 20% 10%,var(--bg2),var(--bg1));color:var(--fg);font-family:ui-sans-serif,system-ui,-apple-system,"Noto Sans TC",Roboto}
+    .wrap{min-height:100%;display:flex;align-items:center;justify-content:center;padding:36px}
+    .card{width:min(640px,92vw);background:var(--card);border:1px solid var(--line);border-radius:16px;padding:28px 24px;box-shadow:0 12px 40px rgba(0,0,0,.35);text-align:center}
+    h1{margin:0 0 8px;font-size:22px}
+    .muted{color:var(--muted)}
+    .spinner{width:68px;height:68px;margin:18px auto 10px;border-radius:50%;border:6px solid rgba(255,255,255,.14);border-top-color:var(--accent);animation:spin .9s linear infinite}
+    @keyframes spin{to{transform:rotate(1turn)}}
+    .err{margin-top:12px;color:#ffb9c1;font-size:13px;display:none}
+    .btn{margin-top:10px;background:#3d56ff;color:#fff;border:none;padding:10px 14px;border-radius:12px;cursor:pointer;display:none}
   </style>
 </head>
 <body>
   <div class="wrap">
-    <div class="dots"></div>
     <div class="card">
       <h1>AI 分析中，請稍候…</h1>
       <div class="spinner"></div>
-      <p class="step" id="stepText">正在解析圖片與文字線索…</p>
-      <p class="step" id="subText">通常需 5–15 秒，別關閉視窗。</p>
-      <p class="err" id="errText"></p>
-      <button class="btn" id="btnRetry" style="display:none;">重試</button>
+      <div class="muted" id="step">正在解析圖片與文字線索…</div>
+      <div class="muted" style="margin-top:6px">通常需 5–15 秒，請勿關閉視窗。</div>
+      <div id="err" class="err"></div>
+      <button id="retry" class="btn">重試</button>
     </div>
   </div>
-
   <script>
-    // 若 upload.html 已把結果放在 localStorage，就立刻進結果頁
-    const cached = localStorage.getItem("mbti_result");
+    // 若上一步已把結果寫入 localStorage → 直接去結果
+    const cached = localStorage.getItem('mbti_result');
     if (cached) {
-      try {
-        const obj = JSON.parse(cached);
-        if (obj && (obj.display_name || (obj.ai && obj.ai.display_name))) {
-          location.replace("/static/result.html");
-        }
-      } catch {}
+      try { const o = JSON.parse(cached); if (o && (o.display_name || (o.ai && o.ai.display_name))) location.replace('/static/result.html'); } catch {}
     }
 
-    const stepText = document.getElementById('stepText');
-    const subText  = document.getElementById('subText');
-    const errText  = document.getElementById('errText');
-    const btnRetry = document.getElementById('btnRetry');
+    const step = document.getElementById('step');
+    const errEl= document.getElementById('err');
+    const retry= document.getElementById('retry');
+    const steps = ['辨識人名、帳號與數據…', '分析首屏貼文風格…', '推斷社群 MBTI…', '撰寫個性化說明…'];
+    let i=0, tries=0; setInterval(()=>{ i=(i+1)%steps.length; step.textContent=steps[i]; },1200);
 
-    let tick = 0, stop = false, tries = 0;
-    const lines = [
-      "正在辨識人名、帳號與數據…",
-      "分析首屏貼文的風格與題材…",
-      "綜合特徵推斷社群 MBTI…",
-      "為你寫一段個性化說明…"
-    ];
-
-    const timer = setInterval(() => {
-      tick = (tick + 1) % lines.length;
-      stepText.textContent = lines[tick];
-    }, 1200);
-
-    async function pollResult() {
+    async function poll(){
       tries++;
-      if (stop) return;
-
-      try {
-        // 你可以把這裡換成正式「查詢分析結果」API
-        const r = await fetch("/debug/last_ai", { cache: "no-store" });
-        const j = await r.json().catch(() => ({}));
-
-        // 判斷是否有分析結果
+      try{
+        const r = await fetch('/debug/last_ai',{cache:'no-store'});
+        const j = await r.json().catch(()=>({}));
         const ai = j.ai || j;
-        if (ai && (ai.display_name || ai.username || ai.mbti || ai.summary)) {
-          localStorage.setItem("mbti_result", JSON.stringify(ai));
-          clearInterval(timer);
-          location.replace("/static/result.html");
-          return;
+        if (ai && (ai.display_name || ai.username || ai.mbti || ai.summary)){
+          localStorage.setItem('mbti_result', JSON.stringify(ai));
+          location.replace('/static/result.html'); return;
         }
-      } catch (e) {
-        // 忽略單次錯誤，繼續輪詢
-      }
+      }catch{}
 
-      // 最多輪詢 60 次（大約 72s）
-      if (tries < 60) {
-        setTimeout(pollResult, 1200);
-      } else {
-        clearInterval(timer);
-        errText.style.display = 'block';
-        errText.textContent = "分析逾時，可能流量繁忙或圖片過大。你可以重試。";
-        btnRetry.style.display = 'inline-block';
-      }
+      if (tries<60) setTimeout(poll,1200);
+      else { errEl.style.display='block'; errEl.textContent='分析逾時，可能繁忙或圖片過大。'; retry.style.display='inline-block'; }
     }
-
-    btnRetry.addEventListener('click', () => {
-      errText.style.display = 'none';
-      btnRetry.style.display = 'none';
-      tries = 0; stop = false;
-      pollResult();
-    });
-
-    // 開始輪詢
-    pollResult();
+    retry.onclick = ()=>{ errEl.style.display='none'; retry.style.display='none'; tries=0; poll(); };
+    poll();
   </script>
 </body>
 </html>
