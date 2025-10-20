@@ -15,8 +15,29 @@ import requests
 # -----------------------------------------------------------------------------
 # Config
 # -----------------------------------------------------------------------------
+AI_ON = os.getenv("AI_ON", "1") in ("1", "true", "True", "YES", "yes")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "").strip()
-AI_ON = os.getenv("AI_ON", "1") == "1" and bool(OPENAI_API_KEY)
+
+diagnose = []
+if not AI_ON:
+    diagnose.append("AI_ON is disabled")
+if not OPENAI_API_KEY:
+    diagnose.append("OPENAI_API_KEY missing")
+
+use_openai = AI_ON and bool(OPENAI_API_KEY)
+
+raw_notes = ""
+if not use_openai:
+    raw_notes = "[OpenAI skipped] " + ("; ".join(diagnose) or "unknown reason")
+else:
+    try:
+        raw_text = _call_openai_vision(profile_b64, posts_b64)
+        raw_notes = raw_text or ""
+    except Exception as e:
+        raw_notes = f"[OpenAI failed] {e}"
+
+LAST_AI_TEXT["raw"] = (raw_notes or "")[:4000]
+
 
 MAX_SIDE = int(os.getenv("MAX_SIDE", "1280"))
 JPEG_Q = int(os.getenv("JPEG_Q", "72"))
