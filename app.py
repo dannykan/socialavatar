@@ -11,16 +11,20 @@ from flask_cors import CORS
 from PIL import Image
 
 import requests
+# 全域快取：最後一次 AI 原文/結構化輸出
+LAST_AI_TEXT = {"text": "", "raw": ""}
 
 # -----------------------------------------------------------------------------
 # Config
 # -----------------------------------------------------------------------------
-AI_ON = os.getenv("AI_ON", "1") in ("1", "true", "True", "YES", "yes")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "").strip()
+# 讀環境變數
+AI_ON = os.getenv("AI_ON", "1").lower() in ("1", "true", "yes")
+OPENAI_API_KEY = (os.getenv("OPENAI_API_KEY") or "").strip()
 
+# --- 診斷組裝 ---
 diagnose = []
 if not AI_ON:
-    diagnose.append("AI_ON is disabled")
+    diagnose.append("AI_ON disabled")
 if not OPENAI_API_KEY:
     diagnose.append("OPENAI_API_KEY missing")
 
@@ -31,11 +35,12 @@ if not use_openai:
     raw_notes = "[OpenAI skipped] " + ("; ".join(diagnose) or "unknown reason")
 else:
     try:
-        raw_text = _call_openai_vision(profile_b64, posts_b64)
+        raw_text = _call_openai_vision(profile_b64, posts_b64)  # 你原本的呼叫
         raw_notes = raw_text or ""
     except Exception as e:
         raw_notes = f"[OpenAI failed] {e}"
 
+# 記錄 debug 給 /debug/last_ai
 LAST_AI_TEXT["raw"] = (raw_notes or "")[:4000]
 
 
@@ -224,10 +229,7 @@ def debug_config():
 
 @app.get("/debug/last_ai")
 def debug_last_ai():
-    return jsonify({
-        "ai": _last_ai_obj,
-        "raw": _last_ai_raw
-    })
+    return jsonify(LAST_AI_TEXT)
 
 # 主要分析端點：接收 multipart/form-data
 # - profile: 必填 1 張
