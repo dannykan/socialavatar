@@ -27,6 +27,22 @@
     .ok{background:#052e1a;color:#bbf7d0;border:1px solid #22c55e;padding:12px;border-radius:10px;display:none;margin-top:10px}
   </style>
   <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+    import { getFirestore, doc, setDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+    // Firebase config
+    const firebaseConfig = {
+      apiKey: "AIzaSyBI2-4yEwzxvYOvui9FZiGAzCE22OhKmU8",
+      authDomain: "social-avatar-d13c8.firebaseapp.com",
+      projectId: "social-avatar-d13c8",
+      storageBucket: "social-avatar-d13c8.appspot.com",
+      messagingSenderId: "280598358339",
+      appId: "1:280598358339:web:214a0d4ca53793163367f6"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
     // Check authentication
     function checkAuth() {
       try {
@@ -50,7 +66,7 @@
             userBadge.innerHTML = `<span>👤 ${userData.displayName || userData.email || 'User'}</span>`;
           }
         }
-        return true;
+        return userData;
       } catch (e) {
         console.error('Auth check failed:', e);
         window.location.href = '/static/landing.html';
@@ -59,7 +75,8 @@
     }
 
     // Check auth on page load
-    if (!checkAuth()) {
+    const currentUser = checkAuth();
+    if (!currentUser) {
       throw new Error('Authentication required');
     }
 
@@ -106,6 +123,29 @@
         // Store user info along with result
         const user = JSON.parse(sessionStorage.getItem('user'));
         data.user = user;
+        data.timestamp = new Date().toISOString();
+
+        // Save to Firestore
+        try {
+          const userDocRef = doc(db, 'users', user.uid);
+          await setDoc(userDocRef, {
+            uid: user.uid,
+            email: user.email,
+            displayName: user.displayName,
+            photoURL: user.photoURL,
+            hasAnalysis: true,
+            latestAnalysis: {
+              ...data,
+              timestamp: serverTimestamp(),
+              ok: true
+            },
+            updatedAt: serverTimestamp()
+          });
+          console.log('Analysis saved to Firestore');
+        } catch (firestoreError) {
+          console.error('Failed to save to Firestore:', firestoreError);
+          // Continue anyway - user can still see results
+        }
 
         // Store in sessionStorage for result.html
         sessionStorage.setItem('sa_result', JSON.stringify(data));
