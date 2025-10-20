@@ -1,58 +1,38 @@
 <!doctype html>
 <html lang="zh-Hant">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>分析中…</title>
-<link rel="icon" href="data:," />
-<style>
-  :root{color-scheme:dark}
-  body{margin:0;background:#0f1115;color:#e6e9ef;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto;display:grid;place-items:center;min-height:100svh}
-  .box{text-align:center}
-  .spinner{width:68px;height:68px;border:6px solid #2b3040;border-top-color:#9aa6ff;border-radius:50%;animation:spin 1s linear infinite;margin:18px auto}
-  @keyframes spin{to{transform:rotate(360deg)}}
-  .hint{opacity:.7}
-</style>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>AI 分析中…</title>
+  <style>
+    body{margin:0;min-height:100vh;display:grid;place-items:center;
+         background:radial-gradient(1200px 600px at 50% -20%, #1d4ed8 0, transparent 60%),
+                    radial-gradient(1000px 500px at 120% 20%, #9333ea 0, transparent 60%),
+                    #0b1220;color:#e5e7eb;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+    .box{text-align:center}
+    .spinner{width:64px;height:64px;border-radius:50%;
+             border:6px solid #334155;border-top-color:#22d3ee;animation:s 1s linear infinite;margin:12px auto}
+    @keyframes s{to{transform:rotate(360deg)}}
+    p{opacity:.9}
+  </style>
+  <script>
+    (function(){
+      // 若沒有 sa_result（上一步沒送出），導回上傳頁
+      const raw = localStorage.getItem('sa_result');
+      if (!raw) {
+        location.href='/static/upload.html';
+        return;
+      }
+      // 直接進結果頁（分析已完成，loading 只作為過場）
+      setTimeout(()=>location.href='/static/result.html', 600);
+    })();
+  </script>
 </head>
 <body>
-<div class="box">
-  <div class="spinner"></div>
-  <h2>AI 分析中，請稍候…</h2>
-  <p class="hint">通常需 5–15 秒；若逾時會自動返回上傳頁。</p>
-</div>
-
-<script>
-  const KEY = "sa_result";
-  const POLL_INTERVAL = 1200;
-  const POLL_MAX_MS   = 90_000;
-
-  function looksValid(ai){
-    return !!(ai && (ai.username || ai.display_name || ai.summary ||
-      (ai.followers|0)>0 || (ai.posts|0)>0 || (ai.mbti && ai.mbti.length>1)));
-  }
-
-  async function poll(){
-    const start = Date.now();
-    while (Date.now() - start < POLL_MAX_MS){
-      try{
-        const r = await fetch("/debug/last_ai", { cache:"no-store" });
-        if (r.ok){
-          const data = await r.json();
-          const ai = data.ai || data;
-          if (looksValid(ai)){
-            localStorage.setItem(KEY, JSON.stringify({
-              ...ai, __raw: data.raw || "", __used_fallback: !!data.used_fallback
-            }));
-            location.replace("/static/result.html");
-            return;
-          }
-        }
-      }catch{}
-      await new Promise(r=>setTimeout(r,POLL_INTERVAL));
-    }
-    location.replace("/static/upload.html");
-  }
-  poll();
-</script>
+  <div class="box">
+    <div class="spinner"></div>
+    <h1>AI 分析中，請稍候…</h1>
+    <p>我們正在閱讀你的截圖資訊，產出社群 MBTI 與 200 字說明。</p>
+  </div>
 </body>
 </html>
