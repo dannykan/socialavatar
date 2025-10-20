@@ -1,85 +1,40 @@
 <!doctype html>
 <html lang="zh-Hant">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>IG 人格分析（MBTI）- 登入</title>
-<link rel="icon" href="data:," />
-<style>
-  :root { color-scheme: dark; }
-  body{margin:0;background:#0f1115;color:#e6e9ef;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto}
-  .wrap{min-height:100svh;display:grid;place-items:center;padding:32px}
-  .card{width:min(720px,92vw);background:#0b0d12;border:1px solid #262a33;border-radius:16px;padding:28px 24px;box-shadow:0 10px 40px rgba(0,0,0,.45)}
-  h1{font-size:28px;margin:4px 0 10px}
-  p{opacity:.8;margin:0 0 18px}
-  .btn{width:100%;padding:16px;border-radius:12px;border:1px solid #2f3441;background:#12151c;color:#e6e9ef;font-size:16px;cursor:pointer}
-  .btn:hover{background:#171b23}
-  .gap{height:12px}
-  .hint{font-size:13px;opacity:.6}
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Social Avatar｜開始</title>
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
+         margin:0;background:linear-gradient(135deg,#0ea5e9,#9333ea);color:#fff;min-height:100vh;display:grid;place-items:center}
+    .card{background:#0b1220cc;backdrop-filter: blur(6px);border-radius:16px;padding:28px;max-width:480px;width:92%;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+    h1{margin:0 0 12px}
+    p{opacity:.9}
+    button, a.btn{display:inline-block;border:0;border-radius:12px;padding:12px 16px;font-weight:600;cursor:pointer}
+    .btn-primary{background:#22d3ee;color:#0b1220}
+    .btn-ghost{background:transparent;color:#fff;border:1px solid #ffffff33}
+    .row{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap}
+    small{opacity:.75}
+  </style>
+  <script>
+    // 若已分析，直接導去結果頁
+    (function(){
+      try{
+        const r = localStorage.getItem('sa_result');
+        if (r) location.href='/static/result.html';
+      }catch(e){}
+    })();
+  </script>
 </head>
 <body>
-<div class="wrap">
   <div class="card">
-    <h1>IG 人格分析（MBTI）</h1>
-    <p>使用 Google 或 Facebook 登入，以建立你的平台帳號。</p>
-    <button id="btnGoogle" class="btn">以 Google 登入</button>
-    <div class="gap"></div>
-    <button id="btnFacebook" class="btn">以 Facebook 登入</button>
-    <p class="hint">登入後將前往上傳頁，成功分析一次後，往後會直接顯示你的結果頁。</p>
+    <h1>IG 社群 MBTI 分析</h1>
+    <p>上傳你的 IG 個人頁截圖與貼文首圖，我們會用 AI 給你一張「社群人格卡」。</p>
+    <div class="row">
+      <a class="btn btn-primary" href="/static/upload.html">開始</a>
+      <a class="btn btn-ghost" href="/health" target="_blank">系統狀態</a>
+    </div>
+    <p><small>提示：分析過後若要重來，請在結果頁點「清除並重新開始」。</small></p>
   </div>
-</div>
-
-<script>
-  // 若已經有結果，直接到結果頁
-  (function () {
-    const raw = localStorage.getItem("sa_result");
-    try {
-      if (raw && JSON.parse(raw)) location.replace("/static/result.html");
-    } catch {}
-  })();
-</script>
-
-<!-- Firebase v10 modular CDN -->
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import {
-    getAuth, onAuthStateChanged, signInWithPopup,
-    GoogleAuthProvider, FacebookAuthProvider, setPersistence, browserLocalPersistence
-  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-
-  const FIREBASE_CONFIG = {
-    apiKey: "AIzaSyBI2-4yEwzxvYOvui9FZiGAzCE22OhKmU8",
-    authDomain: "social-avatar-d13c8.firebaseapp.com",
-    projectId: "social-avatar-d13c8",
-    storageBucket: "social-avatar-d13c8.appspot.com",
-    messagingSenderId: "280598358339",
-    appId: "1:280598358339:web:214a0d4ca53793163367f6"
-  };
-
-  const app = initializeApp(FIREBASE_CONFIG);
-  const auth = getAuth(app);
-  setPersistence(auth, browserLocalPersistence);
-
-  onAuthStateChanged(auth, (user) => {
-    if (user) {
-      localStorage.setItem("sa_user", JSON.stringify({
-        uid: user.uid, email: user.email || "", name: user.displayName || ""
-      }));
-      location.replace("/static/upload.html");
-    }
-  });
-
-  document.getElementById("btnGoogle").onclick = async () => {
-    try {
-      await signInWithPopup(auth, new GoogleAuthProvider());
-    } catch (e) { alert("登入失敗：" + (e?.message || e)); }
-  };
-  document.getElementById("btnFacebook").onclick = async () => {
-    try {
-      await signInWithPopup(auth, new FacebookAuthProvider());
-    } catch (e) { alert("登入失敗：" + (e?.message || e)); }
-  };
-</script>
 </body>
 </html>
