@@ -14,6 +14,16 @@
   <div class="loading-full"><div class="spinner"></div></div>
 
   <script>
+
+    // …(原本的程式)
+    // 當進到 loading 就把上一頁覆寫成自己，避免回上傳頁
+    history.replaceState(null, '', './loading.html');
+  
+    (async function main(){
+      // … 呼叫 /bd/analyze，寫入 BD_RESULT …
+      location.replace('./result.html');
+    })();
+
     // TODO: 填入你的 Firebase 設定
     const firebaseConfig = {
       apiKey: "YOUR_KEY",
