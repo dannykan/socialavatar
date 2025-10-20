@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <title>分析結果 | SocialAvatar</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="./app.css">
+  <!-- Firebase CDN -->
+  <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js"></script>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <div class="h1 center">IG 人格分析（MBTI）</div>
+
+      <div id="card">
+        <!-- 內容由 JS 注入 -->
+      </div>
+
+      <div class="row mt">
+        <button id="btnHome" class="btn flat">回到首頁</button>
+        <button id="btnDelete" class="btn">註銷帳號並重新開始</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // TODO: 填入你的 Firebase 設定
+    const firebaseConfig = {
+      apiKey: "YOUR_KEY",
+      authDomain: "YOUR_PROJECT.firebaseapp.com",
+      projectId: "YOUR_PROJECT",
+      storageBucket: "YOUR_PROJECT.appspot.com",
+      messagingSenderId: "SENDER",
+      appId: "APP_ID"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.getAuth();
+    const db   = firebase.getFirestore();
+
+    // MBTI → 色彩（可自行調整 16 種）
+    const MBTI_COLORS = {
+      ENFP:"#ff9f43", ESFP:"#feca57", ENTP:"#ff6b6b", ESTP:"#ff7f7f",
+      ESFJ:"#22c55e", ENFJ:"#10b981", ISFJ:"#1dd1a1", INFJ:"#14b8a6",
+      INTP:"#48dbfb", INFP:"#60a5fa", ISTP:"#38bdf8", ISFP:"#4ade80",
+      INTJ:"#a78bfa", ENTJ:"#f472b6", ISTJ:"#94a3b8", ESTJ:"#93c5fd"
+    };
+
+    const elCard = document.getElementById('card');
+
+    function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
+
+    function render(ai){
+      const name = escapeHtml(ai.display_name||'使用者');
+      const user = escapeHtml(ai.username? '@'+ai.username : '');
+      const f    = ai.followers ?? '—';
+      const g    = ai.following ?? '—';
+      const p    = ai.posts ?? '—';
+      const mbti = (ai.mbti||'不詳').toUpperCase();
+      const color = MBTI_COLORS[mbti] || '#6c6c93';
+      const sum  = escapeHtml(ai.summary || '（無摘要）');
+      const vehicle = escapeHtml(ai.vehicle||'—');
+
+      elCard.innerHTML = `
+        <div class="center">
+          <div class="h2" style="font-size:22px;font-weight:800">${name}</div>
+          <div class="sub">${user}</div>
+        </div>
+
+        <div class="row my">
+          <div class="kpi"><div class="label">Followers</div><div class="val">${f}</div></div>
+          <div class="kpi"><div class="label">Following</div><div class="val">${g}</div></div>
+          <div class="kpi"><div class="label">Posts</div><div class="val">${p}</div></div>
+        </div>
+
+        <div class="center my">
+          <span class="mbti-tag" style="background:${color}22;border:1px solid ${color}66;color:${color}">
+            ${mbti}
+          </span>
+        </div>
+
+        <div class="card" style="background:#0f1322;border-color:#1f2437;">
+          ${sum}
+        </div>
+
+        <div class="center sub my">載具：${vehicle}</div>
+      `;
+    }
+
+    (async function(){
+      const raw = sessionStorage.getItem('BD_RESULT');
+      if(!raw){ location.href="./upload.html"; return; }
+      const ai = JSON.parse(raw||'{}');
+      if(ai.error){ render({summary:'分析過程發生錯誤，請返回重試。'}); return; }
+      render(ai);
+    })();
+
+    document.getElementById('btnHome').onclick = ()=>location.href="./landing.html";
+    document.getElementById('btnDelete').onclick = async ()=>{
+      if(!confirm("確定註銷？此動作會刪除平台帳號與分析紀錄，需重新登入。")) return;
+      const u = auth.currentUser;
+      if(!u){ location.href="./landing.html"; return; }
+      try{
+        await firebase.deleteDoc(firebase.doc(db,'users',u.uid));
+        await firebase.deleteUser(u);
+      }catch(e){ console.warn(e); }
+      await firebase.signOut(auth);
+      location.href="./landing.html";
+    };
+  </script>
+</body>
+</html>
