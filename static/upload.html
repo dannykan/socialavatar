@@ -23,52 +23,57 @@
     .ok{background:#052e1a;color:#bbf7d0;border:1px solid #22c55e;padding:12px;border-radius:10px;display:none;margin-top:10px}
   </style>
   <script>
-    // 若已分析，導回結果頁；避免重複分析
-    (function(){
-      try{
-        const r = localStorage.getItem('sa_result');
-        if (r) location.href='/static/result.html';
-      }catch(e){}
-    })();
-
     async function startAnalyze() {
+      const errBox = document.getElementById('err');
+      const okBox = document.getElementById('ok');
+      errBox.style.display = 'none';
+      okBox.style.display = 'none';
+
       const form = new FormData();
       const profile = document.querySelector('#profile').files[0];
-      if (!profile) { alert('請先上傳 IG 個人頁截圖'); return; }
+      
+      if (!profile) {
+        alert('請先上傳 IG 個人頁截圖');
+        return;
+      }
+      
       form.append('profile', profile);
-    
+
       const posts = document.querySelector('#posts').files;
       for (let i = 0; i < Math.min(posts.length, 6); i++) {
         form.append('posts', posts[i]);
       }
-    
+
+      okBox.textContent = '上傳中，請稍候...';
+      okBox.style.display = 'block';
+
       try {
-        const res = await fetch('/bd/analyze', { method: 'POST', body: form });
+        const res = await fetch('/bd/analyze', {
+          method: 'POST',
+          body: form
+        });
+
         const data = await res.json();
+        
         if (!data.ok) {
           console.error('analyze error:', data);
-          alert('分析失敗：' + (data.error || 'server error'));
+          errBox.textContent = '分析失敗：' + (data.error || 'server error');
+          errBox.style.display = 'block';
+          okBox.style.display = 'none';
           return;
         }
-        // 存到 sessionStorage，讓 result.html 直接使用
+
+        // Store in sessionStorage for result.html
         sessionStorage.setItem('sa_result', JSON.stringify(data));
-        // 跳轉 loading → result（如果你已經在別處處理 loading，可直接跳 result）
-        window.location.href = '/static/loading.html';
-        // 若 loading.html 自動導到 result.html，這裡就不必再跳
+        
+        okBox.textContent = '已送出，前往分析中畫面…';
+        setTimeout(() => location.href = '/static/loading.html', 400);
+        
       } catch (e) {
         console.error(e);
-        alert('分析失敗：' + e.message);
-      }
-    }
-
-        // 存起來給 loading/result 用
-        localStorage.setItem('sa_result', JSON.stringify(data));
-        okBox.textContent='已送出，前往分析中畫面…';
-        okBox.style.display='block';
-        setTimeout(()=> location.href='/static/loading.html', 400);
-      }catch(e){
-        errBox.textContent='網路錯誤：' + e.message;
-        errBox.style.display='block';
+        errBox.textContent = '網路錯誤：' + e.message;
+        errBox.style.display = 'block';
+        okBox.style.display = 'none';
       }
     }
   </script>
@@ -85,7 +90,7 @@
 
   <main>
     <h1>上傳素材</h1>
-    <p class="muted">只需兩步：<br>① 上傳 IG 個人頁截圖（必填）<br>②（可選）上傳 1～9 張最近貼文首圖，有助 AI 更準確。</p>
+    <p class="muted">只需兩步：<br>① 上傳 IG 個人頁截圖（必填）<br>②（可選）上傳 1～6 張最近貼文首圖，有助 AI 更準確。</p>
 
     <div class="card">
       <label>IG 個人頁截圖（必填）</label>
@@ -96,7 +101,7 @@
     <div class="card">
       <label>貼文首圖（選填，可多選）</label>
       <input id="posts" type="file" accept="image/*" multiple />
-      <p class="hint">可上傳 1～9 張，系統會自動壓縮以節省用量。</p>
+      <p class="hint">可上傳 1～6 張，系統會自動壓縮以節省用量。</p>
     </div>
 
     <div class="row">
@@ -105,7 +110,7 @@
     </div>
 
     <div id="err" class="err"></div>
-    <div id="ok"  class="ok"></div>
+    <div id="ok" class="ok"></div>
   </main>
 </body>
 </html>
