@@ -93,39 +93,121 @@ def index():
     return render_template("index.html")
 
 
-@app.route("/bd/analyze", methods=["POST"])
+@app.post("/bd/analyze")
 def bd_analyze():
-    logger.info("[/bd/analyze] incoming files: %s", {k: f.filename for k, f in request.files.items()})
+    """
+    只要進到這裡，**永遠**回 200 JSON：
+    {
+      ok: True/False,
+      used_fallback: bool,
+      data: {...}  # ok=True 時
+      error: { where, message, trace }  # ok=False 時
+    }
+    """
+    import traceback, base64, io
+    from PIL import Image
+
+    def _json_ok(payload):
+        return jsonify(payload), 200
 
     try:
-        profile_b64 = compress_image(request.files["profile"])
-        posts = [compress_image(request.files[k]) for k in request.files if k.startswith("post")]
+        # 收檔
+        profile_file = request.files.get("profile")
+        if not profile_file:
+            return _json_ok({"ok": False, "error": {"where": "input", "message": "missing profile"}})
+
+        # 讀其他貼文首圖（0~4）
+        posts_files = []
+        i = 0
+        while True:
+            f = request.files.get(f"posts[{i}]")
+            if not f:
+                break
+            posts_files.append(f)
+            i += 1
+            if i >= 4:
+                break
+
+        # 讀壓縮參數（有就用）
+        max_side = int(request.form.get("max_side", "1280") or "1280")
+        jpeg_q = int(request.form.get("jpeg_q", "72") or "72")
+
+        def _load_and_downsize(fileobj):
+            img = Image.open(fileobj.stream).convert("RGB")
+            w, h = img.size
+            scale = 1.0
+            if max(w, h) > max_side:
+                scale = max_side / float(max(w, h))
+            if scale < 1.0:
+                img = img.resize((int(w*scale), int(h*scale)), Image.LANCZOS)
+            buf = io.BytesIO()
+            img.save(buf, format="JPEG", quality=jpeg_q, optimize=True)
+            return base64.b64encode(buf.getvalue()).decode("ascii")
+
+        profile_b64 = _load_and_downsize(profile_file)
+        posts_b64 = []
+        for pf in posts_files:
+            try:
+                posts_b64.append(_load_and_downsize(pf))
+            except Exception as e:
+                # 壞圖就略過
+                print("[posts image skip]", e)
+
+        # 先跑 heuristic（一定要有）
+        def _heuristic(profile_b64, posts_b64):
+            # 非影像內容的簡易保底
+            return {
+                "display_name": "使用者",
+                "username": "",
+                "followers": 0,
+                "following": 0,
+                "posts": 0,
+                "mbti": "ESFJ",
+                "summary": "依上傳截圖初步推斷，僅供娛樂參考。",
+                "vehicle": "步行",
+            }
+
+        used_fallback = False
+        ai = None
+        raw_text = ""
+
+        # 嘗試 OpenAI（失敗就 fallback）
+        try:
+            ai, raw_text = _call_openai_vision(profile_b64, posts_b64)  # 你既有的函式
+        except Exception as e:
+            used_fallback = True
+            print("[OpenAI failed]", e)
+            ai = _heuristic(profile_b64, posts_b64)
+
+        # 最終輸出
+        return _json_ok({
+            "ok": True,
+            "used_fallback": used_fallback,
+            "data": {
+                "display_name": ai.get("display_name", ""),
+                "username": ai.get("username", ""),
+                "followers": int(ai.get("followers") or 0),
+                "following": int(ai.get("following") or 0),
+                "posts": int(ai.get("posts") or 0),
+                "mbti": (ai.get("mbti") or "").upper(),
+                "summary": ai.get("summary", ""),
+                "vehicle": ai.get("vehicle", "步行"),
+            },
+            "raw": raw_text[:2000] if raw_text else ""
+        })
+
     except Exception as e:
-        return jsonify({"error": f"image processing failed: {e}"}), 500
-
-    used_fallback = False
-    try:
-        raw_text = _call_openai_vision(profile_b64, posts)
-        parsed = json.loads(raw_text)
-    except Exception as e:
-        used_fallback = True
-        logger.error("[OpenAI failed] %s", e)
-        parsed = {
-            "display_name": "使用者",
-            "username": "",
-            "followers": 0,
-            "following": 0,
-            "posts": 0,
-            "mbti": "ESFJ",
-            "summary": "依上傳截圖初步推斷，僅供娛樂參考。",
-            "vehicle": "步行",
-        }
-        raw_text = f"[OpenAI failed] {e}\n"
-
-    last_ai.update({"ai": parsed, "raw": raw_text})
-    logger.info("[/bd/analyze] done. used_fallback: %s", used_fallback)
-
-    return jsonify({"result": parsed, "used_fallback": used_fallback})
+        # **任何**沒預期的錯都抓住，用 200 回傳
+        tb = traceback.format_exc()
+        print("[/bd/analyze] fatal:", tb)
+        return jsonify({
+            "ok": False,
+            "error": {
+                "where": "server",
+                "message": str(e),
+                "trace": tb
+            }
+        }), 200
 
 
 @app.route("/debug/last_ai")
