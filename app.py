@@ -1,112 +1,74 @@
 import os
 import io
-import re
 import json
 import base64
-import traceback
-from datetime import datetime
-
-from flask import Flask, request, jsonify, send_from_directory
-from flask_cors import CORS
+import logging
+import tempfile
+from flask import Flask, request, jsonify, send_from_directory, render_template
 from PIL import Image
+import requests
 
-AI_ON          = os.getenv("AI_ON", "true").lower() in ("1", "true", "yes")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "").strip()
-MAX_SIDE       = int(os.getenv("MAX_SIDE", "1280"))
-JPEG_Q         = int(os.getenv("JPEG_Q", "72"))
+app = Flask(__name__, static_folder="static", template_folder="static")
 
-app = Flask(__name__, static_folder="static", static_url_path="")
-CORS(app, resources={r"/*": {"origins": "*"}})
+# ---- 設定 ----
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+JPEG_Q = int(os.getenv("JPEG_Q", 72))
+MAX_SIDE = int(os.getenv("MAX_SIDE", 1280))
 
-_LAST_AI_RAW = ""
-_LAST_AI_OBJ = None
+# ---- 紀錄器 ----
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("socialavatar")
+
+last_ai = {"ai": None, "raw": ""}
 
 
-def _pil_downscale_to_jpeg(file_storage, max_side=MAX_SIDE, jpeg_q=JPEG_Q) -> bytes:
-    im = Image.open(file_storage.stream).convert("RGB")
-    w, h = im.size
-    scale = min(1.0, float(max_side) / max(w, h))
-    if scale < 1.0:
-        im = im.resize((int(w * scale), int(h * scale)), Image.LANCZOS)
+def compress_image(file) -> str:
+    """壓縮上傳圖片並轉為 base64 data URI"""
+    img = Image.open(file)
+    img.thumbnail((MAX_SIDE, MAX_SIDE))
     buf = io.BytesIO()
-    im.save(buf, format="JPEG", quality=jpeg_q, optimize=True)
-    buf.seek(0)
-    return buf.read()
+    img.convert("RGB").save(buf, format="JPEG", quality=JPEG_Q)
+    data = base64.b64encode(buf.getvalue()).decode("utf-8")
+    return f"data:image/jpeg;base64,{data}"
 
-
-def _b64_image_uri(jpeg_bytes: bytes) -> str:
-    return "data:image/jpeg;base64," + base64.b64encode(jpeg_bytes).decode("utf-8")
-
-
-def _parse_ai_json(text: str) -> dict:
-    if not text:
-        return {}
-    m = re.search(r'\{[\s\S]*\}', text)
-    if not m:
-        return {}
-    try:
-        return json.loads(m.group(0))
-    except Exception:
-        return {}
-
-
-def _fallback_result() -> dict:
-    return {
-        "display_name": "使用者",
-        "username": "",
-        "followers": 0,
-        "following": 0,
-        "posts": 0,
-        "mbti": "ESFJ",
-        "summary": "依上傳截圖初步推斷，僅供娛樂參考。",
-        "vehicle": "步行",
-    }
 
 def _call_openai_vision(profile_b64: str, post_b64_list: list) -> str:
-    """
-    使用 OpenAI Responses API（multimodal）。
-    注意：image_url 需為字串（可為 data URI），不可再包 {"url": "..."}。
-    """
+    """使用 OpenAI Responses API 分析 IG 個人頁與貼文圖"""
     if not OPENAI_API_KEY:
         raise RuntimeError("OPENAI_API_KEY missing")
 
-    import requests
-
     system_prompt = (
-        "你是一位社群人格分析助手。"
-        "請閱讀一張 Instagram 個人頁截圖（可附 1-4 張最新貼文首圖），"
-        "產出只包含以下欄位的 JSON："
-        "display_name, username, followers, following, posts, mbti(四碼大寫), "
-        "summary(80-100字繁中), vehicle(步行/單車/汽車/飛行)。請只輸出 JSON。"
+        "你是一位社群人格分析師。請用『第一次打開 IG 個人頁』的直覺來判讀此帳號："
+        "只根據個人頁可見的資料（粉絲/追蹤/貼文數、名稱、自我介紹、首屏縮圖），"
+        "判斷對方的社群 MBTI 類型（四碼大寫，如 INTP、ESFJ 等；即使不確定也請選出最相近的一種），"
+        "並用自然、有個性的口吻，給一段約 200 字的分析說明（為什麼會這樣覺得），"
+        "不要用制式報表語氣。"
+        "最終只輸出下列欄位的 JSON（不得遺漏任何欄位）："
+        "{display_name, username, followers, following, posts, mbti, summary, vehicle}。"
+        "其中："
+        "• mbti 必須為四碼大寫（例如 ENTP、ISFJ）。"
+        "• summary 介於 180–220 個中文字，口語、順暢、具畫面感。"
+        "• vehicle 僅能為：步行 / 單車 / 汽車 / 飛行（依你對此人的社群節奏與調性直覺判定）。"
+        "請嚴格只輸出 JSON，不要出現解說、標記、程式碼框或多餘文字。"
     )
 
     url = "https://api.openai.com/v1/responses"
-    headers = {
-        "Authorization": f"Bearer {OPENAI_API_KEY}",
-        "Content-Type": "application/json",
-    }
+    headers = {"Authorization": f"Bearer {OPENAI_API_KEY}", "Content-Type": "application/json"}
 
-    # 注意這裡：image_url 直接放字串 profile_b64（data URI）
     contents = [
-        {"type": "input_text", "text": "以下是使用者的 IG 個人頁截圖。"},
+        {"type": "input_text", "text": "這是使用者的 IG 個人頁截圖。"},
         {"type": "input_image", "image_url": profile_b64},
     ]
     if post_b64_list:
-        contents.append({"type": "input_text", "text": "以下為 1-4 張最新貼文首圖："})
+        contents.append({"type": "input_text", "text": "以下是使用者的幾張貼文首圖："})
         for b in post_b64_list:
             contents.append({"type": "input_image", "image_url": b})
 
     body = {
         "model": "gpt-4o-mini",
         "input": [
-            {
-                "role": "system",
-                "content": [{"type": "input_text", "text": system_prompt}],
-            },
-            {
-                "role": "user",
-                "content": contents,
-            },
+            {"role": "system", "content": [{"type": "input_text", "text": system_prompt}]},
+            {"role": "user", "content": contents},
         ],
         "max_output_tokens": 800,
     }
@@ -118,7 +80,6 @@ def _call_openai_vision(profile_b64: str, post_b64_list: list) -> str:
     data = resp.json()
     text = data.get("output_text")
     if not text:
-        # 後備解析：從 output[0].content 裡找 output_text
         try:
             chunks = data["output"][0]["content"]
             text = "".join([c.get("text", "") for c in chunks if c.get("type") == "output_text"])
@@ -127,82 +88,60 @@ def _call_openai_vision(profile_b64: str, post_b64_list: list) -> str:
     return text or ""
 
 
-@app.get("/")
+@app.route("/")
 def index():
-    return send_from_directory(app.static_folder, "index.html")
+    return render_template("index.html")
 
 
-@app.get("/health")
-def health():
-    return jsonify({"status": "ok", "max_side": MAX_SIDE, "jpeg_q": JPEG_Q})
-
-
-@app.get("/debug/config")
-def debug_config():
-    return jsonify({"ai_on": AI_ON, "max_side": MAX_SIDE, "jpeg_q": JPEG_Q})
-
-
-@app.get("/debug/last_ai")
-def debug_last_ai():
-    return jsonify({"raw": _LAST_AI_RAW, "ai": _LAST_AI_OBJ})
-
-
-@app.post("/bd/analyze")
+@app.route("/bd/analyze", methods=["POST"])
 def bd_analyze():
-    global _LAST_AI_RAW, _LAST_AI_OBJ
+    logger.info("[/bd/analyze] incoming files: %s", {k: f.filename for k, f in request.files.items()})
+
     try:
-        # 先驗檔
-        if "profile" not in request.files or request.files["profile"].filename == "":
-            return jsonify({"ok": False, "error": "缺少個人頁截圖（profile）"}), 400
-
-        print("[/bd/analyze] incoming files:",
-              {"profile": request.files["profile"].filename,
-               "posts_count": len(request.files.getlist("posts"))})
-
-        # 伺服器端壓縮（前端也會壓，但這裡保底）
-        profile_jpeg = _pil_downscale_to_jpeg(request.files["profile"])
-        posts_b64 = []
-        for f in request.files.getlist("posts"):
-            if not f or f.filename == "":
-                continue
-            posts_b64.append(_b64_image_uri(_pil_downscale_to_jpeg(f)))
-
-        profile_b64 = _b64_image_uri(profile_jpeg)
-
-        used_fallback = False
-        ai_obj, raw_text = None, ""
-
-        if AI_ON and OPENAI_API_KEY:
-            try:
-                raw_text = _call_openai_vision(profile_b64, posts_b64)
-                ai_obj = _parse_ai_json(raw_text)
-                if not ai_obj:
-                    used_fallback = True
-                    ai_obj = _fallback_result()
-            except Exception as e:
-                used_fallback = True
-                raw_text = f"[OpenAI failed] {e}\n{traceback.format_exc()}"
-                ai_obj = _fallback_result()
-        else:
-            used_fallback = True
-            raw_text = "[AI disabled] fallback used."
-            ai_obj = _fallback_result()
-
-        _LAST_AI_RAW = raw_text
-        _LAST_AI_OBJ = ai_obj
-
-        print("[/bd/analyze] done. used_fallback:", used_fallback)
-        return jsonify({"ok": True, "ai": ai_obj, "used_fallback": used_fallback}), 200
-
+        profile_b64 = compress_image(request.files["profile"])
+        posts = [compress_image(request.files[k]) for k in request.files if k.startswith("post")]
     except Exception as e:
-        print("[/bd/analyze] ERROR", e)
-        return jsonify({"ok": False, "error": str(e), "trace": traceback.format_exc()}), 500
+        return jsonify({"error": f"image processing failed: {e}"}), 500
+
+    used_fallback = False
+    try:
+        raw_text = _call_openai_vision(profile_b64, posts)
+        parsed = json.loads(raw_text)
+    except Exception as e:
+        used_fallback = True
+        logger.error("[OpenAI failed] %s", e)
+        parsed = {
+            "display_name": "使用者",
+            "username": "",
+            "followers": 0,
+            "following": 0,
+            "posts": 0,
+            "mbti": "ESFJ",
+            "summary": "依上傳截圖初步推斷，僅供娛樂參考。",
+            "vehicle": "步行",
+        }
+        raw_text = f"[OpenAI failed] {e}\n"
+
+    last_ai.update({"ai": parsed, "raw": raw_text})
+    logger.info("[/bd/analyze] done. used_fallback: %s", used_fallback)
+
+    return jsonify({"result": parsed, "used_fallback": used_fallback})
 
 
-@app.get("/<path:path>")
-def passthrough(path):
-    return send_from_directory(app.static_folder, path)
+@app.route("/debug/last_ai")
+def debug_last_ai():
+    return jsonify(last_ai)
+
+
+@app.route("/debug/config")
+def debug_config():
+    return jsonify({"ai_on": bool(OPENAI_API_KEY), "jpeg_q": JPEG_Q, "max_side": MAX_SIDE})
+
+
+@app.route("/health")
+def health():
+    return jsonify({"status": "ok", "jpeg_q": JPEG_Q, "max_side": MAX_SIDE})
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.getenv("PORT", "8000")), debug=True)
+    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 10000)))
