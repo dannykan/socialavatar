@@ -103,83 +103,103 @@ function fillCard(ai){
   setText('#summary', s || '（尚無摘要）');
 }
 
-function showOverlay(on){ $('#overlay').style.display = on ? 'flex' : 'none'; }
+function showOverlay(on){ const ov = $('#overlay'); if(ov) ov.style.display = on ? 'flex' : 'none'; }
 
 // 以 <canvas> 將圖片壓到長邊 <= 1600、品質 0.8
 function compressFile(file, maxSide=1600, quality=0.8){
   return new Promise((resolve,reject)=>{
-    const img = new Image();
-    img.onload = ()=>{
-      const c = document.createElement('canvas');
-      let {width:w, height:h} = img;
-      const scale = Math.min(1, maxSide / Math.max(w,h));
-      if(scale < 1){ w = Math.round(w*scale); h = Math.round(h*scale); }
-      c.width=w; c.height=h;
-      c.getContext('2d').drawImage(img,0,0,w,h);
-      c.toBlob(b=> b ? resolve(new File([b], file.name.replace(/\.\w+$/i,'.jpg'),{type:'image/jpeg'})) : reject(new Error('toBlob failed')), 'image/jpeg', quality);
-    };
-    img.onerror = reject;
-    img.src = URL.createObjectURL(file);
+    try{
+      const img = new Image();
+      img.onload = ()=>{
+        try{
+          const c = document.createElement('canvas');
+          let w = img.naturalWidth || img.width || 0;
+          let h = img.naturalHeight || img.height || 0;
+          if(!w || !h) return reject(new Error('invalid image size'));
+          const scale = Math.min(1, maxSide / Math.max(w,h));
+          if(scale < 1){ w = Math.round(w*scale); h = Math.round(h*scale); }
+          c.width = w; c.height = h;
+          const ctx = c.getContext('2d');
+          ctx.drawImage(img,0,0,w,h);
+          c.toBlob(b=>{
+            if(!b) return reject(new Error('toBlob failed'));
+            resolve(new File([b], (file.name||'image').replace(/\.\w+$/i,'.jpg'), {type:'image/jpeg'}));
+          }, 'image/jpeg', quality);
+        }catch(err){ reject(err); }
+      };
+      img.onerror = ()=>reject(new Error('image load error'));
+      img.src = URL.createObjectURL(file);
+    }catch(e){ reject(e); }
   });
 }
 
 async function analyze(){
-  const pf = $('#profile').files[0];
-  if(!pf){ alert('請先選擇 IG 個人頁截圖'); return; }
-
   try{
+    const profileEl = $('#profile');
+    if(!profileEl){ alert('找不到上傳欄位（profile）'); return; }
+
+    const pf = profileEl.files && profileEl.files[0];
+    if(!pf){ alert('請先選擇 IG 個人頁截圖'); return; }
+
     showOverlay(true);
 
-    // 前端先壓縮
+    // 前端先壓縮必填圖
     const pfSmall = await compressFile(pf);
 
     const fd = new FormData();
     fd.append('profile', pfSmall);
 
-    const posts = $('#posts').files;
-    for(let i=0;i<posts.length && i<4;i++){
-      const pSmall = await compressFile(posts[i]);
+    // 取得 posts（若不存在或無檔案 → 略過）
+    const postsEl = $('#posts');
+    const postsFiles = (postsEl && postsEl.files) ? postsEl.files : [];
+    for(let i=0; i<postsFiles.length && i<4; i++){
+      const pSmall = await compressFile(postsFiles[i]);
       fd.append('posts', pSmall);
     }
 
-    console.log('POST /bd/analyze form ready', [...fd.keys()]);
+    console.log('POST /bd/analyze keys:', [...fd.keys()]);
 
-    const resp = await fetch('/bd/analyze', { method:'POST', body:fd });
-    // 非 2xx：讀文字當錯誤
+    const resp = await fetch('/bd/analyze', { method:'POST', body: fd });
+
     if(!resp.ok){
-      const t = await resp.text();
-      throw new Error(`HTTP ${resp.status}: ${t.slice(0,200)}`);
+      const t = await resp.text().catch(()=> '');
+      throw new Error(`HTTP ${resp.status} ${resp.statusText} - ${t.slice(0,200)}`);
     }
-    const j = await resp.json();
+
+    // 有些錯誤頁可能不是 JSON；這裡也保護一下
+    let j;
+    const raw = await resp.text();
+    try { j = JSON.parse(raw); }
+    catch(e){ throw new Error('後端回傳非 JSON：' + raw.slice(0,200)); }
+
     console.log('analyze json:', j);
 
     if(!j.ok) throw new Error(j.error || '分析失敗');
     if(!j.ai) throw new Error('未取得 AI 結果');
 
     fillCard(j.ai);
-
-    // 小延遲讓動畫更順
-    setTimeout(()=>showOverlay(false), 250);
-
   }catch(e){
     console.error('analyze error', e);
-    showOverlay(false);
     alert('分析失敗：' + (e.message || e));
+  }finally{
+    showOverlay(false);
   }
 }
 
 async function loadDemo(){
   try{
     const r = await fetch('/debug/last_ai');
+    if(!r.ok){ throw new Error('HTTP ' + r.status); }
     const j = await r.json();
     if(j && j.ai){ fillCard(j.ai); }
     else { alert('沒有可載入的示例'); }
-  }catch(e){ alert('無法載入示例：' + e.message); }
+  }catch(e){ alert('無法載入示例：' + (e.message || e)); }
 }
 
-$('#btnAnalyze').addEventListener('click', analyze);
-$('#btnLoadDemo').addEventListener('click', loadDemo);
+$('#btnAnalyze')?.addEventListener('click', analyze);
+$('#btnLoadDemo')?.addEventListener('click', loadDemo);
 
+// 初始：顯示 AI 狀態
 getConfig();
 </script>
 </body>
