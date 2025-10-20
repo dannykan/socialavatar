@@ -11,6 +11,37 @@ from datetime import datetime, timezone
 from flask import Flask, request, jsonify, redirect
 from PIL import Image
 import requests
+from pathlib import Path
+
+LAST_AI_FILE = Path("/tmp/socialavatar_last_ai.json")
+
+def save_last_ai(ai_dict=None, raw="", text=""):
+    """Write last ai result to disk – safe & small (<= ~200KB)"""
+    try:
+        payload = {
+            "ai": ai_dict or None,
+            "raw": (raw or "")[:200_000],
+            "text": (text or "")[:200_000],
+            "ts": time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime())
+        }
+        LAST_AI_FILE.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+    except Exception as e:
+        print("[last_ai] save failed:", e)
+
+def load_last_ai():
+    """Read last ai result from disk; return empty skeleton if not exists."""
+    try:
+        if LAST_AI_FILE.exists():
+            return json.loads(LAST_AI_FILE.read_text(encoding="utf-8"))
+    except Exception as e:
+        print("[last_ai] load failed:", e)
+    return {"ai": None, "raw": "", "text": "", "ts": None}
+
+@app.route("/debug/last_ai")
+def debug_last_ai():
+    # 統一從檔案讀，避免 worker 重啟/切換的空值問題
+    from flask import jsonify
+    return jsonify(load_last_ai())
 
 # -----------------------------------------------------------------------------
 # Flask 基本設定（自帶 /static 目錄）
@@ -238,20 +269,22 @@ def bd_analyze():
     # 2) 呼叫 OpenAI
     used_fallback = False
     parsed = None
+    ai_text = ""
+    raw = ""
+
     if OPENAI_API_KEY:
         try:
-            ai_text, raw = call_openai_vision(profile_b64, posts_b64)
-            _set_last_ai(text=ai_text, raw=raw)
+            ai_text, raw = call_openai_vision(profile_b64, posts_b64)  # <-- 取得「模型文字」與「完整原始回應(JSON字串)」
             parsed = _extract_json_block(ai_text)
             if not parsed:
                 diagnose["fail_reason"] = "json_parse"
                 used_fallback = True
         except Exception as e:
-            _set_last_ai(text="", raw=f"[OpenAI failed] {e}")
+            raw = f"[OpenAI failed] {e}"
             diagnose["fail_reason"] = "openai_http"
             used_fallback = True
     else:
-        _set_last_ai(text="", raw="[OpenAI disabled] Missing OPENAI_API_KEY")
+        raw = "[OpenAI disabled] Missing OPENAI_API_KEY"
         diagnose["fail_reason"] = "no_api_key"
         used_fallback = True
 
@@ -279,14 +312,20 @@ def bd_analyze():
             "followers":    _to_int(parsed.get("followers")),
             "following":    _to_int(parsed.get("following")),
             "posts":        _to_int(parsed.get("posts")),
-            "mbti":         str(parsed.get("mbti") or "").strip()[:10],
+            "mbti":         str(parsed.get("mbti") or "").strip()[:10].upper(),
             "summary":      str(parsed.get("summary") or "").strip()[:600],
         }
 
     result["vehicle"] = pick_vehicle(result.get("followers", 0))
     diagnose["used_fallback"] = used_fallback
 
-    return jsonify({ "ok": True, **result, "diagnose": diagnose })
+    # 4) 把這次結果持久化（/debug/last_ai 用得到）
+    #    這裡把「最終要呈現的 result（dict）」當 ai_dict，
+    #    raw = 完整原始回應（或錯誤字串），ai_text = 模型輸出的文本（含 JSON 區塊）
+    save_last_ai(ai_dict=result, raw=raw, text=ai_text)
+
+    # 5) 回傳前端
+    return jsonify({"ok": True, **result, "diagnose": diagnose})
 
 # -----------------------------------------------------------------------------
 # 本地開發
