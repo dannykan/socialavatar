@@ -126,5 +126,77 @@
       location.replace('./landing.html');
     };
   </script>
+
+
+<script type="module">
+  // 1) CDN imports
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+  import {
+    getAuth, onAuthStateChanged, signInWithPopup,
+    GoogleAuthProvider, FacebookAuthProvider, signOut, deleteUser
+  } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+  import {
+    getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc
+  } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+
+  // 2) 你的 config（從 Console 貼）
+  const firebaseConfig = {
+    apiKey: "AI...your key...",
+    authDomain: "your-project-id.firebaseapp.com",
+    projectId: "your-project-id",
+    storageBucket: "your-project-id.appspot.com",
+    messagingSenderId: "...",
+    appId: "1:...:web:..."
+  };
+
+  // 3) 初始化
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db   = getFirestore(app);
+
+  // 4) 讓別的 script 可取用（可選）
+  window.firebase = { app, auth, db,
+    onAuthStateChanged, signInWithPopup, GoogleAuthProvider, FacebookAuthProvider,
+    signOut, deleteUser, doc, getDoc, setDoc, updateDoc, deleteDoc
+  };
+</script>
+
+<script type="module">
+  const { auth, db, onAuthStateChanged, doc, getDoc, deleteDoc, deleteUser, signOut } = window.firebase;
+
+  onAuthStateChanged(auth, async (u)=>{
+    if (!u) { location.replace("./landing.html"); return; }
+    // 先從 sessionStorage 讀結果
+    const cache = sessionStorage.getItem("BD_RESULT");
+    if (cache) {
+      render(JSON.parse(cache));
+      return;
+    }
+    // 沒有 cache 就從 Firestore 補
+    const ref = doc(db, "users", u.uid);
+    const snap = await getDoc(ref);
+    if (snap.exists() && snap.data().result) {
+      render(snap.data().result);
+      sessionStorage.setItem("BD_RESULT", JSON.stringify(snap.data().result));
+    } else {
+      // 沒結果：導回上傳
+      location.replace("./upload.html");
+    }
+  });
+
+  async function doDeleteAccount() {
+    if (!confirm("確定註銷這個帳號？此動作不可復原。")) return;
+    try{
+      const u = auth.currentUser;
+      if (u) await deleteDoc(doc(db,"users",u.uid));
+      if (u) await deleteUser(u);
+    }catch(e){ console.warn(e); }
+    await signOut(auth);
+    sessionStorage.clear();
+    location.replace("./landing.html");
+  }
+
+  document.getElementById("btnDelete").onclick = doDeleteAccount;
+</script>
 </body>
 </html>
