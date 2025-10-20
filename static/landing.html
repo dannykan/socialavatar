@@ -24,6 +24,19 @@
   </div>
 
   <script>
+    // …(原本的 Firebase 初始化)
+    // 若本機已有分析結果，直接看結果頁
+    const hasResult = !!sessionStorage.getItem('BD_RESULT');
+    if (hasResult) location.replace('./result.html');
+  
+    firebase.onAuthStateChanged(auth, (u)=>{
+      if(u) {
+        // 若已登入而且已有結果，同樣導到結果；否則進上傳
+        if (hasResult) location.replace('./result.html');
+        else location.replace('./upload.html');
+      }
+    });
+    
     // TODO: 填入你的 Firebase 設定
     const firebaseConfig = {
       apiKey: "YOUR_KEY",
