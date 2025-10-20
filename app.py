@@ -9,11 +9,12 @@ import requests
 # App & Config
 # -----------------------------------------------------------------------------
 app = Flask(__name__, static_folder="static", static_url_path="/static")
+CORS(app)  # Add this line
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-OPENAI_MODEL   = os.getenv("OPENAI_MODEL", "gpt-4o-mini-2024-07-18")  # 合理預設
-MAX_SIDE       = int(os.getenv("MAX_SIDE", "1280"))
-JPEG_Q         = int(os.getenv("JPEG_Q", "72"))
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+MAX_SIDE       = int(os.getenv("AX_IMG_SIDE", "1280"))
+JPEG_Q         = int(os.getenv("JPEG_QUALITY", "72"))
 
 # -----------------------------------------------------------------------------
 # Last AI buffer (for /debug/last_ai)
@@ -175,6 +176,17 @@ def debug_last_ai():
 
 @app.post("/bd/analyze")
 def bd_analyze():
+    # Add this at the start:
+    MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+    
+    f_profile = request.files.get("profile")
+    if not f_profile:
+        return jsonify({"ok": False, "error": "missing_profile_image"}), 400
+    
+    # Add size validation:
+    if f_profile.content_length and f_profile.content_length > MAX_FILE_SIZE:
+        return jsonify({"ok": False, "error": "file_too_large"}), 413
+        
     """
     表單欄位：
       - profile: 必填（單檔）IG 個人頁截圖
