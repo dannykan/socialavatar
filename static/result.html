@@ -160,10 +160,80 @@
     }
 
     function clearAndRestart() {
-      try {
-        sessionStorage.removeItem('sa_result');
-      } catch (e) {}
-      location.href = '/static/landing.html';
+      // Confirm with user
+      if (!confirm('確定要清除所有資料並重新開始嗎？\n\n⚠️ 這將會：\n• 刪除你的分析結果\n• 登出你的帳號\n\n你需要重新登入才能再次使用。')) {
+        return;
+      }
+
+      // Show loading
+      const btn = event.target;
+      btn.disabled = true;
+      btn.textContent = '處理中...';
+
+      // Import Firebase dynamically
+      import('https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js')
+        .then(({ initializeApp }) => {
+          return Promise.all([
+            import('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js'),
+            import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js')
+          ]).then(([authModule, firestoreModule]) => {
+            const { getAuth, signOut } = authModule;
+            const { getFirestore, doc, deleteDoc } = firestoreModule;
+
+            const firebaseConfig = {
+              apiKey: "AIzaSyBI2-4yEwzxvYOvui9FZiGAzCE22OhKmU8",
+              authDomain: "social-avatar-d13c8.firebaseapp.com",
+              projectId: "social-avatar-d13c8",
+              storageBucket: "social-avatar-d13c8.appspot.com",
+              messagingSenderId: "280598358339",
+              appId: "1:280598358339:web:214a0d4ca53793163367f6"
+            };
+
+            const app = initializeApp(firebaseConfig);
+            const auth = getAuth(app);
+            const db = getFirestore(app);
+
+            return { auth, db, signOut, deleteDoc, doc };
+          });
+        })
+        .then(async ({ auth, db, signOut, deleteDoc, doc }) => {
+          const user = auth.currentUser;
+          
+          // 1. Delete Firestore data
+          if (user) {
+            try {
+              console.log('[DEBUG] Deleting Firestore document for:', user.uid);
+              const userDocRef = doc(db, 'users', user.uid);
+              await deleteDoc(userDocRef);
+              console.log('[DEBUG] ✅ Firestore document deleted');
+            } catch (firestoreError) {
+              console.error('[ERROR] Failed to delete Firestore:', firestoreError);
+              // Continue anyway
+            }
+          }
+
+          // 2. Clear session storage
+          sessionStorage.clear();
+          console.log('[DEBUG] ✅ Session storage cleared');
+
+          // 3. Sign out
+          try {
+            await signOut(auth);
+            console.log('[DEBUG] ✅ User signed out');
+          } catch (signOutError) {
+            console.error('[ERROR] Sign out error:', signOutError);
+          }
+
+          // 4. Redirect to landing page
+          alert('✅ 已清除所有資料並登出\n\n請重新登入以開始新的分析。');
+          window.location.href = '/static/landing.html';
+        })
+        .catch((error) => {
+          console.error('[ERROR] Clear and restart failed:', error);
+          alert('❌ 清除失敗：' + error.message + '\n\n請手動登出後再試一次。');
+          btn.disabled = false;
+          btn.textContent = '清除並重新開始';
+        });
     }
 
     window.addEventListener('DOMContentLoaded', loadResult);
