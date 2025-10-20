@@ -1,266 +1,159 @@
 <!doctype html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="utf-8">
-  <title>SocialAvatar — 上傳截圖</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <link rel="stylesheet" href="./app.css">
-  <!-- Firebase CDN -->
-  <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js"></script>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>上傳素材 — SocialAvatar</title>
+  <style>
+    body{margin:0;background:#0b0f14;color:#e6eef9;font-family:ui-sans-serif,system-ui,Segoe UI,Roboto}
+    .wrap{min-height:100svh;display:grid;place-items:center;padding:40px 16px}
+    .card{width:min(760px,96vw);padding:28px;border-radius:16px;background:#0f1724;border:1px solid #1f2a3c;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+    h2{margin:0 0 12px}
+    .row{margin:14px 0}
+    .email{opacity:.8;font-size:14px;margin-bottom:12px}
+    input[type=file]{width:100%;padding:14px;border-radius:12px;border:1px dashed #2b3b55;background:#0b1221;color:#cfe2ff}
+    button{padding:12px 16px;border-radius:12px;border:1px solid #334155;background:#172031;color:#e6eef9;cursor:pointer;font-weight:600}
+    button:hover{background:#1b263a}
+    .flex{display:flex;gap:10px;flex-wrap:wrap}
+    .loading{
+      position:fixed;inset:0;display:none;place-items:center;background:rgba(5,10,18,.65);backdrop-filter:blur(6px);z-index:50
+    }
+    .spinner{width:64px;height:64px;border-radius:50%;border:6px solid #4662ff33;border-top-color:#7aa2ff;animation:spin 1s linear infinite}
+    @keyframes spin{to{transform:rotate(1turn)}}
+  </style>
 </head>
 <body>
-  <div class="container">
+  <div class="wrap">
     <div class="card">
-      <div class="h1">上傳 IG 截圖</div>
-      <div id="userLine" class="sub my"></div>
+      <h2>上傳素材（登入後）</h2>
+      <div class="email">已綁定 Email：<span id="userEmail">—</span></div>
 
-      <div id="gate" class="hidden">
-        <div class="sub mb">你的帳號已完成一次分析。若要重來，請點下方「註銷帳號」後重新登入。</div>
-        <button id="btnDelete" class="btn">註銷帳號</button>
+      <div class="row">
+        <div>上傳 IG 個人頁截圖（必填，1 張）</div>
+        <input id="fileProfile" type="file" accept="image/*" />
       </div>
 
-      <div id="formBox">
-        <div class="h2">IG 個人頁截圖（必填）</div>
-        <input id="profile" type="file" accept="image/*" class="input mb">
-
-        <div class="h2 mt">貼文首圖（可多張，最多 4 張）</div>
-        <input id="posts" type="file" accept="image/*" class="input mb" multiple>
-
-        <div class="row">
-          <button id="btnSample" class="btn flat">載入示例檔</button>
-          <button id="btnAnalyze" class="btn brand">開始分析</button>
-          <button id="btnLogout" class="btn flat">登出</button>
-        </div>
+      <div class="row">
+        <div>上傳貼文首圖（選填，最多 4 張）</div>
+        <input id="filePosts" type="file" accept="image/*" multiple />
       </div>
+
+      <div class="flex">
+        <button id="btnSample" type="button">載入示例檔</button>
+        <button id="btnAnalyze" type="button">開始分析</button>
+      </div>
+
+      <div style="opacity:.7;margin-top:10px;font-size:12px">提示：本頁只做上傳與分析，其他欄位不顯示。分析中會出現全螢幕 Loading。</div>
     </div>
   </div>
 
-  <div id="loading" class="loading-full hidden">
-    <div class="spinner"></div>
+  <!-- 全螢幕 Loading -->
+  <div class="loading" id="loading">
+    <div>
+      <div class="spinner" style="margin:auto"></div>
+      <div style="text-align:center;margin-top:12px;letter-spacing:.1em">AI 分析中，請稍候…</div>
+    </div>
   </div>
 
-  <script>
+  <!-- Firebase + 分析流程 -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+    import {
+      getAuth, onAuthStateChanged
+    } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+    import {
+      getFirestore, doc, getDoc, updateDoc
+    } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 
-    // …(原本的 Firebase 初始化)
-    // ★ 先擋：有結果就不讓停留上傳頁
-    if (sessionStorage.getItem('BD_RESULT')) {
-      location.replace('./result.html');
-    }
-  
-    firebase.onAuthStateChanged(auth, async (u)=>{
-      if(!u){ location.replace("./landing.html"); return; }
-      // …(原本讀取 Firestore analyzed 的程式)
-    });
-  
-    // 登出：要清乾淨前端 session，再回登入
-    document.getElementById('btnLogout').onclick = ()=>{
-      sessionStorage.removeItem('BD_PROFILE');
-      sessionStorage.removeItem('BD_POSTS');
-      sessionStorage.removeItem('BD_UID');
-      // 不移除 BD_RESULT，保持「已完成就只能看結果」的行為
-      firebase.signOut(auth).then(()=>location.replace('./landing.html'));
-    };
-  
-    // 註銷：清所有暫存（含結果），回登入
-    document.getElementById('btnDelete').onclick = async ()=>{
-      if(!confirm("確定註銷？")) return;
-      try{
-        if(userDocRef) await firebase.deleteDoc(userDocRef);
-        if(auth.currentUser) await firebase.deleteUser(auth.currentUser);
-      }catch(e){ console.warn(e); }
-      // ★ 清所有 client 端痕跡
-      sessionStorage.clear();
-      await firebase.signOut(auth);
-      location.replace('./landing.html');
-    };
-
-    
-    // TODO: 填入你的 Firebase 設定
+    /* TODO: 換成你的 Firebase config */
     const firebaseConfig = {
-      apiKey: "YOUR_KEY",
+      apiKey: "AI...YOUR_KEY...",
       authDomain: "YOUR_PROJECT.firebaseapp.com",
       projectId: "YOUR_PROJECT",
       storageBucket: "YOUR_PROJECT.appspot.com",
-      messagingSenderId: "SENDER",
-      appId: "APP_ID"
-    };
-    const app = firebase.initializeApp(firebaseConfig);
-    const auth = firebase.getAuth();
-    const db   = firebase.getFirestore();
-
-    const elUserLine = document.getElementById('userLine');
-    const elGate     = document.getElementById('gate');
-    const elFormBox  = document.getElementById('formBox');
-    const elLoading  = document.getElementById('loading');
-
-    let currentUser = null;
-    let userDocRef  = null;
-    let analyzed    = false;
-
-    firebase.onAuthStateChanged(auth, async (u)=>{
-      if(!u){ location.href = "./landing.html"; return; }
-      currentUser = u;
-      userDocRef  = firebase.doc(db, "users", u.uid);
-      const snap  = await firebase.getDoc(userDocRef);
-      analyzed    = snap.exists() ? !!snap.data().analyzed : false;
-
-      elUserLine.textContent = `已登入：${u.email || '(無 Email)'}`;
-
-      if(analyzed){
-        elGate.classList.remove('hidden');
-        elFormBox.classList.add('hidden');
-      }else{
-        elGate.classList.add('hidden');
-        elFormBox.classList.remove('hidden');
-      }
-    });
-
-    // Demo：載入示例（用遠端圖片 dataURL 方式注入 inputs）
-    document.getElementById('btnSample').onclick = async ()=>{
-      const toDataUrl = (url)=>fetch(url).then(r=>r.blob()).then(blob=>new Promise(res=>{
-        const fr=new FileReader(); fr.onload=()=>res(fr.result); fr.readAsDataURL(blob);
-      }));
-      // 示例圖（換成你的示例）
-      const profileUrl = "https://picsum.photos/seed/igprofile/1600/1600";
-      const post1Url   = "https://picsum.photos/seed/igpost1/1024/1024";
-      const post2Url   = "https://picsum.photos/seed/igpost2/1024/1024";
-
-      const asFile = (dataUrl, name)=>fetch(dataUrl).then(r=>r.blob()).then(b=>new File([b], name, {type:b.type||'image/jpeg'}));
-
-      const profileData = await toDataUrl(profileUrl);
-      const post1Data   = await toDataUrl(post1Url);
-      const post2Data   = await toDataUrl(post2Url);
-
-      const profileFile = await asFile(profileData,"profile.jpg");
-      const p1          = await asFile(post1Data,"p1.jpg");
-      const p2          = await asFile(post2Data,"p2.jpg");
-
-      // 把檔案塞回 input（需使用 DataTransfer）
-      const profDT = new DataTransfer(); profDT.items.add(profileFile);
-      document.getElementById('profile').files = profDT.files;
-
-      const postsDT = new DataTransfer(); postsDT.items.add(p1); postsDT.items.add(p2);
-      document.getElementById('posts').files = postsDT.files;
-      alert("示例檔已載入 ✅");
+      messagingSenderId: "XXXX",
+      appId: "1:XXXX:web:XXXX"
     };
 
-    // 將圖片壓縮（與你後端一致的 max_side=1280 / jpeg_q=0.8）
-    async function compressToDataURL(file, maxSide=1600, quality=.8){
-      const img = new Image(); img.src = URL.createObjectURL(file);
-      await img.decode();
-      let {width:w,height:h} = img;
-      const scale = Math.min(1, maxSide/Math.max(w,h));
-      const cw = Math.round(w*scale), ch = Math.round(h*scale);
-      const cv = document.createElement('canvas'); cv.width=cw; cv.height=ch;
-      const ctx = cv.getContext('2d'); ctx.drawImage(img,0,0,cw,ch);
-      return cv.toDataURL('image/jpeg', quality);
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db   = getFirestore(app);
+
+    const elEmail   = document.getElementById("userEmail");
+    const elProfile = document.getElementById("fileProfile");
+    const elPosts   = document.getElementById("filePosts");
+    const elLoading = document.getElementById("loading");
+
+    // 若已分析過（前端快取存在）就不讓回此頁
+    if (sessionStorage.getItem("BD_RESULT")) {
+      location.replace("./result.html");
     }
 
-    // 送去 loading 頁
-    document.getElementById('btnAnalyze').onclick = async ()=>{
-      const fProfile = document.getElementById('profile').files?.[0];
-      if(!fProfile){ alert("請先選擇 IG 個人頁截圖"); return; }
-      const fPosts = [...document.getElementById('posts').files].slice(0,4);
-
-      elLoading.classList.remove('hidden');
-      // 預壓縮 → 存 sessionStorage
-      const profileB64 = await compressToDataURL(fProfile, 1600, .8);
-      const postB64s   = [];
-      for(const file of fPosts){
-        postB64s.push( await compressToDataURL(file, 1600, .8) );
-      }
-      sessionStorage.setItem('BD_PROFILE', profileB64);
-      sessionStorage.setItem('BD_POSTS', JSON.stringify(postB64s));
-      sessionStorage.setItem('BD_UID', currentUser.uid);
-
-      location.href = "./loading.html";
-    };
-
-    // 登出
-    document.getElementById('btnLogout').onclick = ()=>firebase.signOut(auth).then(()=>{
-      location.href = "./landing.html";
+    onAuthStateChanged(auth, async (u)=>{
+      if(!u){ location.replace("./landing.html"); return; }
+      // 顯示 email（若 FB 沒 email 用 Firestore 補）
+      const ref = doc(db,"users",u.uid);
+      const snap= await getDoc(ref);
+      elEmail.textContent = snap.data()?.email || u.email || "（無 Email）";
     });
 
-    // 註銷帳號（刪除 Firestore 文件 + 嘗試刪除 firebase auth 使用者）
-    document.getElementById('btnDelete').onclick = async ()=>{
-      if(!confirm("確定註銷？此動作會刪除平台帳號與分析紀錄，需重新登入。")) return;
+    // 載入示例：用 fetch 把 server 的示例圖塞進 input，不同瀏覽器安全限制不同；保留原本的示例按鈕做提示
+    document.getElementById("btnSample").onclick = ()=>{
+      alert("示例檔請自行選取；或把示例圖放到電腦後再選擇檔案上傳。");
+    };
+
+    document.getElementById("btnAnalyze").onclick = async ()=>{
+      const u = auth.currentUser;
+      if(!u){ location.replace("./landing.html"); return; }
+
+      const fileP = elProfile.files?.[0];
+      if(!fileP){ alert("請先選擇『IG 個人頁截圖』"); return; }
+
+      // 準備 FormData
+      const fd = new FormData();
+      fd.append("profile", fileP);
+      const posts = Array.from(elPosts.files||[]).slice(0,4);
+      for (const f of posts) fd.append("posts", f);
+
       try{
-        if(userDocRef) await firebase.deleteDoc(userDocRef);
-        if(auth.currentUser){
-          await firebase.deleteUser(auth.currentUser);
+        elLoading.style.display = "grid";
+        const res = await fetch("/bd/analyze", { method:"POST", body: fd });
+        const json = await res.json();
+        if(!json.ok){
+          console.warn(json);
+          alert("分析失敗：" + (json.detail || json.where || "server error"));
+          elLoading.style.display = "none";
+          return;
         }
-      }catch(e){
-        // 刪除使用者可能需要 re-auth；失敗就改成登出
-        console.warn(e);
-      }finally{
-        await firebase.signOut(auth);
-        location.href = "./landing.html";
+
+        // 寫入 sessionStorage（結果頁會直接吃）
+        sessionStorage.setItem("BD_RESULT", JSON.stringify({
+          display_name: json.display_name || json.ig_account || "使用者",
+          username: json.username || "",
+          followers: json.followers || 0,
+          following: json.following || 0,
+          posts: json.posts || 0,
+          mbti: json.mbti || "不詳",
+          summary: json.reason || "—",
+          vehicle: json.vehicle || "步行",
+          used_fallback: !!json.used_fallback
+        }));
+
+        // Firestore 記 analyzed 與 result（可作為日後 server 驗證）
+        const ref = doc(db,"users", u.uid);
+        await updateDoc(ref,{
+          analyzed: true,
+          result: JSON.parse(sessionStorage.getItem("BD_RESULT"))
+        });
+
+        // 導向結果頁
+        location.replace("./result.html");
+      }catch(err){
+        console.error(err);
+        alert("分析失敗（網路或伺服器錯誤）");
+        elLoading.style.display = "none";
       }
     };
   </script>
-
-<script type="module">
-  // 1) CDN imports
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
-  import {
-    getAuth, onAuthStateChanged, signInWithPopup,
-    GoogleAuthProvider, FacebookAuthProvider, signOut, deleteUser
-  } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
-  import {
-    getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc
-  } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
-
-  // 2) 你的 config（從 Console 貼）
-  const firebaseConfig = {
-    apiKey: "AI...your key...",
-    authDomain: "your-project-id.firebaseapp.com",
-    projectId: "your-project-id",
-    storageBucket: "your-project-id.appspot.com",
-    messagingSenderId: "...",
-    appId: "1:...:web:..."
-  };
-
-  // 3) 初始化
-  const app = initializeApp(firebaseConfig);
-  const auth = getAuth(app);
-  const db   = getFirestore(app);
-
-  // 4) 讓別的 script 可取用（可選）
-  window.firebase = { app, auth, db,
-    onAuthStateChanged, signInWithPopup, GoogleAuthProvider, FacebookAuthProvider,
-    signOut, deleteUser, doc, getDoc, setDoc, updateDoc, deleteDoc
-  };
-</script>
-
-<script type="module">
-  const { auth, db, onAuthStateChanged, doc, getDoc } = window.firebase;
-
-  // 已有結果就直接去 result
-  if (sessionStorage.getItem("BD_RESULT")) location.replace("./result.html");
-
-  onAuthStateChanged(auth, async (u)=>{
-    if (!u) { location.replace("./landing.html"); return; }
-    const ref = doc(db, "users", u.uid);
-    const snap = await getDoc(ref);
-    const email = snap.data()?.email || u.email || "";
-    document.getElementById("userEmail").textContent = email; // 你的畫面顯示
-  });
-
-  // 開始分析前你已經把圖檔→/bd/analyze，成功後：
-  async function onAnalyzeFinished(aiResult) {
-    // 存前端快取
-    sessionStorage.setItem("BD_RESULT", JSON.stringify(aiResult));
-    // Firestore 記 analyzed
-    const ref = doc(db, "users", auth.currentUser.uid);
-    await updateDoc(ref, {
-      analyzed: true,
-      result: { ...aiResult, updatedAt: Date.now() }
-    });
-    location.replace("./result.html");
-  }
-</script>
-  
 </body>
 </html>
