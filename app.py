@@ -1,33 +1,82 @@
-# app.py
-# -*- coding: utf-8 -*-
-
-import os
-import io
-import json
-import base64
-import time
+# --- app.py (開頭) -----------------------------------------------------------
+import os, io, base64, json, re, time
 from datetime import datetime, timezone
-
-from flask import Flask, request, jsonify, redirect
+from flask import Flask, request, jsonify, send_from_directory
 from PIL import Image
-import requests
-from pathlib import Path
 
-LAST_AI_FILE = Path("/tmp/socialavatar_last_ai.json")
+# 1) 先建立 Flask app
+app = Flask(__name__, static_folder="static", static_url_path="/static")
+
+# 2) 設定（環境變數）
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+OPENAI_MODEL   = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+
+# 3) 全域：最近一次 AI 回應（給 /debug/last_ai）
+LAST_AI_TEXT = {
+    "raw":  "",
+    "text": "",
+    "ts":   None,
+}
+def _set_last_ai(text: str = "", raw: str = ""):
+    LAST_AI_TEXT["text"] = text or ""
+    LAST_AI_TEXT["raw"]  = raw or ""
+    LAST_AI_TEXT["ts"]   = datetime.now(timezone.utc).isoformat()
 
 def save_last_ai(ai_dict=None, raw="", text=""):
-    """Write last ai result to disk – safe & small (<= ~200KB)"""
-    try:
-        payload = {
-            "ai": ai_dict or None,
-            "raw": (raw or "")[:200_000],
-            "text": (text or "")[:200_000],
-            "ts": time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime())
-        }
-        LAST_AI_FILE.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
-    except Exception as e:
-        print("[last_ai] save failed:", e)
+    """
+    你可以在 /bd/analyze 成功或失敗時呼叫：
+      save_last_ai(ai_dict=parsed_dict, raw=raw_response, text=ai_text)
+    若 ai_dict 是 dict，會盡力把它序列化成 json 字串塞到 text 方便前端 fallback 解析。
+    """
+    s_text = text or ""
+    if not s_text and ai_dict is not None:
+        try:
+            s_text = json.dumps(ai_dict, ensure_ascii=False)
+        except Exception:
+            s_text = ""
+    _set_last_ai(text=s_text, raw=raw or "")
 
+# 4) 共用工具：圖片壓縮→base64
+def _pil_compress_to_b64(im: Image.Image, max_side=1280, jpeg_q=72) -> str:
+    im = im.convert("RGB")
+    w, h = im.size
+    scale = min(1.0, float(max_side) / float(max(w, h)))
+    if scale < 1.0:
+        im = im.resize((int(w*scale), int(h*scale)))
+    buf = io.BytesIO()
+    im.save(buf, format="JPEG", quality=jpeg_q, optimize=True)
+    return base64.b64encode(buf.getvalue()).decode("utf-8")
+
+# 5) 偵錯/健康檢查 API（注意：這些 route 要在 app 建立之後宣告）
+@app.route("/debug/last_ai")
+def debug_last_ai():
+    # 回傳最近一次 AI 呼叫的原文 & 文字（給前端 fallback 用）
+    return jsonify({
+        "raw":  LAST_AI_TEXT.get("raw", ""),
+        "text": LAST_AI_TEXT.get("text", ""),
+        "ts":   LAST_AI_TEXT.get("ts", None)
+    })
+
+@app.route("/debug/config")
+def debug_config():
+    # 提供前端顯示診斷資訊
+    return jsonify({
+        "ai_on":        bool(OPENAI_API_KEY),
+        "has_api_key":  bool(OPENAI_API_KEY),
+        "model":        OPENAI_MODEL,
+        "jpeg_q":       72,
+        "max_side":     1280
+    })
+
+@app.route("/health")
+def health():
+    return jsonify({"status": "ok", "max_side": 1280, "jpeg_q": 72})
+
+# 6) （選）首頁導向
+@app.route("/")
+def root():
+    return send_from_directory(app.static_folder, "landing.html")
+    
 def load_last_ai():
     """Read last ai result from disk; return empty skeleton if not exists."""
     try:
@@ -36,42 +85,6 @@ def load_last_ai():
     except Exception as e:
         print("[last_ai] load failed:", e)
     return {"ai": None, "raw": "", "text": "", "ts": None}
-
-@app.route("/debug/last_ai")
-def debug_last_ai():
-    # 統一從檔案讀，避免 worker 重啟/切換的空值問題
-    from flask import jsonify
-    return jsonify(load_last_ai())
-
-# -----------------------------------------------------------------------------
-# Flask 基本設定（自帶 /static 目錄）
-# -----------------------------------------------------------------------------
-app = Flask(__name__, static_url_path="/static", static_folder="static")
-
-# Render / Gunicorn 建議（若未在 Dashboard 設定會使用預設）
-WEB_CONCURRENCY = int(os.getenv("WEB_CONCURRENCY", "2"))
-THREADS = int(os.getenv("THREADS", "2"))
-TIMEOUT = int(os.getenv("TIMEOUT", "120"))
-
-# -----------------------------------------------------------------------------
-# 影像處理/AI 參數
-# -----------------------------------------------------------------------------
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-OPENAI_MODEL   = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
-
-# 上傳影像壓縮（避免記憶體爆）
-MAX_SIDE = int(os.getenv("IMG_MAX_SIDE", "1280"))
-JPEG_Q   = int(os.getenv("IMG_JPEG_Q", "72"))
-
-# -----------------------------------------------------------------------------
-# /debug/last_ai 暫存
-# -----------------------------------------------------------------------------
-LAST_AI_TEXT = {"text": "", "raw": "", "ts": None}
-
-def _set_last_ai(text: str = "", raw: str = ""):
-    LAST_AI_TEXT["text"] = (text or "")[:4000]
-    LAST_AI_TEXT["raw"]  = (raw or "")[:4000]
-    LAST_AI_TEXT["ts"]   = datetime.now(timezone.utc).isoformat()
 
 # -----------------------------------------------------------------------------
 # 小工具：影像壓縮與 base64
