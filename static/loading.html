@@ -1,120 +1,28 @@
 <!doctype html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="utf-8">
-  <title>正在分析…</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <link rel="stylesheet" href="./app.css">
-  <!-- Firebase CDN -->
-  <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js"></script>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>分析中… — SocialAvatar</title>
+  <style>
+    body{margin:0;background:#0b0f14;color:#e6eef9;font-family:ui-sans-serif,system-ui}
+    .wrap{min-height:100svh;display:grid;place-items:center}
+    .spinner{width:72px;height:72px;border-radius:50%;border:8px solid #4662ff33;border-top-color:#7aa2ff;animation:spin 1s linear infinite;margin:0 auto 16px}
+    @keyframes spin{to{transform:rotate(1turn)}}
+  </style>
 </head>
 <body>
-  <div class="loading-full"><div class="spinner"></div></div>
+  <div class="wrap">
+    <div>
+      <div class="spinner"></div>
+      <div style="text-align:center;letter-spacing:.08em">AI 分析中，請稍候…</div>
+    </div>
+  </div>
 
   <script>
-
-    // …(原本的程式)
-    // 當進到 loading 就把上一頁覆寫成自己，避免回上傳頁
-    history.replaceState(null, '', './loading.html');
-  
-    (async function main(){
-      // … 呼叫 /bd/analyze，寫入 BD_RESULT …
-      location.replace('./result.html');
-    })();
-
-    // TODO: 填入你的 Firebase 設定
-    const firebaseConfig = {
-      apiKey: "YOUR_KEY",
-      authDomain: "YOUR_PROJECT.firebaseapp.com",
-      projectId: "YOUR_PROJECT",
-      storageBucket: "YOUR_PROJECT.appspot.com",
-      messagingSenderId: "SENDER",
-      appId: "APP_ID"
-    };
-    const app = firebase.initializeApp(firebaseConfig);
-    const auth = firebase.getAuth();
-    const db   = firebase.getFirestore();
-
-    (async function main(){
-      const b64 = sessionStorage.getItem('BD_PROFILE');
-      const posts = JSON.parse(sessionStorage.getItem('BD_POSTS')||'[]');
-      const uid = sessionStorage.getItem('BD_UID');
-
-      if(!b64){ location.href="./upload.html"; return; }
-
-      // 上傳到你的 /bd/analyze
-      // 注意：這裡仍用 multipart/form-data，server 端支援 base64 也可改寫
-      async function dataURLtoBlob(durl){
-        const res = await fetch(durl); return await res.blob();
-      }
-      const fd = new FormData();
-      fd.append('profile', new File([await dataURLtoBlob(b64)], 'profile.jpg', {type:'image/jpeg'}));
-      for(let i=0;i<posts.length;i++){
-        fd.append('posts', new File([await dataURLtoBlob(posts[i])], `post${i+1}.jpg`, {type:'image/jpeg'}));
-      }
-
-      let ai = null;
-      try{
-        const resp = await fetch('/bd/analyze', { method:'POST', body:fd });
-        const data = await resp.json();
-        ai = data?.ai || data; // 兼容你的回應格式
-        sessionStorage.setItem('BD_RESULT', JSON.stringify(ai||{}));
-      }catch(e){
-        sessionStorage.setItem('BD_RESULT', JSON.stringify({error:true, message:String(e)}));
-      }
-
-      // 標記使用者已分析
-      try{
-        if(uid){
-          await firebase.updateDoc(firebase.doc(db,'users',uid),{
-            analyzed:true, lastAnalyzedAt: Date.now()
-          });
-        }
-      }catch(e){ console.warn('failed to set analyzed:',e); }
-
-      location.href = "./result.html";
-    })();
+    // 若已有結果就跳結果；否則停留（之後可改成輪詢 server 狀態）
+    const has = !!sessionStorage.getItem("BD_RESULT");
+    if (has) location.replace("./result.html");
   </script>
-
-<script type="module">
-  // 1) CDN imports
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
-  import {
-    getAuth, onAuthStateChanged, signInWithPopup,
-    GoogleAuthProvider, FacebookAuthProvider, signOut, deleteUser
-  } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
-  import {
-    getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc
-  } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
-
-  // 2) 你的 config（從 Console 貼）
-  const firebaseConfig = {
-    apiKey: "AI...your key...",
-    authDomain: "your-project-id.firebaseapp.com",
-    projectId: "your-project-id",
-    storageBucket: "your-project-id.appspot.com",
-    messagingSenderId: "...",
-    appId: "1:...:web:..."
-  };
-
-  // 3) 初始化
-  const app = initializeApp(firebaseConfig);
-  const auth = getAuth(app);
-  const db   = getFirestore(app);
-
-  // 4) 讓別的 script 可取用（可選）
-  window.firebase = { app, auth, db,
-    onAuthStateChanged, signInWithPopup, GoogleAuthProvider, FacebookAuthProvider,
-    signOut, deleteUser, doc, getDoc, setDoc, updateDoc, deleteDoc
-  };
-</script>
-
-<script>
-  // 使用 history.replaceState，避免上一頁返回到 upload.html
-  history.replaceState(null, "", "./loading.html");
-</script>
-
 </body>
 </html>
