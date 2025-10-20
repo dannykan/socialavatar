@@ -1,8 +1,8 @@
-# app.py — clean single-route version
+# app.py — Fixed version
 import os, io, base64, json
 from datetime import datetime, timezone
 from flask import Flask, request, jsonify, send_from_directory
-from flask_cors import CORS  # ← Add this import
+from flask_cors import CORS
 from PIL import Image
 import requests
 
@@ -10,15 +10,15 @@ import requests
 # App & Config
 # -----------------------------------------------------------------------------
 app = Flask(__name__, static_folder="static", static_url_path="/static")
-CORS(app)  # Enable CORS for all routes
+CORS(app)
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
-MAX_SIDE = int(os.getenv("AX_IMG_SIDE", "1280"))
+MAX_SIDE = int(os.getenv("MAX_SIDE", "1280"))
 JPEG_Q = int(os.getenv("JPEG_QUALITY", "72"))
 
 # -----------------------------------------------------------------------------
-# Last AI buffer (for /debug/last_ai)
+# Last AI buffer
 # -----------------------------------------------------------------------------
 LAST_AI_TEXT = { "raw": "", "text": "", "ts": None }
 
@@ -28,7 +28,6 @@ def _set_last_ai(text: str = "", raw: str = ""):
     LAST_AI_TEXT["ts"]   = datetime.now(timezone.utc).isoformat()
 
 def save_last_ai(ai_dict=None, raw="", text=""):
-    """把 AI 結果/原始回應暫存到記憶體，/debug/last_ai 會讀到"""
     s_text = text or ""
     if not s_text and ai_dict is not None:
         try:
@@ -41,7 +40,6 @@ def save_last_ai(ai_dict=None, raw="", text=""):
 # Utils
 # -----------------------------------------------------------------------------
 def _pil_compress_to_b64(img: Image.Image) -> str:
-    """壓縮長邊至 MAX_SIDE、存 JPEG(JPEG_Q) 為 base64"""
     if img.mode not in ("RGB", "L"):
         img = img.convert("RGB")
     w, h = img.size
@@ -57,19 +55,7 @@ def _pil_compress_to_b64(img: Image.Image) -> str:
     img.save(buf, format="JPEG", quality=JPEG_Q, optimize=True)
     return base64.b64encode(buf.getvalue()).decode("ascii")
 
-def _extract_images_from_form(form_field: str, max_files: int = 6):
-    """從 multipart/form-data 取多張圖，回傳 base64 陣列"""
-    out = []
-    for f in request.files.getlist(form_field)[:max_files]:
-        try:
-            img = Image.open(f.stream)
-            out.append(_pil_compress_to_b64(img))
-        except Exception:
-            continue
-    return out
-
 def _extract_json_block(s: str):
-    """把 ```json ... ``` 或混雜文字裡第一對 { } 的 JSON 抽出來"""
     if not s: return None
     txt = s.strip()
     if txt.startswith("```"):
@@ -93,14 +79,13 @@ def pick_vehicle(followers: int) -> str:
     return "步行"
 
 # -----------------------------------------------------------------------------
-# OpenAI (Responses API)
+# OpenAI
 # -----------------------------------------------------------------------------
 def call_openai_vision(profile_b64: str, posts_b64_list: list[str]):
-    """回傳：(模型輸出純文字, 完整原始回應字串)。失敗 raise RuntimeError。"""
     if not OPENAI_API_KEY:
         raise RuntimeError("No OPENAI_API_KEY configured")
 
-    url = "https://api.openai.com/v1/responses"
+    url = "https://api.openai.com/v1/chat/completions"
     headers = {
         "Authorization": f"Bearer {OPENAI_API_KEY}",
         "Content-Type": "application/json",
@@ -112,56 +97,51 @@ def call_openai_vision(profile_b64: str, posts_b64_list: list[str]):
         "判斷對方的社群 MBTI 類型（如：INTP/ESFJ 等），並用自然、有個性的口吻，"
         "給一段約 200 字的分析說明（為什麼會這樣覺得）。不要用制式報表語氣。\n"
         "請務必只輸出 JSON，不要加任何註解或 Markdown 區塊。\n"
-        "欄位固定為：display_name, username, followers, following, posts, mbti, summary, vehicle。"
+        "欄位固定為：display_name, username, followers, following, posts, mbti, summary。"
     )
 
-    contents = [
-        {"type": "input_text",  "text": sys_prompt},
-        {"type": "input_text",  "text": "以下是 IG 個人頁截圖（含數字/名稱/bio/首屏格）：" },
-        {"type": "input_image", "image_url": f"data:image/jpeg;base64,{profile_b64}"},
+    user_content = [
+        {"type": "text", "text": "以下是 IG 個人頁截圖（含數字/名稱/bio/首屏格）："},
+        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{profile_b64}"}}
     ]
+    
     for i, b64 in enumerate(posts_b64_list[:3], start=1):
-        contents.append({"type": "input_text",  "text": f"貼文首圖 #{i}：" })
-        contents.append({"type": "input_image", "image_url": f"data:image/jpeg;base64,{b64}"})
+        user_content.append({"type": "text", "text": f"貼文首圖 #{i}："})
+        user_content.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}})
 
     payload = {
         "model": OPENAI_MODEL,
-        "input": [ { "role": "user", "content": contents } ],
-        "max_output_tokens": 700
+        "messages": [
+            {"role": "system", "content": sys_prompt},
+            {"role": "user", "content": user_content}
+        ],
+        "max_tokens": 700
     }
 
-    resp = requests.post(url, headers=headers, data=json.dumps(payload), timeout=90)
+    resp = requests.post(url, headers=headers, json=payload, timeout=90)
     if not resp.ok:
         raise RuntimeError(f"OpenAI HTTP {resp.status_code}: {resp.text}")
 
     data = resp.json()
-
-    # 擷取 output_text
-    out_text = ""
-    if isinstance(data.get("output"), list):
-        for msg in data["output"]:
-            for c in msg.get("content", []):
-                if c.get("type") in ("output_text", "text") and c.get("text"):
-                    out_text += c["text"]
-
+    out_text = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+    
     if not out_text:
-        # 取不到純文字時，回傳整包 JSON 讓上層寫入 /debug/last_ai 排錯
         out_text = json.dumps(data, ensure_ascii=False)
 
     return out_text.strip(), resp.text
 
 # -----------------------------------------------------------------------------
-# Routes （⚠️ 只宣告一次，不要重複）
+# Routes
 # -----------------------------------------------------------------------------
-@app.get("/", endpoint="home")
+@app.route("/")
 def serve_landing():
     return send_from_directory(app.static_folder, "landing.html")
 
-@app.get("/health")
+@app.route("/health")
 def health():
     return jsonify({"status": "ok", "max_side": MAX_SIDE, "jpeg_q": JPEG_Q})
 
-@app.get("/debug/config")
+@app.route("/debug/config")
 def debug_config():
     return jsonify({
         "ai_on": bool(OPENAI_API_KEY),
@@ -171,20 +151,13 @@ def debug_config():
         "jpeg_q": JPEG_Q
     })
 
-@app.get("/debug/last_ai")
+@app.route("/debug/last_ai")
 def debug_last_ai():
     return jsonify(LAST_AI_TEXT)
 
-@app.post("/bd/analyze")
+@app.route("/bd/analyze", methods=["POST"])
 def bd_analyze():
-    """
-    表單欄位：
-      - profile: 必填（單檔）IG 個人頁截圖
-      - posts  : 可選（多檔）首屏貼文縮圖
-    回傳：
-      { ok, mbti, summary, username, display_name, followers, following, posts, vehicle, diagnose }
-    """
-    MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+    MAX_FILE_SIZE = 10 * 1024 * 1024
     
     diagnose = {
         "ai_on": bool(OPENAI_API_KEY),
@@ -194,14 +167,10 @@ def bd_analyze():
         "posts_sent": 0,
     }
 
-    # 1) 讀檔與驗證
+    # Read profile image
     f_profile = request.files.get("profile")
     if not f_profile:
         return jsonify({"ok": False, "error": "missing_profile_image"}), 400
-    
-    # 檔案大小驗證
-    if f_profile.content_length and f_profile.content_length > MAX_FILE_SIZE:
-        return jsonify({"ok": False, "error": "file_too_large"}), 413
 
     try:
         img_profile = Image.open(f_profile.stream)
@@ -209,10 +178,18 @@ def bd_analyze():
     except Exception as e:
         return jsonify({"ok": False, "error": "bad_profile_image", "detail": str(e)}), 400
 
-    posts_b64 = _extract_images_from_form("posts", max_files=6)
+    # Read posts (multiple files with same field name)
+    posts_b64 = []
+    for f in request.files.getlist("posts")[:6]:
+        try:
+            img = Image.open(f.stream)
+            posts_b64.append(_pil_compress_to_b64(img))
+        except Exception:
+            continue
+    
     diagnose["posts_sent"] = len(posts_b64)
 
-    # 2) OpenAI
+    # Call OpenAI
     parsed, ai_text, raw = None, "", ""
     try:
         if OPENAI_API_KEY:
@@ -230,7 +207,7 @@ def bd_analyze():
         diagnose["fail_reason"] = "openai_http"
         diagnose["used_fallback"] = True
 
-    # 3) 組合輸出
+    # Build result
     if not parsed:
         result = {
             "display_name": "使用者",
@@ -247,24 +224,21 @@ def bd_analyze():
             except Exception: return 0
         result = {
             "display_name": str(parsed.get("display_name") or "").strip()[:100],
-            "username":     str(parsed.get("username") or "").strip()[:100],
-            "followers":    _to_int(parsed.get("followers")),
-            "following":    _to_int(parsed.get("following")),
-            "posts":        _to_int(parsed.get("posts")),
-            "mbti":         str(parsed.get("mbti") or "").strip()[:10].upper(),
-            "summary":      str(parsed.get("summary") or "").strip()[:600],
+            "username": str(parsed.get("username") or "").strip()[:100],
+            "followers": _to_int(parsed.get("followers")),
+            "following": _to_int(parsed.get("following")),
+            "posts": _to_int(parsed.get("posts")),
+            "mbti": str(parsed.get("mbti") or "").strip()[:10].upper(),
+            "summary": str(parsed.get("summary") or "").strip()[:600],
         }
 
     result["vehicle"] = pick_vehicle(result.get("followers", 0))
-
-    # 4) 存 /debug/last_ai
     save_last_ai(ai_dict=result, raw=raw, text=ai_text)
 
-    # 5) 回傳
     return jsonify({"ok": True, **result, "diagnose": diagnose})
 
 # -----------------------------------------------------------------------------
-# Local dev
+# Main
 # -----------------------------------------------------------------------------
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.getenv("PORT", "8000")), debug=True)
