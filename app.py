@@ -256,7 +256,13 @@ def bd_analyze():
         return jsonify({
             "ok": True,
             "used_fallback": used_fallback,
-            "ai": ai_obj
+            "ai": ai_obj,
+            "diagnose": {
+                "ai_on": AI_ON,
+                "has_api_key": bool(OPENAI_API_KEY),
+                "model": OPENAI_VISION_MODEL,
+                "posts_sent": len(posts_b64),
+            }
         })
 
     except Exception as e:
