@@ -1,51 +1,58 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>分析中…</title>
+<link rel="icon" href="data:," />
+<style>
+  :root{color-scheme:dark}
+  body{margin:0;background:#0f1115;color:#e6e9ef;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto;display:grid;place-items:center;min-height:100svh}
+  .box{text-align:center}
+  .spinner{width:68px;height:68px;border:6px solid #2b3040;border-top-color:#9aa6ff;border-radius:50%;animation:spin 1s linear infinite;margin:18px auto}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .hint{opacity:.7}
+</style>
+</head>
+<body>
+<div class="box">
+  <div class="spinner"></div>
+  <h2>AI 分析中，請稍候…</h2>
+  <p class="hint">通常需 5–15 秒；若逾時會自動返回上傳頁。</p>
+</div>
+
 <script>
-/**
- * 會輪詢 /debug/last_ai，拿到有效結果就寫入 localStorage 後導到 result.html
- */
-const POLL_INTERVAL = 1200;      // 1.2s
-const POLL_MAX_MS   = 90_000;    // 最多等 90 秒
-const KEY           = "sa_result";
+  const KEY = "sa_result";
+  const POLL_INTERVAL = 1200;
+  const POLL_MAX_MS   = 90_000;
 
-function looksValid(ai) {
-  if (!ai) return false;
-  // 只要有其中一個關鍵訊號即可視為有效
-  return Boolean(
-    (ai.username && ai.username.length > 0) ||
-    (ai.display_name && ai.display_name.length > 0) ||
-    (ai.summary && ai.summary.length > 10) ||
-    (ai.followers && ai.followers > 0) ||
-    (ai.posts && ai.posts > 0) ||
-    (ai.mbti && ai.mbti.length > 2)
-  );
-}
-
-async function pollLastAI() {
-  const start = Date.now();
-  while (Date.now() - start < POLL_MAX_MS) {
-    try {
-      const r = await fetch("/debug/last_ai", { cache: "no-store" });
-      if (!r.ok) throw new Error("HTTP " + r.status);
-      const data = await r.json(); // { ai: {...}, raw?: "...", used_fallback?: true }
-      const ai = data.ai || data;  // 容錯：有些版本直接回 ai 物件
-      if (looksValid(ai)) {
-        // 帶上 raw 與 used_fallback，之後結果頁可以顯示錯誤細節
-        localStorage.setItem(KEY, JSON.stringify({
-          ...ai,
-          __raw: data.raw || "",
-          __used_fallback: !!data.used_fallback
-        }));
-        location.href = "/static/result.html";
-        return;
-      }
-    } catch (e) {
-      console.log("poll failed:", e);
-    }
-    await new Promise(res => setTimeout(res, POLL_INTERVAL));
+  function looksValid(ai){
+    return !!(ai && (ai.username || ai.display_name || ai.summary ||
+      (ai.followers|0)>0 || (ai.posts|0)>0 || (ai.mbti && ai.mbti.length>1)));
   }
-  // 超時：落地顯示錯誤並回上傳
-  alert("分析逾時，請重試。若持續發生，請稍後再試。");
-  location.href = "/static/upload.html";
-}
 
-pollLastAI();
+  async function poll(){
+    const start = Date.now();
+    while (Date.now() - start < POLL_MAX_MS){
+      try{
+        const r = await fetch("/debug/last_ai", { cache:"no-store" });
+        if (r.ok){
+          const data = await r.json();
+          const ai = data.ai || data;
+          if (looksValid(ai)){
+            localStorage.setItem(KEY, JSON.stringify({
+              ...ai, __raw: data.raw || "", __used_fallback: !!data.used_fallback
+            }));
+            location.replace("/static/result.html");
+            return;
+          }
+        }
+      }catch{}
+      await new Promise(r=>setTimeout(r,POLL_INTERVAL));
+    }
+    location.replace("/static/upload.html");
+  }
+  poll();
 </script>
+</body>
+</html>
