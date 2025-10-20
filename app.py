@@ -64,10 +64,15 @@ def _fallback_result() -> dict:
 
 
 def _call_openai_vision(profile_b64: str, post_b64_list: list) -> str:
+    """
+    使用 OpenAI（Vision / Multimodal）做一次總結。
+    回傳為純文字（我們再去剝 JSON）。
+    """
     if not OPENAI_API_KEY:
         raise RuntimeError("OPENAI_API_KEY missing")
 
     import requests
+
     system_prompt = (
         "你是一位社群人格分析助手。"
         "請閱讀一張 Instagram 個人頁截圖（可附 1-4 張最新貼文首圖），"
@@ -77,7 +82,10 @@ def _call_openai_vision(profile_b64: str, post_b64_list: list) -> str:
     )
 
     url = "https://api.openai.com/v1/responses"
-    headers = {"Authorization": f"Bearer {OPENAI_API_KEY}", "Content-Type": "application/json"}
+    headers = {
+        "Authorization": f"Bearer {OPENAI_API_KEY}",
+        "Content-Type": "application/json",
+    }
 
     contents = [
         {"type": "input_text", "text": "以下是使用者的 IG 個人頁截圖。"},
@@ -91,8 +99,14 @@ def _call_openai_vision(profile_b64: str, post_b64_list: list) -> str:
     body = {
         "model": "gpt-4o-mini",
         "input": [
-            {"role": "system", "content": [{"type": "text", "text": system_prompt}]},
-            {"role": "user", "content": contents},
+            {
+                "role": "system",
+                "content": [{"type": "input_text", "text": system_prompt}],
+            },
+            {
+                "role": "user",
+                "content": contents,
+            },
         ],
         "max_output_tokens": 800,
     }
@@ -102,8 +116,10 @@ def _call_openai_vision(profile_b64: str, post_b64_list: list) -> str:
         raise RuntimeError(f"OpenAI HTTP {resp.status_code}: {resp.text}")
 
     data = resp.json()
+    # Responses API 便捷欄位
     text = data.get("output_text")
     if not text:
+        # 後備解析
         try:
             chunks = data["output"][0]["content"]
             text = "".join([c.get("text", "") for c in chunks if c.get("type") == "output_text"])
