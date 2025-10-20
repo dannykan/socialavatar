@@ -1,62 +1,82 @@
-<!DOCTYPE html>
-<html lang="zh-Hant">
-<head>
-  <meta charset="UTF-8" />
-  <title>分析結果｜IG 人格分析 (MBTI)</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <style>
-    :root{--bg1:#121321;--bg2:#1a1d33;--card:#181a2a;--line:#262a44;--fg:#eef1ff;--muted:#aeb6d9;--accent:#5f86ff;--ok:#a9f7cc}
-    html,body{height:100%;margin:0;background:radial-gradient(1200px 800px at 20% 10%,var(--bg2),var(--bg1));color:var(--fg);font-family:ui-sans-serif,system-ui,-apple-system,"Noto Sans TC",Roboto}
-    .wrap{min-height:100%;display:flex;align-items:center;justify-content:center;padding:36px}
-    .card{width:min(960px,94vw);background:var(--card);border:1px solid var(--line);border-radius:16px;padding:28px 24px;box-shadow:0 12px 40px rgba(0,0,0,.35)}
-    h1{margin:0 0 6px}
-    .row{display:flex;flex-wrap:wrap;gap:10px;margin:4px 0 12px}
-    .pill{background:#23263b;border:1px solid var(--line);padding:8px 10px;border-radius:999px}
-    .mbti{font-weight:700;letter-spacing:1px}
-    .summary{margin-top:10px;line-height:1.8;color:#cfd7ff}
-    .foot{margin-top:16px;color:#8ea3e3;font-size:13px}
-    .btn{margin-top:14px;background:#3d56ff;color:#fff;border:none;padding:10px 14px;border-radius:12px;cursor:pointer}
-    .danger{background:#db4f4f}
-  </style>
-</head>
-<body>
-  <div class="wrap">
-    <div class="card">
-      <h1 id="name">分析結果</h1>
-      <div class="row">
-        <div class="pill">@<span id="username">—</span></div>
-        <div class="pill">Followers <span id="followers">—</span></div>
-        <div class="pill">Following <span id="following">—</span></div>
-        <div class="pill">Posts <span id="posts">—</span></div>
-        <div class="pill mbti" id="mbti">MBTI</div>
-        <div class="pill" id="vehicle">載具</div>
-      </div>
-      <div class="summary" id="summary">（沒有摘要內容）</div>
+<script>
+/**
+ * 先讀 localStorage，再補打 /debug/last_ai。都沒有就顯示錯誤。
+ */
+const KEY = "sa_result";
 
-      <div class="foot">若想重新分析，請點「註銷並重來」。這會刪除本地分析結果與登入資訊。</div>
-      <button id="btnReset" class="btn danger">註銷並重來</button>
-    </div>
-  </div>
+function render(ai) {
+  // 根據你的 UI 元素 id 對應塞值；以下是範例：
+  const $ = (sel) => document.querySelector(sel);
+  $("#displayName").textContent = ai.display_name || "使用者";
+  $("#username").textContent    = ai.username ? "@" + ai.username : "@—";
+  $("#followers").textContent   = (ai.followers ?? 0).toLocaleString();
+  $("#following").textContent   = (ai.following ?? 0).toLocaleString();
+  $("#posts").textContent       = (ai.posts ?? 0).toLocaleString();
+  $("#mbti").textContent        = ai.mbti || "—";
+  $("#vehicle").textContent     = ai.vehicle || "—";
+  $("#summary").textContent     = ai.summary || "依上傳截圖初步推斷，僅供娛樂參考。";
 
-  <script>
-    const data = (()=>{ try{ return JSON.parse(localStorage.getItem('mbti_result')||'{}'); }catch{ return {}; } })();
-    if (!data || Object.keys(data).length===0) location.replace('/static/landing.html');
+  // 錯誤細節（若有）
+  const detailBox = $("#errorDetail");
+  if (detailBox) {
+    let txt = "";
+    if (ai.__used_fallback) txt += "（此結果為 fallback ）\n";
+    if (ai.__raw && ai.__raw.trim()) txt += ai.__raw;
+    detailBox.textContent = txt;
+    detailBox.style.display = txt ? "block" : "none";
+  }
+}
 
-    function set(id,val){const el=document.getElementById(id); if(el) el.textContent = (val ?? '—');}
-    set('name', data.display_name || '分析結果');
-    set('username', data.username || '—');
-    set('followers', data.followers ?? '—');
-    set('following', data.following ?? '—');
-    set('posts', data.posts ?? '—');
-    set('mbti', (data.mbti||'—').toUpperCase());
-    set('vehicle', data.vehicle || '—');
-    set('summary', data.summary || '（沒有摘要內容）');
+function looksValid(ai) {
+  return !!(ai && (ai.username || ai.summary || ai.followers > 0 || ai.posts > 0 || (ai.mbti && ai.mbti.length > 2)));
+}
 
-    document.getElementById('btnReset').onclick = ()=>{
-      localStorage.removeItem('mbti_result');
-      localStorage.removeItem('auth_user');
-      location.replace('/static/landing.html');
-    };
-  </script>
-</body>
-</html>
+async function boot() {
+  // 1) localStorage
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (raw) {
+      const ai = JSON.parse(raw);
+      if (looksValid(ai)) {
+        render(ai);
+        return;
+      }
+    }
+  } catch (e) {
+    console.log("local parse err:", e);
+  }
+
+  // 2) fallback：直接問後端
+  try {
+    const r = await fetch("/debug/last_ai", { cache: "no-store" });
+    if (r.ok) {
+      const data = await r.json();
+      const ai   = data.ai || data;
+      if (looksValid(ai)) {
+        // 補寫入，避免 F5 又沒資料
+        localStorage.setItem(KEY, JSON.stringify({
+          ...ai,
+          __raw: data.raw || "",
+          __used_fallback: !!data.used_fallback
+        }));
+        render(ai);
+        return;
+      }
+    }
+  } catch (e) {
+    console.log("fetch last_ai err:", e);
+  }
+
+  // 3) 兩邊都沒有 → 給提示與回上傳
+  alert("找不到分析結果，請重新上傳並開始分析。");
+  location.href = "/static/upload.html";
+}
+
+boot();
+
+// 註銷並重來（你頁面上有「註銷並重來」按鈕就綁它）
+window.saReset = function () {
+  localStorage.removeItem(KEY);
+  location.href = "/static/landing.html";
+};
+</script>
