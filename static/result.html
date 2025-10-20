@@ -23,284 +23,126 @@
     .vehicle{font-weight:700;padding:8px 12px;border-radius:10px;background:#052e1a;border:1px solid #14532d;color:#bbf7d0;display:inline-block}
     .muted{color:var(--muted)}
     .buttons{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
-    button,.btn{border:0;border-radius:12px;padding:12px 16px;font-weight:600;cursor:pointer}
+    button,.btn{border:0;border-radius:12px;padding:12px 16px;font-weight:600;cursor:pointer;text-decoration:none;display:inline-block}
     .btn-primary{background:var(--accent);color:#0b1220}
     .btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text)}
-    pre{white-space:pre-wrap;background:#0b1220;border:1px solid var(--border);padding:10px;border-radius:8px}
+    pre{white-space:pre-wrap;background:#0b1220;border:1px solid var(--border);padding:10px;border-radius:8px;font-size:12px}
     .err{background:#7f1d1d;color:#fecaca;border:1px solid #ef4444;padding:12px;border-radius:10px;margin:10px 0;display:none}
   </style>
   <script>
-    function fillUI(x) {
-      // 依你的 DOM id/class 調整
-      const dn = (v) => (v ?? '').toString();
-      const di = (sel, v) => { const el = document.querySelector(sel); if (el) el.textContent = v; };
-    
-      di('#display_name', dn(x.display_name || '使用者'));
-      di('#username', x.username ? '@' + x.username : '—');
-      di('#followers', (x.followers ?? 0).toLocaleString());
-      di('#following', (x.following ?? 0).toLocaleString());
-      di('#posts', (x.posts ?? 0).toLocaleString());
-      di('#mbti', (x.mbti || '—').toUpperCase());
-      di('#vehicle', x.vehicle || '—');
-      di('#summary', dn(x.summary || ''));
-    }
-    
-    function safeParseJson(text) {
-      if (!text) return null;
-      let s = text.trim();
-      // 去掉 ```json ... ```
-      if (s.startsWith('```')) {
-        const i = s.indexOf('\n');
-        if (i >= 0) s = s.slice(i + 1);
-        if (s.endsWith('```')) s = s.slice(0, -3);
-      }
-      // 擷取第一個 { 到最後一個 }
-      const l = s.indexOf('{'), r = s.lastIndexOf('}');
-      if (l >= 0 && r > l) s = s.slice(l, r + 1);
-      try { return JSON.parse(s); } catch { return null; }
-    }
-    
     function safeParseJson(mixed) {
-  if (!mixed) return null;
-  if (typeof mixed === 'object') return mixed;
-  const text = String(mixed).trim();
+      if (!mixed) return null;
+      if (typeof mixed === 'object') return mixed;
+      const text = String(mixed).trim();
 
-  // 1) 直接 parse
-  try { return JSON.parse(text); } catch {}
+      try { return JSON.parse(text); } catch {}
 
-  // 2) 三引號區塊 ```json ... ```
-  const fence = text.match(/```json\s*([\s\S]*?)```/i);
-  if (fence) {
-    try { return JSON.parse(fence[1]); } catch {}
-  }
-
-  // 3) 取第一個大括號區塊
-  const firstBrace = text.indexOf('{');
-  const lastBrace  = text.lastIndexOf('}');
-  if (firstBrace >= 0 && lastBrace > firstBrace) {
-    const body = text.slice(firstBrace, lastBrace + 1);
-    try { return JSON.parse(body); } catch {}
-  }
-
-  return null;
-}
-
-/** 將資料灌入畫面 — 這個函式你已經有了，保留原本實作 */
-function fillUI(data) {
-  // 依你的 result.html 寫入 DOM（略）
-  // 例如：
-  // document.querySelector('#name').textContent = data.display_name || '—';
-  // ...
-}
-
-function safeParseJson(mixed) {
-  if (!mixed) return null;
-  if (typeof mixed === 'object') return mixed;
-  const text = String(mixed).trim();
-
-  // 1) 直接 parse
-  try { return JSON.parse(text); } catch {}
-
-  // 2) 三引號區塊 ```json ... ```
-  const fence = text.match(/```json\s*([\s\S]*?)```/i);
-  if (fence) {
-    try { return JSON.parse(fence[1]); } catch {}
-  }
-
-  // 3) 取第一個大括號區塊
-  const firstBrace = text.indexOf('{');
-  const lastBrace  = text.lastIndexOf('}');
-  if (firstBrace >= 0 && lastBrace > firstBrace) {
-    const body = text.slice(firstBrace, lastBrace + 1);
-    try { return JSON.parse(body); } catch {}
-  }
-
-  return null;
-}
-
-/** 將資料灌入畫面 — 這個函式你已經有了，保留原本實作 */
-function fillUI(data) {
-  // 依你的 result.html 寫入 DOM（略）
-  // 例如：
-  // document.querySelector('#name').textContent = data.display_name || '—';
-  // ...
-}
-
-/** 從一段文字中「盡力」取出 JSON 物件：
- *  - 先嘗試 JSON.parse 全段
- *  - 失敗則用正則抓 ```json ... ``` 或第一個 { ... } 區塊再 parse
- */
-function safeParseJson(mixed) {
-  if (!mixed) return null;
-  if (typeof mixed === 'object') return mixed;
-  const text = String(mixed).trim();
-
-  // 1) 直接 parse
-  try { return JSON.parse(text); } catch {}
-
-  // 2) 三引號區塊 ```json ... ```
-  const fence = text.match(/```json\s*([\s\S]*?)```/i);
-  if (fence) {
-    try { return JSON.parse(fence[1]); } catch {}
-  }
-
-  // 3) 取第一個大括號區塊
-  const firstBrace = text.indexOf('{');
-  const lastBrace  = text.lastIndexOf('}');
-  if (firstBrace >= 0 && lastBrace > firstBrace) {
-    const body = text.slice(firstBrace, lastBrace + 1);
-    try { return JSON.parse(body); } catch {}
-  }
-
-  return null;
-}
-
-/** 將資料灌入畫面 — 這個函式你已經有了，保留原本實作 */
-function fillUI(data) {
-  // 依你的 result.html 寫入 DOM（略）
-  // 例如：
-  // document.querySelector('#name').textContent = data.display_name || '—';
-  // ...
-}
-
-async function loadResult() {
-  // 1) 先用 sessionStorage（從 /static/upload.html 跳過來時會有）
-  const saved = sessionStorage.getItem('sa_result');
-  if (saved) {
-    try {
-      const data = JSON.parse(saved);
-      fillUI(data);
-      const dbg = document.querySelector('#diagnose_json');
-      if (dbg && data.diagnose) {
-        dbg.textContent = JSON.stringify(data.diagnose, null, 2);
+      const fence = text.match(/```json\s*([\s\S]*?)```/i);
+      if (fence) {
+        try { return JSON.parse(fence[1]); } catch {}
       }
-      return;
-    } catch {}
-  }
 
-  // 2) 沒暫存 → 從 /debug/last_ai 補抓（加 cache buster 避免快取）
-  try {
-    const r = await fetch(`/debug/last_ai?ts=${Date.now()}`, { cache: 'no-store' });
-    if (r.ok) {
-      const j = await r.json();   // { raw, text, ts? }
-      const parsed = safeParseJson(j.text || j.raw || '');
-      if (parsed) {
-        const fallbackData = {
-          display_name: parsed.display_name || '使用者',
-          username: (parsed.username || '').trim(),
-          followers: Number(parsed.followers || 0),
-          following: Number(parsed.following || 0),
-          posts:     Number(parsed.posts || 0),
-          mbti:      String(parsed.mbti || '').toUpperCase(),
-          summary:   parsed.summary || '',
-          vehicle:   parsed.vehicle || '—',
-          // 沒 diagnose，但我們補一個最小診斷資訊
-          diagnose:  { ai_on: true, model: 'from-last_ai', source: 'debug/last_ai' }
-        };
-        fillUI(fallbackData);
+      const firstBrace = text.indexOf('{');
+      const lastBrace = text.lastIndexOf('}');
+      if (firstBrace >= 0 && lastBrace > firstBrace) {
+        const body = text.slice(firstBrace, lastBrace + 1);
+        try { return JSON.parse(body); } catch {}
+      }
 
-        // 顯示後端 debug/config 供排錯（可選）
+      return null;
+    }
+
+    function fillUI(data) {
+      const dn = (v) => (v ?? '').toString();
+      const di = (sel, v) => {
+        const el = document.querySelector(sel);
+        if (el) el.textContent = v;
+      };
+
+      di('#display_name', dn(data.display_name || '使用者'));
+      di('#username', data.username ? '@' + data.username : '—');
+      di('#followers', (data.followers ?? 0).toLocaleString());
+      di('#following', (data.following ?? 0).toLocaleString());
+      di('#posts', (data.posts ?? 0).toLocaleString());
+      di('#mbti', (data.mbti || '—').toUpperCase());
+      di('#vehicle', data.vehicle || '—');
+      di('#summary', dn(data.summary || ''));
+
+      const mbti = data.mbti || '';
+      const badge = document.querySelector('.badge');
+      if (badge && mbti) {
+        const colorMap = { E: '#22d3ee', I: '#a78bfa' };
+        const color = colorMap[mbti[0]] || '#22c55e';
+        badge.style.background = color + '33';
+        badge.style.borderColor = color + '88';
+      }
+    }
+
+    async function loadResult() {
+      const saved = sessionStorage.getItem('sa_result');
+      if (saved) {
         try {
-          const cfg = await fetch(`/debug/config?ts=${Date.now()}`, { cache: 'no-store' }).then(x => x.json());
+          const data = JSON.parse(saved);
+          fillUI(data);
           const dbg = document.querySelector('#diagnose_json');
-          if (dbg) {
-            dbg.textContent = JSON.stringify({
-              ai_on: cfg?.ai_on ?? true,
-              model: cfg?.model ?? 'gpt-4o-mini',
-              used_fallback: cfg?.used_fallback ?? undefined,
-              source: 'debug/last_ai'
-            }, null, 2);
+          if (dbg && data.diagnose) {
+            dbg.textContent = JSON.stringify(data.diagnose, null, 2);
           }
-        } catch {}
-        return;
+          return;
+        } catch (e) {
+          console.error('Failed to parse sessionStorage:', e);
+        }
       }
-    }
-  } catch (e) {
-    console.error('load from /debug/last_ai failed:', e);
-  }
 
-  // 3) 都沒有 → 引導回去重新上傳
-  alert('找不到分析結果，請回到上一步重新上傳並開始分析。');
-  window.location.href = '/static/landing.html';
-}
+      try {
+        const r = await fetch(`/debug/last_ai?ts=${Date.now()}`, { cache: 'no-store' });
+        if (r.ok) {
+          const j = await r.json();
+          const parsed = safeParseJson(j.text || j.raw || '');
+          if (parsed) {
+            const fallbackData = {
+              display_name: parsed.display_name || '使用者',
+              username: (parsed.username || '').trim(),
+              followers: Number(parsed.followers || 0),
+              following: Number(parsed.following || 0),
+              posts: Number(parsed.posts || 0),
+              mbti: String(parsed.mbti || '').toUpperCase(),
+              summary: parsed.summary || '',
+              vehicle: parsed.vehicle || '—',
+              diagnose: { ai_on: true, model: 'from-last_ai', source: 'debug/last_ai' }
+            };
+            fillUI(fallbackData);
 
-document.addEventListener('DOMContentLoaded', loadResult);
-
-
-    
-    
-    function clearAndRestart(){
-      try{
-        localStorage.removeItem('sa_result');
-      }catch(e){}
-      location.href='/static/landing.html';
-    }
-
-    function paintMBTI(mbti){
-      // 簡單色系依 MBTI 第一碼
-      const map = {E:'#22d3ee', I:'#a78bfa'};
-      const c = map[(mbti||'')[0]] || '#22c55e';
-      const el = document.querySelector('.badge');
-      if (el) el.style.background = c + '33';
-      if (el) el.style.borderColor = c + '88';
-      if (el) el.style.color = '#fff';
-    }
-
-    window.addEventListener('DOMContentLoaded', ()=>{
-      const box = document.getElementById('result');
-      const debugBox = document.getElementById('debug');
-      const errBox = document.getElementById('err');
-
-      try{
-        const raw = localStorage.getItem('sa_result');
-        if (!raw){ location.href='/static/upload.html'; return; }
-
-        const data = JSON.parse(raw);
-        const ai = data.ai || {};
-        const diag = data.diagnose || {};
-
-        // 基本防呆
-        const mbti = ai.mbti || '—';
-        const summary = ai.summary || '—';
-        const display = ai.display_name || '使用者';
-        const username = ai.username || '';
-        const followers = ai.followers ?? '—';
-        const following = ai.following ?? '—';
-        const posts = ai.posts ?? '—';
-        const vehicle = ai.vehicle || '—';
-
-        box.innerHTML = `
-          <div class="grid">
-            <div class="card">
-              <div class="title">
-                <span class="badge" title="MBTI">${mbti}</span>
-                <h2 style="margin:0">${display}</h2>
-                ${username ? `<span class="muted">@${username}</span>` : ``}
-              </div>
-              <p class="muted">Followers / Following / Posts ： <strong>${followers}</strong> / <strong>${following}</strong> / <strong>${posts}</strong></p>
-              <p style="line-height:1.7">${summary}</p>
-              <div class="buttons">
-                <button class="btn btn-primary" onclick="clearAndRestart()">清除並重新開始</button>
-                <a class="btn btn-ghost" href="/debug/last_ai" target="_blank">檢視原始 AI</a>
-              </div>
-            </div>
-            <div class="card">
-              <h3 style="margin-top:0">你的載具</h3>
-              <p class="vehicle">${vehicle}</p>
-              <p class="muted">（之後可解鎖更多造型與動畫）</p>
-            </div>
-          </div>
-        `;
-
-        paintMBTI(mbti);
-
-        // Debug 區
-        debugBox.innerHTML = `<pre>${JSON.stringify(diag, null, 2)}</pre>`;
-      }catch(e){
-        errBox.style.display='block';
-        errBox.textContent='顯示錯誤：' + e.message;
+            try {
+              const cfg = await fetch(`/debug/config?ts=${Date.now()}`, { cache: 'no-store' }).then(x => x.json());
+              const dbg = document.querySelector('#diagnose_json');
+              if (dbg) {
+                dbg.textContent = JSON.stringify({
+                  ai_on: cfg?.ai_on ?? true,
+                  model: cfg?.model ?? 'gpt-4o-mini',
+                  source: 'debug/last_ai'
+                }, null, 2);
+              }
+            } catch {}
+            return;
+          }
+        }
+      } catch (e) {
+        console.error('load from /debug/last_ai failed:', e);
       }
-    });
+
+      alert('找不到分析結果，請回到上一步重新上傳並開始分析。');
+      window.location.href = '/static/landing.html';
+    }
+
+    function clearAndRestart() {
+      try {
+        sessionStorage.removeItem('sa_result');
+      } catch (e) {}
+      location.href = '/static/landing.html';
+    }
+
+    window.addEventListener('DOMContentLoaded', loadResult);
   </script>
 </head>
 <body>
@@ -316,11 +158,37 @@ document.addEventListener('DOMContentLoaded', loadResult);
   <main>
     <h1 style="margin:10px 0 12px">分析結果</h1>
     <div id="err" class="err"></div>
-    <div id="result" class="card">讀取中…</div>
+    
+    <div class="grid">
+      <div class="card">
+        <div class="title">
+          <span class="badge" id="mbti">—</span>
+          <h2 style="margin:0" id="display_name">使用者</h2>
+          <span class="muted" id="username">—</span>
+        </div>
+        <p class="muted">
+          Followers / Following / Posts ： 
+          <strong id="followers">—</strong> / 
+          <strong id="following">—</strong> / 
+          <strong id="posts">—</strong>
+        </p>
+        <p style="line-height:1.7" id="summary">讀取中…</p>
+        <div class="buttons">
+          <button class="btn btn-primary" onclick="clearAndRestart()">清除並重新開始</button>
+          <a class="btn btn-ghost" href="/debug/last_ai" target="_blank">檢視原始 AI</a>
+        </div>
+      </div>
+      
+      <div class="card">
+        <h3 style="margin-top:0">你的載具</h3>
+        <p class="vehicle" id="vehicle">—</p>
+        <p class="muted">（之後可解鎖更多造型與動畫）</p>
+      </div>
+    </div>
 
     <details class="card" style="margin-top:14px">
       <summary>診斷資訊（debug）</summary>
-      <div id="debug" style="margin-top:10px"></div>
+      <pre id="diagnose_json">讀取中…</pre>
     </details>
   </main>
 </body>
