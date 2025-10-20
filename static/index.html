@@ -1,186 +1,186 @@
 <!doctype html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>IG 人格分析（MBTI）</title>
-  <style>
-    :root{
-      --bg:#0b0f14; --card:#0f1520; --muted:#9bb0c8; --txt:#e6eef8;
-      --accent1:#6f7cff; --accent2:#ff7fcf; --ok:#25d366; --chip:#1b2533;
-    }
-    *{box-sizing:border-box;}
-    html,body{margin:0;background:var(--bg);color:var(--txt);font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans","PingFang TC","Microsoft JhengHei",sans-serif;}
-    a{color:var(--accent1);text-decoration:none}
-    .wrap{max-width:1100px;margin:32px auto;padding:0 16px;}
-    h1{font-size:28px;margin:0 0 20px}
-    .card{
-      border-radius:20px;padding:20px;
-      background: linear-gradient(135deg, rgba(111,124,255,.15), rgba(255,127,207,.12));
-      border:1px solid rgba(255,255,255,.06);
-      box-shadow:0 10px 30px rgba(0,0,0,.3);
-    }
-    .row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
-    .chip{background:var(--chip);border:1px solid rgba(255,255,255,.08);padding:6px 10px;border-radius:999px;color:#cde3ff;font-size:12px}
-    .pill{padding:6px 10px;border-radius:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08)}
-    .metrics{display:grid;grid-template-columns:repeat(3, minmax(140px,1fr));gap:12px;margin-top:10px}
-    .metric{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:12px}
-    .metric .k{font-size:28px;font-weight:700}
-    .muted{color:var(--muted)}
-    .badge{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);padding:6px 10px;border-radius:999px}
-    .summary{margin-top:14px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:14px;line-height:1.6}
-    .toolbar{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap}
-    button{
-      background:linear-gradient(135deg,var(--accent1),var(--accent2));
-      color:white;border:none;padding:10px 14px;border-radius:10px;cursor:pointer;font-weight:700;
-      box-shadow:0 6px 18px rgba(111,124,255,.25);
-    }
-    button.ghost{background:transparent;border:1px solid rgba(255,255,255,.14);color:#d7e8ff}
-    .uploader{margin-top:22px;background:var(--card);border:1px solid rgba(255,255,255,.07);border-radius:14px;padding:16px}
-    .row label{font-size:14px;color:#c9dbf7}
-    input[type=file]{display:block;margin-top:6px}
-    .hint{margin-top:10px;color:var(--muted);font-size:12px}
-    .footer{margin:30px 0 10px;color:#7388a6;font-size:12px;text-align:center}
-    .right{margin-left:auto}
-    @media (max-width:700px){
-      .metrics{grid-template-columns:1fr 1fr 1fr}
-    }
-  </style>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>IG 人格分析（MBTI）</title>
+<style>
+  :root{
+    --bg:#0b0f14; --card:#0f1520; --muted:#9bb0c8; --txt:#e6eef8;
+    --accent1:#6f7cff; --accent2:#ff7fcf; --chip:#1b2533;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--txt);font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans","PingFang TC","Microsoft JhengHei",sans-serif}
+  .wrap{max-width:1100px;margin:32px auto;padding:0 16px}
+  h1{margin:0 0 20px}
+  .card{border-radius:20px;padding:20px;background:linear-gradient(135deg,rgba(111,124,255,.15),rgba(255,127,207,.12));border:1px solid rgba(255,255,255,.06);box-shadow:0 10px 30px rgba(0,0,0,.3)}
+  .row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+  .chip{background:var(--chip);border:1px solid rgba(255,255,255,.08);padding:6px 10px;border-radius:999px;color:#cde3ff;font-size:12px}
+  .pill{padding:6px 10px;border-radius:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08)}
+  .badge{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);padding:6px 10px;border-radius:999px;margin-left:auto}
+  .metrics{display:grid;grid-template-columns:repeat(3,minmax(140px,1fr));gap:12px;margin-top:10px}
+  .metric{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:12px}
+  .metric .k{font-size:28px;font-weight:700}
+  .summary{margin-top:14px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:14px;line-height:1.6}
+  .uploader{margin-top:22px;background:var(--card);border:1px solid rgba(255,255,255,.07);border-radius:14px;padding:16px}
+  button{background:linear-gradient(135deg,var(--accent1),var(--accent2));color:#fff;border:none;padding:10px 14px;border-radius:10px;cursor:pointer;font-weight:700}
+  button.ghost{background:transparent;border:1px solid rgba(255,255,255,.14);color:#d7e8ff}
+  .toolbar{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap}
+  .muted{color:var(--muted)}
+  .footer{margin:30px 0 10px;color:#7388a6;font-size:12px;text-align:center}
+  /* Loading overlay */
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:9999}
+  .spinner{width:64px;height:64px;border:6px solid rgba(255,255,255,.2);border-top-color:#fff;border-radius:50%;animation:spin 1s linear infinite;margin-bottom:12px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .overlay .box{display:flex;flex-direction:column;align-items:center;color:#fff}
+</style>
 </head>
 <body>
-  <div class="wrap">
-    <h1>IG 人格分析（MBTI）</h1>
+<div class="wrap">
+  <h1>IG 人格分析（MBTI）</h1>
 
-    <div class="card" id="resultCard">
-      <div class="row">
-        <span class="chip" id="aiState">AI: 檢查中…</span>
-        <span class="chip" id="mbti">—</span>
-        <span class="right badge" id="vehicle">載具：—</span>
-      </div>
-
-      <div style="display:flex;gap:14px;align-items:center;margin-top:12px;flex-wrap:wrap">
-        <div class="pill" id="displayName">—</div>
-        <div class="pill muted" id="username">—</div>
-      </div>
-
-      <div class="metrics">
-        <div class="metric">
-          <div class="muted">Followers</div>
-          <div class="k" id="followers">—</div>
-        </div>
-        <div class="metric">
-          <div class="muted">Following</div>
-          <div class="k" id="following">—</div>
-        </div>
-        <div class="metric">
-          <div class="muted">Posts</div>
-          <div class="k" id="posts">—</div>
-        </div>
-      </div>
-
-      <div class="summary" id="summary">根據截圖中的關鍵元素與風格，這裡將顯示 100 字摘要。</div>
-
-      <div class="toolbar">
-        <button id="btnAnalyze">開始分析</button>
-        <button class="ghost" id="btnLoadDemo">載入示例檔</button>
-      </div>
+  <div class="card">
+    <div class="row">
+      <span class="chip" id="aiState">AI: 檢查中…</span>
+      <span class="chip" id="mbti">—</span>
+      <span class="badge" id="vehicle">載具：—</span>
     </div>
-
-    <div class="uploader">
-      <div class="row">
-        <label>上傳 IG 個人頁截圖（<b>必填</b>）</label>
-        <input type="file" id="profile" accept="image/*" />
-      </div>
-      <div class="row" style="margin-top:10px">
-        <label>上傳貼文首圖（可多張，最多 4 張）</label>
-        <input type="file" id="posts" accept="image/*" multiple />
-      </div>
-      <div class="hint">提示：你的圖片會在伺服器端自動縮圖（長邊 ≤ 1280，JPEG 品質 72），僅做分析用途，不會對外公開。</div>
+    <div style="display:flex;gap:14px;align-items:center;margin-top:12px;flex-wrap:wrap">
+      <div class="pill" id="displayName">—</div>
+      <div class="pill muted" id="username">—</div>
     </div>
-
-    <div class="footer">
-      本服務僅作為娛樂輔助，請勿作為專業評估依據。
+    <div class="metrics">
+      <div class="metric"><div class="muted">Followers</div><div class="k" id="followers">—</div></div>
+      <div class="metric"><div class="muted">Following</div><div class="k" id="following">—</div></div>
+      <div class="metric"><div class="muted">Posts</div><div class="k" id="posts">—</div></div>
+    </div>
+    <div class="summary" id="summary">上傳截圖後，這裡會顯示 100 字摘要。</div>
+    <div class="toolbar">
+      <button id="btnAnalyze">開始分析</button>
+      <button class="ghost" id="btnLoadDemo">載入示例檔</button>
     </div>
   </div>
 
-  <script>
-    const $ = s => document.querySelector(s);
-    const setText = (sel, v) => { const el=$(sel); if(el) el.textContent = v; };
-    const fmt = n => (typeof n === 'number' ? n.toLocaleString() : '—');
+  <div class="uploader">
+    <div class="row"><label>上傳 IG 個人頁截圖（<b>必填</b>）</label><input type="file" id="profile" accept="image/*"></div>
+    <div class="row" style="margin-top:10px"><label>上傳貼文首圖（最多 4 張）</label><input type="file" id="posts" accept="image/*" multiple></div>
+    <div class="muted" style="margin-top:8px">前端會先縮圖（長邊 ≤ 1600，品質 0.8），伺服器也有保底壓縮。</div>
+  </div>
 
-    async function getConfig(){
-      try{
-        const r = await fetch('/debug/config');
-        const j = await r.json();
-        $('#aiState').textContent = j.ai_on ? 'AI: ON' : 'AI: OFF';
-      }catch(e){
-        $('#aiState').textContent = 'AI: ?';
-      }
+  <div class="footer">僅供娛樂參考。</div>
+</div>
+
+<!-- Loading -->
+<div class="overlay" id="overlay">
+  <div class="box">
+    <div class="spinner"></div>
+    <div>分析中，請稍候…</div>
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const setText = (sel, v) => { const el=$(sel); if(el) el.textContent = v; };
+const fmt = n => (typeof n === 'number' ? n.toLocaleString() : '—');
+
+async function getConfig(){
+  try{
+    const r = await fetch('/debug/config');
+    const j = await r.json();
+    setText('#aiState', j.ai_on ? 'AI: ON' : 'AI: OFF');
+  }catch{ setText('#aiState','AI: ?'); }
+}
+
+function fillCard(ai){
+  setText('#displayName', ai.display_name || '—');
+  setText('#username', ai.username ? '@'+ai.username : '—');
+  setText('#followers', fmt(ai.followers ?? 0));
+  setText('#following', fmt(ai.following ?? 0));
+  setText('#posts', fmt(ai.posts ?? 0));
+  setText('#mbti', ai.mbti || '—');
+  setText('#vehicle', '載具：' + (ai.vehicle || '—'));
+  const s = (ai.summary || '').toString().slice(0, 120);
+  setText('#summary', s || '（尚無摘要）');
+}
+
+function showOverlay(on){ $('#overlay').style.display = on ? 'flex' : 'none'; }
+
+// 以 <canvas> 將圖片壓到長邊 <= 1600、品質 0.8
+function compressFile(file, maxSide=1600, quality=0.8){
+  return new Promise((resolve,reject)=>{
+    const img = new Image();
+    img.onload = ()=>{
+      const c = document.createElement('canvas');
+      let {width:w, height:h} = img;
+      const scale = Math.min(1, maxSide / Math.max(w,h));
+      if(scale < 1){ w = Math.round(w*scale); h = Math.round(h*scale); }
+      c.width=w; c.height=h;
+      c.getContext('2d').drawImage(img,0,0,w,h);
+      c.toBlob(b=> b ? resolve(new File([b], file.name.replace(/\.\w+$/i,'.jpg'),{type:'image/jpeg'})) : reject(new Error('toBlob failed')), 'image/jpeg', quality);
+    };
+    img.onerror = reject;
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+async function analyze(){
+  const pf = $('#profile').files[0];
+  if(!pf){ alert('請先選擇 IG 個人頁截圖'); return; }
+
+  try{
+    showOverlay(true);
+
+    // 前端先壓縮
+    const pfSmall = await compressFile(pf);
+
+    const fd = new FormData();
+    fd.append('profile', pfSmall);
+
+    const posts = $('#posts').files;
+    for(let i=0;i<posts.length && i<4;i++){
+      const pSmall = await compressFile(posts[i]);
+      fd.append('posts', pSmall);
     }
 
-    function fillCard(ai){
-      setText('#displayName', ai.display_name || '—');
-      setText('#username', ai.username ? '@'+ai.username : '—');
-      setText('#followers', fmt(ai.followers ?? 0));
-      setText('#following', fmt(ai.following ?? 0));
-      setText('#posts', fmt(ai.posts ?? 0));
-      setText('#mbti', ai.mbti || '—');
-      setText('#vehicle', '載具：' + (ai.vehicle || '—'));
-      const s = (ai.summary || '').toString().slice(0, 110);
-      setText('#summary', s || '（尚無摘要）');
+    console.log('POST /bd/analyze form ready', [...fd.keys()]);
+
+    const resp = await fetch('/bd/analyze', { method:'POST', body:fd });
+    // 非 2xx：讀文字當錯誤
+    if(!resp.ok){
+      const t = await resp.text();
+      throw new Error(`HTTP ${resp.status}: ${t.slice(0,200)}`);
     }
+    const j = await resp.json();
+    console.log('analyze json:', j);
 
-    async function analyze(){
-      const pf = $('#profile').files[0];
-      if(!pf){ alert('請先選擇 IG 個人頁截圖'); return; }
+    if(!j.ok) throw new Error(j.error || '分析失敗');
+    if(!j.ai) throw new Error('未取得 AI 結果');
 
-      const fd = new FormData();
-      fd.append('profile', pf);
+    fillCard(j.ai);
 
-      const posts = $('#posts').files;
-      for(let i=0;i<posts.length && i<4;i++){
-        fd.append('posts', posts[i]);
-      }
+    // 小延遲讓動畫更順
+    setTimeout(()=>showOverlay(false), 250);
 
-      const btn = $('#btnAnalyze');
-      const old = btn.textContent;
-      btn.textContent = '分析中…';
-      btn.disabled = true;
+  }catch(e){
+    console.error('analyze error', e);
+    showOverlay(false);
+    alert('分析失敗：' + (e.message || e));
+  }
+}
 
-      try{
-        const resp = await fetch('/bd/analyze', { method:'POST', body:fd });
-        const j = await resp.json();
+async function loadDemo(){
+  try{
+    const r = await fetch('/debug/last_ai');
+    const j = await r.json();
+    if(j && j.ai){ fillCard(j.ai); }
+    else { alert('沒有可載入的示例'); }
+  }catch(e){ alert('無法載入示例：' + e.message); }
+}
 
-        if(!j.ok){ throw new Error(j.error || '分析失敗'); }
+$('#btnAnalyze').addEventListener('click', analyze);
+$('#btnLoadDemo').addEventListener('click', loadDemo);
 
-        if(j.ai){
-          fillCard(j.ai);
-        }else{
-          alert('未取得 AI 結果'); 
-        }
-      }catch(e){
-        alert('分析失敗：' + e.message);
-      }finally{
-        btn.textContent = old;
-        btn.disabled = false;
-      }
-    }
-
-    async function loadDemo(){
-      // 小示例：直接抓取最後一次 AI 結果（若存在）
-      try{
-        const r = await fetch('/debug/last_ai');
-        const j = await r.json();
-        if(j && j.ai){ fillCard(j.ai); }
-        else { alert('沒有可載入的示例'); }
-      }catch(e){
-        alert('無法載入示例：' + e.message);
-      }
-    }
-
-    $('#btnAnalyze').addEventListener('click', analyze);
-    $('#btnLoadDemo').addEventListener('click', loadDemo);
-    getConfig();
-  </script>
+getConfig();
+</script>
 </body>
 </html>
