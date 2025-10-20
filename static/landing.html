@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <title>SocialAvatar — 登入</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="./app.css">
+  <!-- Firebase CDN -->
+  <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js"></script>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <div class="h1">歡迎來到 SocialAvatar</div>
+      <div class="sub">AI 驅動的 IG 人格分析。登入後即在平台建立帳號。</div>
+      <div class="my row">
+        <button id="btnGoogle" class="btn brand">使用 Google 登入</button>
+        <button id="btnFacebook" class="btn">使用 Facebook 登入</button>
+      </div>
+      <div class="sub">登入即代表你同意服務條款與隱私政策。</div>
+    </div>
+  </div>
+
+  <script>
+    // TODO: 填入你的 Firebase 設定
+    const firebaseConfig = {
+      apiKey: "YOUR_KEY",
+      authDomain: "YOUR_PROJECT.firebaseapp.com",
+      projectId: "YOUR_PROJECT",
+      storageBucket: "YOUR_PROJECT.appspot.com",
+      messagingSenderId: "SENDER",
+      appId: "APP_ID"
+    };
+    const app = firebase.initializeApp(firebaseConfig);
+    const auth = firebase.getAuth();
+    const db   = firebase.getFirestore();
+
+    async function createUserIfMissing(user){
+      const ref = firebase.doc(db, "users", user.uid);
+      const snap = await firebase.getDoc(ref);
+      if(!snap.exists()){
+        await firebase.setDoc(ref,{
+          uid: user.uid,
+          email: user.email || null,
+          provider: user.providerData?.[0]?.providerId || null,
+          analyzed: false,
+          createdAt: Date.now(),
+          updatedAt: Date.now()
+        });
+      }else{
+        await firebase.updateDoc(ref,{ updatedAt: Date.now() });
+      }
+    }
+
+    document.getElementById('btnGoogle').onclick = async ()=>{
+      const provider = new firebase.GoogleAuthProvider();
+      const cred = await firebase.signInWithPopup(auth, provider);
+      await createUserIfMissing(cred.user);
+      location.href = "./upload.html";
+    };
+
+    document.getElementById('btnFacebook').onclick = async ()=>{
+      const provider = new firebase.FacebookAuthProvider();
+      const cred = await firebase.signInWithPopup(auth, provider);
+      await createUserIfMissing(cred.user);
+      location.href = "./upload.html";
+    };
+
+    // 若已登入，直接進入上傳頁
+    firebase.onAuthStateChanged(auth, (u)=>{
+      if(u) location.href = "./upload.html";
+    });
+  </script>
+</body>
+</html>
