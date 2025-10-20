@@ -60,58 +60,173 @@
       try { return JSON.parse(s); } catch { return null; }
     }
     
-    async function loadResult() {
-      // 1) 優先使用上一步存的結果
-      const saved = sessionStorage.getItem('sa_result');
-      if (saved) {
+    function safeParseJson(mixed) {
+  if (!mixed) return null;
+  if (typeof mixed === 'object') return mixed;
+  const text = String(mixed).trim();
+
+  // 1) 直接 parse
+  try { return JSON.parse(text); } catch {}
+
+  // 2) 三引號區塊 ```json ... ```
+  const fence = text.match(/```json\s*([\s\S]*?)```/i);
+  if (fence) {
+    try { return JSON.parse(fence[1]); } catch {}
+  }
+
+  // 3) 取第一個大括號區塊
+  const firstBrace = text.indexOf('{');
+  const lastBrace  = text.lastIndexOf('}');
+  if (firstBrace >= 0 && lastBrace > firstBrace) {
+    const body = text.slice(firstBrace, lastBrace + 1);
+    try { return JSON.parse(body); } catch {}
+  }
+
+  return null;
+}
+
+/** 將資料灌入畫面 — 這個函式你已經有了，保留原本實作 */
+function fillUI(data) {
+  // 依你的 result.html 寫入 DOM（略）
+  // 例如：
+  // document.querySelector('#name').textContent = data.display_name || '—';
+  // ...
+}
+
+function safeParseJson(mixed) {
+  if (!mixed) return null;
+  if (typeof mixed === 'object') return mixed;
+  const text = String(mixed).trim();
+
+  // 1) 直接 parse
+  try { return JSON.parse(text); } catch {}
+
+  // 2) 三引號區塊 ```json ... ```
+  const fence = text.match(/```json\s*([\s\S]*?)```/i);
+  if (fence) {
+    try { return JSON.parse(fence[1]); } catch {}
+  }
+
+  // 3) 取第一個大括號區塊
+  const firstBrace = text.indexOf('{');
+  const lastBrace  = text.lastIndexOf('}');
+  if (firstBrace >= 0 && lastBrace > firstBrace) {
+    const body = text.slice(firstBrace, lastBrace + 1);
+    try { return JSON.parse(body); } catch {}
+  }
+
+  return null;
+}
+
+/** 將資料灌入畫面 — 這個函式你已經有了，保留原本實作 */
+function fillUI(data) {
+  // 依你的 result.html 寫入 DOM（略）
+  // 例如：
+  // document.querySelector('#name').textContent = data.display_name || '—';
+  // ...
+}
+
+/** 從一段文字中「盡力」取出 JSON 物件：
+ *  - 先嘗試 JSON.parse 全段
+ *  - 失敗則用正則抓 ```json ... ``` 或第一個 { ... } 區塊再 parse
+ */
+function safeParseJson(mixed) {
+  if (!mixed) return null;
+  if (typeof mixed === 'object') return mixed;
+  const text = String(mixed).trim();
+
+  // 1) 直接 parse
+  try { return JSON.parse(text); } catch {}
+
+  // 2) 三引號區塊 ```json ... ```
+  const fence = text.match(/```json\s*([\s\S]*?)```/i);
+  if (fence) {
+    try { return JSON.parse(fence[1]); } catch {}
+  }
+
+  // 3) 取第一個大括號區塊
+  const firstBrace = text.indexOf('{');
+  const lastBrace  = text.lastIndexOf('}');
+  if (firstBrace >= 0 && lastBrace > firstBrace) {
+    const body = text.slice(firstBrace, lastBrace + 1);
+    try { return JSON.parse(body); } catch {}
+  }
+
+  return null;
+}
+
+/** 將資料灌入畫面 — 這個函式你已經有了，保留原本實作 */
+function fillUI(data) {
+  // 依你的 result.html 寫入 DOM（略）
+  // 例如：
+  // document.querySelector('#name').textContent = data.display_name || '—';
+  // ...
+}
+
+async function loadResult() {
+  // 1) 先用 sessionStorage（從 /static/upload.html 跳過來時會有）
+  const saved = sessionStorage.getItem('sa_result');
+  if (saved) {
+    try {
+      const data = JSON.parse(saved);
+      fillUI(data);
+      const dbg = document.querySelector('#diagnose_json');
+      if (dbg && data.diagnose) {
+        dbg.textContent = JSON.stringify(data.diagnose, null, 2);
+      }
+      return;
+    } catch {}
+  }
+
+  // 2) 沒暫存 → 從 /debug/last_ai 補抓（加 cache buster 避免快取）
+  try {
+    const r = await fetch(`/debug/last_ai?ts=${Date.now()}`, { cache: 'no-store' });
+    if (r.ok) {
+      const j = await r.json();   // { raw, text, ts? }
+      const parsed = safeParseJson(j.text || j.raw || '');
+      if (parsed) {
+        const fallbackData = {
+          display_name: parsed.display_name || '使用者',
+          username: (parsed.username || '').trim(),
+          followers: Number(parsed.followers || 0),
+          following: Number(parsed.following || 0),
+          posts:     Number(parsed.posts || 0),
+          mbti:      String(parsed.mbti || '').toUpperCase(),
+          summary:   parsed.summary || '',
+          vehicle:   parsed.vehicle || '—',
+          // 沒 diagnose，但我們補一個最小診斷資訊
+          diagnose:  { ai_on: true, model: 'from-last_ai', source: 'debug/last_ai' }
+        };
+        fillUI(fallbackData);
+
+        // 顯示後端 debug/config 供排錯（可選）
         try {
-          const data = JSON.parse(saved);
-          fillUI(data);
-          // 顯示診斷 (可選)
+          const cfg = await fetch(`/debug/config?ts=${Date.now()}`, { cache: 'no-store' }).then(x => x.json());
           const dbg = document.querySelector('#diagnose_json');
-          if (dbg && data.diagnose) dbg.textContent = JSON.stringify(data.diagnose, null, 2);
-          return;
+          if (dbg) {
+            dbg.textContent = JSON.stringify({
+              ai_on: cfg?.ai_on ?? true,
+              model: cfg?.model ?? 'gpt-4o-mini',
+              used_fallback: cfg?.used_fallback ?? undefined,
+              source: 'debug/last_ai'
+            }, null, 2);
+          }
         } catch {}
+        return;
       }
-    
-      // 2) 沒有暫存 → 從 /debug/last_ai 補抓（重新整理/直開 result.html 的情境）
-      try {
-        const r = await fetch('/debug/last_ai');
-        const j = await r.json();
-        const parsed = safeParseJson(j.text || j.raw || '');
-        if (parsed) {
-          // 從 AI 文字回應填基本欄位
-          const fallbackData = {
-            display_name: parsed.display_name || '使用者',
-            username: parsed.username || '',
-            followers: Number(parsed.followers || 0),
-            following: Number(parsed.following || 0),
-            posts: Number(parsed.posts || 0),
-            mbti: (parsed.mbti || '').toUpperCase(),
-            summary: parsed.summary || '',
-            vehicle: parsed.vehicle || '—'
-          };
-          fillUI(fallbackData);
-          // 診斷面板（可用 /debug/config 補充）
-          const cfg = await fetch('/debug/config').then(r=>r.json()).catch(()=>null);
-          const dbg = document.querySelector('#diagnose_json');
-          if (dbg) dbg.textContent = JSON.stringify({
-            ai_on: cfg?.ai_on ?? true,
-            model: cfg?.model ?? 'gpt-4o-mini',
-            source: 'debug/last_ai'
-          }, null, 2);
-          return;
-        }
-      } catch (e) {
-        console.error('load from /debug/last_ai failed:', e);
-      }
-    
-      // 3) 都沒有 → 提示回去重新上傳
-      alert('找不到分析結果，請回到上一步重新上傳並開始分析。');
-      window.location.href = '/static/landing.html';
     }
-    
-    document.addEventListener('DOMContentLoaded', loadResult);
+  } catch (e) {
+    console.error('load from /debug/last_ai failed:', e);
+  }
+
+  // 3) 都沒有 → 引導回去重新上傳
+  alert('找不到分析結果，請回到上一步重新上傳並開始分析。');
+  window.location.href = '/static/landing.html';
+}
+
+document.addEventListener('DOMContentLoaded', loadResult);
+
+
     
     
     function clearAndRestart(){
