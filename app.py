@@ -225,10 +225,9 @@ def call_openai_vision(profile_b64: str, posts_b64_list: list[str]):
 # -----------------------------------------------------------------------------
 # 路由
 # -----------------------------------------------------------------------------
-@app.get("/")
+@app.get("/", endpoint="home")
 def root():
-    # 直接導到前端 landing page
-    return redirect("/static/landing.html", code=302)
+    return send_from_directory(app.static_folder, "landing.html")
 
 @app.get("/health")
 def health():
