@@ -109,6 +109,22 @@
       await firebase.signOut(auth);
       location.href="./landing.html";
     };
+  
+    // 回首頁：保留 BD_RESULT，不讓再回到上傳（照你的策略）
+    document.getElementById('btnHome').onclick = ()=>location.replace('./landing.html');
+  
+    // 註銷：清乾淨所有 sessionStorage（包含 BD_RESULT）
+    document.getElementById('btnDelete').onclick = async ()=>{
+      if(!confirm("確定註銷？此動作不可復原")) return;
+      const u = auth.currentUser;
+      try{
+        if(u) await firebase.deleteDoc(firebase.doc(db,'users',u.uid));
+        if(u) await firebase.deleteUser(u);
+      }catch(e){ console.warn(e); }
+      await firebase.signOut(auth);
+      sessionStorage.clear();               // ★ 關鍵：清掉結果，允許重新分析
+      location.replace('./landing.html');
+    };
   </script>
 </body>
 </html>
