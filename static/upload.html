@@ -1,150 +1,132 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="UTF-8" />
-  <title>上傳素材｜IG 人格分析 (MBTI)</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <style>
-    :root{--bg1:#121321;--bg2:#1a1d33;--card:#181a2a;--line:#262a44;--fg:#eef1ff;--muted:#aeb6d9;--accent:#5f86ff}
-    html,body{height:100%;margin:0;background:radial-gradient(1200px 800px at 20% 10%,var(--bg2),var(--bg1));color:var(--fg);font-family:ui-sans-serif,system-ui,-apple-system,"Noto Sans TC",Roboto}
-    .wrap{min-height:100%;display:flex;align-items:center;justify-content:center;padding:36px}
-    .card{width:min(900px,94vw);background:var(--card);border:1px solid var(--line);border-radius:16px;padding:28px 24px;box-shadow:0 12px 40px rgba(0,0,0,.35)}
-    h1{margin:0 0 12px;font-size:24px}
-    .muted{color:var(--muted)}
-    .row{margin-top:14px}
-    .input{width:100%;background:#101225;border:1px solid var(--line);color:var(--fg);padding:12px;border-radius:10px}
-    .btn{background:#3d56ff;color:#fff;border:none;padding:12px 16px;border-radius:12px;cursor:pointer}
-    .btn.secondary{background:#243259;border:1px solid var(--line)}
-    .btn + .btn{margin-left:10px}
-    .err{margin-top:12px;color:#ffb9c1;font-size:13px;display:none;white-space:pre-wrap}
-    .ok{margin-top:12px;color:#b3ffce;font-size:13px;display:none}
-    .bar{margin-top:16px;padding:10px 12px;border:1px dashed var(--line);border-radius:12px;background:#12142a}
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>上傳素材（登入後）</title>
+<link rel="icon" href="data:," />
+<style>
+  :root{color-scheme:dark}
+  body{margin:0;background:#0f1115;color:#e6e9ef;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto}
+  .wrap{min-height:100svh;display:grid;place-items:center;padding:32px}
+  .card{width:min(900px,94vw);background:#0b0d12;border:1px solid #262a33;border-radius:16px;padding:26px;box-shadow:0 10px 40px rgba(0,0,0,.45)}
+  h1{font-size:24px;margin:0 0 16px}
+  .row{margin:14px 0}
+  .btn{padding:12px 16px;border-radius:12px;border:1px solid #2f3441;background:#12151c;color:#e6e9ef;cursor:pointer}
+  .btn:hover{background:#171b23}
+  .danger{color:#ffb4b4}
+  #err{white-space:pre-wrap;background:#1a0f0f;border:1px solid #432626;border-radius:12px;padding:12px;margin-top:12px;display:none}
+  .hint{opacity:.7;font-size:13px}
+</style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="card">
-      <h1>上傳素材（登入後）</h1>
-      <div class="muted" id="who"></div>
+<div class="wrap">
+  <div class="card">
+    <h1>上傳素材（登入後）</h1>
+    <div id="uinfo" class="row">已綁定 Email：<span id="email">—</span></div>
 
-      <div class="row">
-        <label>上傳 IG 個人頁截圖（必填，1 張）</label><br/>
-        <input id="profile" class="input" type="file" accept="image/*" />
-      </div>
-
-      <div class="row">
-        <label>上傳貼文首圖（選填，最多 4 張）</label><br/>
-        <input id="posts" class="input" type="file" accept="image/*" multiple />
-      </div>
-
-      <div class="row">
-        <button id="btnExample" class="btn secondary">載入示例</button>
-        <button id="btnGo" class="btn">開始分析</button>
-      </div>
-
-      <div id="hint" class="bar muted">前端會先縮圖（最長邊 ≤ 1600，品質 0.8），伺服器也有保底壓縮。</div>
-      <div id="ok" class="ok">已送出分析，跳轉中…</div>
-      <div id="err" class="err"></div>
+    <div class="row">
+      <label>上傳 IG 個人頁截圖（<b>必填，1 張</b>）</label><br/>
+      <input id="profile" type="file" accept="image/*" />
     </div>
+
+    <div class="row">
+      <label>上傳貼文首圖（<b>選填，最多 4 張</b>）</label><br/>
+      <input id="posts" type="file" accept="image/*" multiple />
+    </div>
+
+    <div class="row">
+      <button id="demo" class="btn" type="button">載入示例檔</button>
+      <button id="go" class="btn" type="button" style="margin-left:8px">開始分析</button>
+    </div>
+
+    <div id="err" class="row"></div>
+    <div class="hint">提示：本頁只做上傳與分析，其他欄位不顯示。分析中會出現全螢幕 Loading。</div>
   </div>
+</div>
 
-  <script>
-    // 若已分析 → 直接去結果
-    if (localStorage.getItem('mbti_result')) {
-      location.replace('/static/result.html');
-    }
-    // 沒登入 → 回登入
-    const whoEl = document.getElementById('who');
-    let authUser = null;
-    try { authUser = JSON.parse(localStorage.getItem('auth_user') || 'null'); } catch {}
-    if (!authUser) location.replace('/static/landing.html');
-    whoEl.textContent = '已綁定 Email：' + (authUser?.email || '（未知）');
+<script>
+  // 若已分析完成，就直接看結果頁
+  (function () {
+    try {
+      const raw = localStorage.getItem("sa_result");
+      if (raw && JSON.parse(raw)) location.replace("/static/result.html");
+    } catch {}
+  })();
 
-    const elProfile = document.getElementById('profile');
-    const elPosts   = document.getElementById('posts');
-    const elErr     = document.getElementById('err');
-    const elOk      = document.getElementById('ok');
-    const elBtnGo   = document.getElementById('btnGo');
+  // 必須登入
+  (function () {
+    const u = localStorage.getItem("sa_user");
+    if (!u) { location.replace("/static/landing.html"); return; }
+    try {
+      const j = JSON.parse(u);
+      document.getElementById("email").textContent = j.email || "—";
+    } catch { location.replace("/static/landing.html"); }
+  })();
 
-    // Demo: 載入示例（從伺服器取一張 sample）
-    document.getElementById('btnExample').onclick = async () => {
-      elErr.style.display='none';
-      try{
-        const r = await fetch('/static/sample_profile.jpg');
-        const blob = await r.blob();
-        const dt = new DataTransfer();
-        dt.items.add(new File([blob], 'sample.jpg', {type:'image/jpeg'}));
-        elProfile.files = dt.files;
-        alert('已載入示例個人頁截圖，現在可以直接「開始分析」。');
-      }catch(e){
-        alert('示例載入失敗：' + e);
+  const elErr = document.getElementById("err");
+
+  function showErr(text) {
+    elErr.style.display = "block";
+    elErr.textContent = text;
+  }
+  function clearErr(){ elErr.style.display="none"; elErr.textContent=""; }
+
+  // 影像壓縮
+  async function compressImage(file, maxSide=1600, quality=0.8) {
+    const img = await createImageBitmap(file);
+    const w = img.width, h = img.height;
+    const ratio = (w > h ? maxSide / w : maxSide / h);
+    const nw = Math.round(w * Math.min(1, ratio));
+    const nh = Math.round(h * Math.min(1, ratio));
+    const canvas = new OffscreenCanvas(nw, nh);
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(img, 0, 0, nw, nh);
+    const blob = await canvas.convertToBlob({ type: "image/jpeg", quality });
+    return new File([blob], file.name.replace(/\.\w+$/, ".jpg"), { type:"image/jpeg" });
+  }
+
+  // Demo
+  document.getElementById("demo").onclick = async () => {
+    clearErr();
+    alert("Demo：請用你手邊的 IG 截圖；此按鈕僅保留占位目的。");
+  };
+
+  // 送出分析
+  document.getElementById("go").onclick = async () => {
+    clearErr();
+    const pf = document.getElementById("profile").files?.[0];
+    if (!pf) { showErr("請先選擇 IG 個人頁截圖（必填）"); return; }
+
+    try {
+      // 壓縮
+      const pComp = await compressImage(pf);
+      const fd = new FormData();
+      fd.append("profile", pComp);
+
+      const posts = Array.from(document.getElementById("posts").files || []).slice(0,4);
+      for (const f of posts) {
+        const img = await compressImage(f);
+        fd.append("posts", img);
       }
-    };
 
-    // 前端壓縮
-    async function compressImage(file, maxSide=1600, quality=0.8) {
-      const img = await new Promise((res,rej)=>{
-        const im = new Image();
-        im.onload=()=>res(im); im.onerror=rej;
-        im.src = URL.createObjectURL(file);
-      });
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      let {width, height} = img;
-      const ratio = Math.max(width, height) / maxSide;
-      if (ratio > 1){ width = Math.round(width/ratio); height = Math.round(height/ratio); }
-      canvas.width = width; canvas.height = height;
-      ctx.drawImage(img,0,0,width,height);
-      const blob = await new Promise(res=>canvas.toBlob(res,'image/jpeg',quality));
-      return new File([blob], file.name.replace(/\.\w+$/i,'')+'.jpg', {type:'image/jpeg'});
-    }
+      // 送出
+      const res = await fetch("/bd/analyze", { method:"POST", body:fd });
+      const data = await res.json().catch(()=> ({}));
 
-    async function toCompressedFiles(fileList) {
-      const files = Array.from(fileList || []);
-      const out = [];
-      for (const f of files) out.push(await compressImage(f));
-      return out;
-    }
+      // 將「最後一次分析請求來源」標示，避免跨頁 Race
+      localStorage.setItem("sa_last_req", String(Date.now()));
 
-    async function startAnalyze() {
-      elErr.style.display='none'; elOk.style.display='none';
-
-      if (!elProfile.files || elProfile.files.length !== 1) {
-        elErr.textContent = '請上傳 1 張 IG 個人頁截圖。'; elErr.style.display='block'; return;
+      // 若伺服器回 ok:true 日後可用；此處一律進 Loading 去 poll（避免後端還在跑）
+      if (data.ok === false && data.error) {
+        showErr("伺服器立即返回錯誤：\n" + JSON.stringify(data, null, 2));
+        return;
       }
-
-      try{
-        elBtnGo.disabled = true;
-        const fd = new FormData();
-        // 個人頁 1 張（壓縮）
-        const [pf] = await toCompressedFiles(elProfile.files);
-        fd.append('profile', pf);
-        // 貼文首圖（最多 4 張）
-        const postFiles = (await toCompressedFiles(elPosts.files)).slice(0,4);
-        for (const p of postFiles) fd.append('posts', p);
-
-        const r = await fetch('/bd/analyze', { method:'POST', body: fd });
-        const j = await r.json().catch(()=>({}));
-
-        if (!j || j.ok === false) {
-          const details = j && (j.detail || j.where || j.error) ? JSON.stringify(j) : 'server error';
-          throw new Error(details);
-        }
-
-        // 兼容 {ok:true, data:{...}} 或直接 {...}
-        const res = j.data || j;
-        localStorage.setItem('mbti_result', JSON.stringify(res));
-        elOk.style.display='block';
-        location.replace('/static/loading.html');
-      }catch(e){
-        elErr.textContent = '分析失敗：' + (e.message || e.toString());
-        elErr.style.display = 'block';
-      }finally{
-        elBtnGo.disabled = false;
-      }
+      location.replace("/static/loading.html");
+    } catch (e) {
+      showErr("上傳/分析發生錯誤：\n" + (e?.stack || e?.message || String(e)));
     }
-
-    elBtnGo.addEventListener('click', startAnalyze);
-  </script>
+  };
+</script>
 </body>
 </html>
