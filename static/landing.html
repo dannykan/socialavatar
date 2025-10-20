@@ -1,85 +1,85 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="UTF-8" />
-  <title>IG 人格分析（MBTI）｜登入</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <style>
-    :root{--bg1:#121321;--bg2:#1a1d33;--card:#181a2a;--line:#262a44;--fg:#eef1ff;--muted:#aeb6d9;--accent:#5f86ff}
-    html,body{height:100%;margin:0;background:radial-gradient(1200px 800px at 20% 10%,var(--bg2),var(--bg1));color:var(--fg);font-family:ui-sans-serif,system-ui,-apple-system,"Noto Sans TC",Roboto}
-    .wrap{min-height:100%;display:flex;align-items:center;justify-content:center;padding:36px}
-    .card{width:min(720px,92vw);background:var(--card);border:1px solid var(--line);border-radius:16px;padding:28px 24px;box-shadow:0 12px 40px rgba(0,0,0,.35)}
-    h1{margin:0 0 10px;font-size:26px}
-    p{margin:6px 0 14px;color:var(--muted)}
-    .btn{width:100%;display:flex;align-items:center;justify-content:center;gap:8px;padding:14px 16px;border-radius:12px;border:1px solid var(--line);background:#222541;color:var(--fg);cursor:pointer}
-    .btn + .btn{margin-top:12px}
-    .btn:hover{background:#273055}
-    .foot{margin-top:14px;color:#92a0d6;font-size:13px}
-    .err{margin-top:10px;color:#ffb9c1;font-size:13px;display:none}
-  </style>
-  <!-- Firebase SDK -->
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>IG 人格分析（MBTI）- 登入</title>
+<link rel="icon" href="data:," />
+<style>
+  :root { color-scheme: dark; }
+  body{margin:0;background:#0f1115;color:#e6e9ef;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto}
+  .wrap{min-height:100svh;display:grid;place-items:center;padding:32px}
+  .card{width:min(720px,92vw);background:#0b0d12;border:1px solid #262a33;border-radius:16px;padding:28px 24px;box-shadow:0 10px 40px rgba(0,0,0,.45)}
+  h1{font-size:28px;margin:4px 0 10px}
+  p{opacity:.8;margin:0 0 18px}
+  .btn{width:100%;padding:16px;border-radius:12px;border:1px solid #2f3441;background:#12151c;color:#e6e9ef;font-size:16px;cursor:pointer}
+  .btn:hover{background:#171b23}
+  .gap{height:12px}
+  .hint{font-size:13px;opacity:.6}
+</style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="card">
-      <h1>IG 人格分析（MBTI）</h1>
-      <p>使用 Google 或 Facebook 登入，以建立你的平台帳號。</p>
-
-      <button id="btnGoogle" class="btn">以 Google 登入</button>
-      <button id="btnFacebook" class="btn">以 Facebook 登入</button>
-
-      <div id="err" class="err"></div>
-      <div class="foot">成功登入後，下一步上傳 IG 截圖；分析一次後，往後會直接顯示結果頁。</div>
-    </div>
+<div class="wrap">
+  <div class="card">
+    <h1>IG 人格分析（MBTI）</h1>
+    <p>使用 Google 或 Facebook 登入，以建立你的平台帳號。</p>
+    <button id="btnGoogle" class="btn">以 Google 登入</button>
+    <div class="gap"></div>
+    <button id="btnFacebook" class="btn">以 Facebook 登入</button>
+    <p class="hint">登入後將前往上傳頁，成功分析一次後，往後會直接顯示你的結果頁。</p>
   </div>
+</div>
 
-  <script>
-    // 若已有分析結果就直接去結果頁
-    if (localStorage.getItem('mbti_result')) {
-      location.replace('/static/result.html');
+<script>
+  // 若已經有結果，直接到結果頁
+  (function () {
+    const raw = localStorage.getItem("sa_result");
+    try {
+      if (raw && JSON.parse(raw)) location.replace("/static/result.html");
+    } catch {}
+  })();
+</script>
+
+<!-- Firebase v10 modular CDN -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import {
+    getAuth, onAuthStateChanged, signInWithPopup,
+    GoogleAuthProvider, FacebookAuthProvider, setPersistence, browserLocalPersistence
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+  const FIREBASE_CONFIG = {
+    apiKey: "AIzaSyBI2-4yEwzxvYOvui9FZiGAzCE22OhKmU8",
+    authDomain: "social-avatar-d13c8.firebaseapp.com",
+    projectId: "social-avatar-d13c8",
+    storageBucket: "social-avatar-d13c8.appspot.com",
+    messagingSenderId: "280598358339",
+    appId: "1:280598358339:web:214a0d4ca53793163367f6"
+  };
+
+  const app = initializeApp(FIREBASE_CONFIG);
+  const auth = getAuth(app);
+  setPersistence(auth, browserLocalPersistence);
+
+  onAuthStateChanged(auth, (user) => {
+    if (user) {
+      localStorage.setItem("sa_user", JSON.stringify({
+        uid: user.uid, email: user.email || "", name: user.displayName || ""
+      }));
+      location.replace("/static/upload.html");
     }
+  });
 
-    // Firebase 設定 —— 替換為你的 Config
-    const FIREBASE_CONFIG = {
-      apiKey: "AIzaSyBI2-4yEwzxvYOvui9FZiGAzCE22OhKmU8",
-      authDomain: "social-avatar-d13c8.firebaseapp.com",
-      projectId: "social-avatar-d13c8",
-      storageBucket: "social-avatar-d13c8.appspot.com",
-      messagingSenderId: "280598358339",
-      appId: "1:280598358339:web:214a0d4ca53793163367f6"
-    };
-
-    firebase.initializeApp(FIREBASE_CONFIG);
-    const auth = firebase.auth();
-    const google = new firebase.auth.GoogleAuthProvider();
-    const facebook = new firebase.auth.FacebookAuthProvider();
-
-    const err = document.getElementById('err');
-
-    async function signIn(provider) {
-      err.style.display = 'none';
-      try {
-        const cred = await auth.signInWithPopup(provider);
-        const user = cred.user;
-        localStorage.setItem('auth_user', JSON.stringify({
-          uid: user.uid, email: user.email || '', name: user.displayName || ''
-        }));
-        // 尚未分析 → 去上傳；已分析 → 去結果
-        if (localStorage.getItem('mbti_result')) {
-          location.replace('/static/result.html');
-        } else {
-          location.replace('/static/upload.html');
-        }
-      } catch (e) {
-        err.textContent = '登入失敗：' + (e.message || e.toString());
-        err.style.display = 'block';
-      }
-    }
-
-    document.getElementById('btnGoogle').onclick = () => signIn(google);
-    document.getElementById('btnFacebook').onclick = () => signIn(facebook);
-  </script>
+  document.getElementById("btnGoogle").onclick = async () => {
+    try {
+      await signInWithPopup(auth, new GoogleAuthProvider());
+    } catch (e) { alert("登入失敗：" + (e?.message || e)); }
+  };
+  document.getElementById("btnFacebook").onclick = async () => {
+    try {
+      await signInWithPopup(auth, new FacebookAuthProvider());
+    } catch (e) { alert("登入失敗：" + (e?.message || e)); }
+  };
+</script>
 </body>
 </html>
