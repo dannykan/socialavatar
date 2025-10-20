@@ -1,107 +1,128 @@
 <!doctype html>
 <html lang="zh-Hant">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>IG 人格分析（MBTI）- 結果</title>
-<link rel="icon" href="data:," />
-<style>
-  :root{color-scheme:dark}
-  body{margin:0;background:#0f1115;color:#e6e9ef;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto}
-  .wrap{min-height:100svh;display:grid;place-items:center;padding:32px}
-  .card{width:min(960px,94vw);background:linear-gradient(135deg,#231a34,#1d1f2b 60%,#1a1440);border:1px solid #2b3040;border-radius:18px;box-shadow:0 18px 60px rgba(0,0,0,.5);padding:30px}
-  .hdr{ text-align:center;margin-bottom:18px }
-  .name{font-size:26px;font-weight:700}
-  .handle{opacity:.8}
-  .chips{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:12px 0 18px}
-  .chip{background:#10131a;border:1px solid #2f3441;border-radius:999px;padding:6px 12px;font-size:14px}
-  .mbti{background:#2a2340;border-color:#7e6cff}
-  .vehicle{background:#172224;border-color:#2d6a58}
-  .summary{line-height:1.8;background:rgba(12,14,20,.55);border:1px solid #2b3040;border-radius:14px;padding:14px 16px}
-  .row{margin-top:18px;text-align:center}
-  .btn{padding:12px 16px;border-radius:12px;border:1px solid #3a404f;background:#12151c;color:#e6e9ef;cursor:pointer}
-  .btn:hover{background:#171b23}
-  .hint{opacity:.65;font-size:13px;margin-top:10px}
-</style>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>分析結果｜Social Avatar</title>
+  <style>
+    :root{
+      --bg:#0b1220; --card:#0f172a; --border:#1f2937; --text:#e5e7eb;
+      --accent:#22d3ee; --muted:#94a3b8;
+    }
+    body{margin:0;background:radial-gradient(1000px 600px at -10% -10%, #0ea5e9 0, transparent 60%),
+                   radial-gradient(1200px 600px at 110% 0%, #9333ea 0, transparent 60%),
+                   var(--bg);
+         color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;min-height:100vh}
+    header{padding:16px 20px;border-bottom:1px solid var(--border);background:#0b1220aa;backdrop-filter:blur(6px);position:sticky;top:0}
+    main{max-width:900px;margin:0 auto;padding:20px}
+    .grid{display:grid;grid-template-columns:1.1fr .9fr;gap:16px}
+    @media (max-width:860px){.grid{grid-template-columns:1fr;}}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px}
+    .title{display:flex;align-items:center;gap:10px;margin:2px 0 10px}
+    .badge{padding:6px 10px;border-radius:999px;font-weight:700;background:#1f2937;color:#e2e8f0;border:1px solid #334155}
+    .vehicle{font-weight:700;padding:8px 12px;border-radius:10px;background:#052e1a;border:1px solid #14532d;color:#bbf7d0;display:inline-block}
+    .muted{color:var(--muted)}
+    .buttons{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+    button,.btn{border:0;border-radius:12px;padding:12px 16px;font-weight:600;cursor:pointer}
+    .btn-primary{background:var(--accent);color:#0b1220}
+    .btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text)}
+    pre{white-space:pre-wrap;background:#0b1220;border:1px solid var(--border);padding:10px;border-radius:8px}
+    .err{background:#7f1d1d;color:#fecaca;border:1px solid #ef4444;padding:12px;border-radius:10px;margin:10px 0;display:none}
+  </style>
+  <script>
+    function clearAndRestart(){
+      try{
+        localStorage.removeItem('sa_result');
+      }catch(e){}
+      location.href='/static/landing.html';
+    }
+
+    function paintMBTI(mbti){
+      // 簡單色系依 MBTI 第一碼
+      const map = {E:'#22d3ee', I:'#a78bfa'};
+      const c = map[(mbti||'')[0]] || '#22c55e';
+      const el = document.querySelector('.badge');
+      if (el) el.style.background = c + '33';
+      if (el) el.style.borderColor = c + '88';
+      if (el) el.style.color = '#fff';
+    }
+
+    window.addEventListener('DOMContentLoaded', ()=>{
+      const box = document.getElementById('result');
+      const debugBox = document.getElementById('debug');
+      const errBox = document.getElementById('err');
+
+      try{
+        const raw = localStorage.getItem('sa_result');
+        if (!raw){ location.href='/static/upload.html'; return; }
+
+        const data = JSON.parse(raw);
+        const ai = data.ai || {};
+        const diag = data.diagnose || {};
+
+        // 基本防呆
+        const mbti = ai.mbti || '—';
+        const summary = ai.summary || '—';
+        const display = ai.display_name || '使用者';
+        const username = ai.username || '';
+        const followers = ai.followers ?? '—';
+        const following = ai.following ?? '—';
+        const posts = ai.posts ?? '—';
+        const vehicle = ai.vehicle || '—';
+
+        box.innerHTML = `
+          <div class="grid">
+            <div class="card">
+              <div class="title">
+                <span class="badge" title="MBTI">${mbti}</span>
+                <h2 style="margin:0">${display}</h2>
+                ${username ? `<span class="muted">@${username}</span>` : ``}
+              </div>
+              <p class="muted">Followers / Following / Posts ： <strong>${followers}</strong> / <strong>${following}</strong> / <strong>${posts}</strong></p>
+              <p style="line-height:1.7">${summary}</p>
+              <div class="buttons">
+                <button class="btn btn-primary" onclick="clearAndRestart()">清除並重新開始</button>
+                <a class="btn btn-ghost" href="/debug/last_ai" target="_blank">檢視原始 AI</a>
+              </div>
+            </div>
+            <div class="card">
+              <h3 style="margin-top:0">你的載具</h3>
+              <p class="vehicle">${vehicle}</p>
+              <p class="muted">（之後可解鎖更多造型與動畫）</p>
+            </div>
+          </div>
+        `;
+
+        paintMBTI(mbti);
+
+        // Debug 區
+        debugBox.innerHTML = `<pre>${JSON.stringify(diag, null, 2)}</pre>`;
+      }catch(e){
+        errBox.style.display='block';
+        errBox.textContent='顯示錯誤：' + e.message;
+      }
+    });
+  </script>
 </head>
 <body>
-<div class="wrap">
-  <div class="card">
-    <div class="hdr">
-      <div id="name" class="name">—</div>
-      <div id="handle" class="handle">@—</div>
+  <header>
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <div><strong>Social Avatar</strong></div>
+      <nav class="buttons">
+        <button class="btn btn-ghost" onclick="clearAndRestart()">清除並重新開始</button>
+      </nav>
     </div>
+  </header>
 
-    <div class="chips">
-      <div class="chip" id="followers">Followers 0</div>
-      <div class="chip" id="following">Following 0</div>
-      <div class="chip" id="posts">Posts 0</div>
-      <div class="chip mbti" id="mbti">MBTI —</div>
-      <div class="chip vehicle" id="vehicle">載具 —</div>
-    </div>
+  <main>
+    <h1 style="margin:10px 0 12px">分析結果</h1>
+    <div id="err" class="err"></div>
+    <div id="result" class="card">讀取中…</div>
 
-    <div class="summary" id="summary">依上傳截圖初步推斷，僅供娛樂參考。</div>
-
-    <div class="row">
-      <button id="reset" class="btn">註銷並重來</button>
-      <div class="hint">若想重新分析，請點「註銷並重來」。這會刪除本地分析結果與登入資訊。</div>
-    </div>
-  </div>
-</div>
-
-<script>
-  const KEY = "sa_result";
-
-  function looksValid(ai){
-    return !!(ai && (ai.username || ai.display_name || ai.summary ||
-      (ai.followers|0)>0 || (ai.posts|0)>0 || (ai.mbti && ai.mbti.length>1)));
-  }
-
-  function render(ai){
-    document.getElementById("name").textContent   = ai.display_name || "使用者";
-    document.getElementById("handle").textContent = ai.username ? ("@" + ai.username) : "—";
-    document.getElementById("followers").textContent = "Followers " + ((ai.followers ?? 0).toLocaleString());
-    document.getElementById("following").textContent = "Following " + ((ai.following ?? 0).toLocaleString());
-    document.getElementById("posts").textContent     = "Posts " + ((ai.posts ?? 0).toLocaleString());
-    document.getElementById("mbti").textContent      = (ai.mbti || "—").toUpperCase();
-    document.getElementById("vehicle").textContent   = "載具：" + (ai.vehicle || "—");
-    document.getElementById("summary").textContent   = ai.summary || "依上傳截圖初步推斷，僅供娛樂參考。";
-  }
-
-  async function boot(){
-    try{
-      const raw = localStorage.getItem(KEY);
-      if (raw){
-        const ai = JSON.parse(raw);
-        if (looksValid(ai)){ render(ai); return; }
-      }
-    }catch{}
-
-    try{
-      const r = await fetch("/debug/last_ai",{cache:"no-store"});
-      if (r.ok){
-        const data = await r.json();
-        const ai = data.ai || data;
-        if (looksValid(ai)){
-          localStorage.setItem(KEY, JSON.stringify({
-            ...ai, __raw:data.raw||"", __used_fallback:!!data.used_fallback
-          }));
-          render(ai); return;
-        }
-      }
-    }catch{}
-
-    // 沒資料就回上傳頁（安靜處理，不彈窗）
-    location.replace("/static/upload.html");
-  }
-
-  document.getElementById("reset").onclick = () => {
-    localStorage.removeItem("sa_result");
-    localStorage.removeItem("sa_user");
-    location.replace("/static/landing.html");
-  };
-
-  boot();
-</script>
+    <details class="card" style="margin-top:14px">
+      <summary>診斷資訊（debug）</summary>
+      <div id="debug" style="margin-top:10px"></div>
+    </details>
+  </main>
 </body>
 </html>
