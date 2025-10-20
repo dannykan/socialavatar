@@ -1,15 +1,31 @@
 services:
   - type: web
-    name: ig-mbti-backend
+    name: socialavatar
     env: python
-    region: singapore   # 或 tokyo/frankfurt 等
     plan: free
-    buildCommand: "pip install -r requirements.txt"
-    startCommand: "gunicorn app:app --preload --bind 0.0.0.0:$PORT --workers 2 --threads 4"
+    region: singapore          # 可改：oregon / frankfurt / ohio ...
+    buildCommand: |
+      pip install --upgrade pip
+      pip install -r requirements.txt
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --threads ${THREADS:-1} --timeout ${TIMEOUT:-120}
+    autoDeploy: true
+    healthCheckPath: /health
     envVars:
-      - key: OPENAI_API_KEY
+      - key: OPENAI_API_KEY     # 務必在 Render UI 填值或用 secretFiles
         sync: false
-      - key: PAGE_ACCESS_TOKEN
-        sync: false
-      - key: IG_USER_ID
-        sync: false
+      - key: AI_ON              # 1=開啟 AI 解析；0=只用 fallback
+        value: "1"
+      - key: MAX_SIDE           # 後端壓縮：最長邊像素
+        value: "1280"
+      - key: JPEG_Q             # 後端壓縮：JPEG 品質 (1-95)
+        value: "72"
+      - key: WEB_CONCURRENCY    # 降低免費方案記憶體壓力
+        value: "1"
+      - key: THREADS
+        value: "1"
+      - key: TIMEOUT            # gunicorn timeout (秒)
+        value: "120"
+    routes:
+      - type: rewrite
+        source: /               # 直接導 landing（也可不設，因 app.py 已 redirect）
+        destination: /static/landing.html
