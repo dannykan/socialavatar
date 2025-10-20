@@ -18,7 +18,7 @@
     .grid{display:grid;grid-template-columns:1.1fr .9fr;gap:16px}
     @media (max-width:860px){.grid{grid-template-columns:1fr;}}
     .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px}
-    .title{display:flex;align-items:center;gap:10px;margin:2px 0 10px}
+    .title{display:flex;align-items:center;gap:10px;margin:2px 0 10px;flex-wrap:wrap}
     .badge{padding:6px 10px;border-radius:999px;font-weight:700;background:#1f2937;color:#e2e8f0;border:1px solid #334155}
     .vehicle{font-weight:700;padding:8px 12px;border-radius:10px;background:#052e1a;border:1px solid #14532d;color:#bbf7d0;display:inline-block}
     .muted{color:var(--muted)}
@@ -27,9 +27,11 @@
     .btn-primary{background:var(--accent);color:#0b1220}
     .btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text)}
     pre{white-space:pre-wrap;background:#0b1220;border:1px solid var(--border);padding:10px;border-radius:8px;font-size:12px}
-    .err{background:#7f1d1d;color:#fecaca;border:1px solid #ef4444;padding:12px;border-radius:10px;margin:10px 0;display:none}
+    .err{background:#7f1d1d;color:#fecaca;border:1px solid #ef4444;padding:12px;border-radius:10px;margin:10px 0}
   </style>
   <script>
+    let hasRedirected = false; // Prevent multiple redirects
+
     function safeParseJson(mixed) {
       if (!mixed) return null;
       if (typeof mixed === 'object') return mixed;
@@ -79,27 +81,39 @@
     }
 
     async function loadResult() {
+      // Prevent redirect loop
+      if (hasRedirected) return;
+
       const saved = sessionStorage.getItem('sa_result');
       if (saved) {
         try {
           const data = JSON.parse(saved);
-          fillUI(data);
-          const dbg = document.querySelector('#diagnose_json');
-          if (dbg && data.diagnose) {
-            dbg.textContent = JSON.stringify(data.diagnose, null, 2);
+          // Validate data structure
+          if (data && data.ok === true && (data.mbti || data.display_name)) {
+            fillUI(data);
+            const dbg = document.querySelector('#diagnose_json');
+            if (dbg && data.diagnose) {
+              dbg.textContent = JSON.stringify(data.diagnose, null, 2);
+            }
+            return; // Success - don't redirect
+          } else {
+            // Invalid data structure
+            console.warn('Invalid data in sessionStorage:', data);
+            sessionStorage.removeItem('sa_result');
           }
-          return;
         } catch (e) {
           console.error('Failed to parse sessionStorage:', e);
+          sessionStorage.removeItem('sa_result');
         }
       }
 
+      // Try to load from debug endpoint as fallback
       try {
         const r = await fetch(`/debug/last_ai?ts=${Date.now()}`, { cache: 'no-store' });
         if (r.ok) {
           const j = await r.json();
           const parsed = safeParseJson(j.text || j.raw || '');
-          if (parsed) {
+          if (parsed && (parsed.mbti || parsed.display_name)) {
             const fallbackData = {
               display_name: parsed.display_name || '使用者',
               username: (parsed.username || '').trim(),
@@ -124,15 +138,25 @@
                 }, null, 2);
               }
             } catch {}
-            return;
+            return; // Success - don't redirect
           }
         }
       } catch (e) {
         console.error('load from /debug/last_ai failed:', e);
       }
 
-      alert('找不到分析結果，請回到上一步重新上傳並開始分析。');
-      window.location.href = '/static/landing.html';
+      // Only redirect if we haven't already tried
+      if (!hasRedirected) {
+        hasRedirected = true;
+        const errBox = document.getElementById('err');
+        if (errBox) {
+          errBox.textContent = '找不到分析結果，3 秒後將返回首頁...';
+          errBox.style.display = 'block';
+        }
+        setTimeout(() => {
+          window.location.href = '/static/upload.html';
+        }, 3000);
+      }
     }
 
     function clearAndRestart() {
@@ -157,7 +181,7 @@
 
   <main>
     <h1 style="margin:10px 0 12px">分析結果</h1>
-    <div id="err" class="err"></div>
+    <div id="err" class="err" style="display:none"></div>
     
     <div class="grid">
       <div class="card">
