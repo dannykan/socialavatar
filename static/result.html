@@ -30,6 +30,90 @@
     .err{background:#7f1d1d;color:#fecaca;border:1px solid #ef4444;padding:12px;border-radius:10px;margin:10px 0;display:none}
   </style>
   <script>
+    function fillUI(x) {
+      // 依你的 DOM id/class 調整
+      const dn = (v) => (v ?? '').toString();
+      const di = (sel, v) => { const el = document.querySelector(sel); if (el) el.textContent = v; };
+    
+      di('#display_name', dn(x.display_name || '使用者'));
+      di('#username', x.username ? '@' + x.username : '—');
+      di('#followers', (x.followers ?? 0).toLocaleString());
+      di('#following', (x.following ?? 0).toLocaleString());
+      di('#posts', (x.posts ?? 0).toLocaleString());
+      di('#mbti', (x.mbti || '—').toUpperCase());
+      di('#vehicle', x.vehicle || '—');
+      di('#summary', dn(x.summary || ''));
+    }
+    
+    function safeParseJson(text) {
+      if (!text) return null;
+      let s = text.trim();
+      // 去掉 ```json ... ```
+      if (s.startsWith('```')) {
+        const i = s.indexOf('\n');
+        if (i >= 0) s = s.slice(i + 1);
+        if (s.endsWith('```')) s = s.slice(0, -3);
+      }
+      // 擷取第一個 { 到最後一個 }
+      const l = s.indexOf('{'), r = s.lastIndexOf('}');
+      if (l >= 0 && r > l) s = s.slice(l, r + 1);
+      try { return JSON.parse(s); } catch { return null; }
+    }
+    
+    async function loadResult() {
+      // 1) 優先使用上一步存的結果
+      const saved = sessionStorage.getItem('sa_result');
+      if (saved) {
+        try {
+          const data = JSON.parse(saved);
+          fillUI(data);
+          // 顯示診斷 (可選)
+          const dbg = document.querySelector('#diagnose_json');
+          if (dbg && data.diagnose) dbg.textContent = JSON.stringify(data.diagnose, null, 2);
+          return;
+        } catch {}
+      }
+    
+      // 2) 沒有暫存 → 從 /debug/last_ai 補抓（重新整理/直開 result.html 的情境）
+      try {
+        const r = await fetch('/debug/last_ai');
+        const j = await r.json();
+        const parsed = safeParseJson(j.text || j.raw || '');
+        if (parsed) {
+          // 從 AI 文字回應填基本欄位
+          const fallbackData = {
+            display_name: parsed.display_name || '使用者',
+            username: parsed.username || '',
+            followers: Number(parsed.followers || 0),
+            following: Number(parsed.following || 0),
+            posts: Number(parsed.posts || 0),
+            mbti: (parsed.mbti || '').toUpperCase(),
+            summary: parsed.summary || '',
+            vehicle: parsed.vehicle || '—'
+          };
+          fillUI(fallbackData);
+          // 診斷面板（可用 /debug/config 補充）
+          const cfg = await fetch('/debug/config').then(r=>r.json()).catch(()=>null);
+          const dbg = document.querySelector('#diagnose_json');
+          if (dbg) dbg.textContent = JSON.stringify({
+            ai_on: cfg?.ai_on ?? true,
+            model: cfg?.model ?? 'gpt-4o-mini',
+            source: 'debug/last_ai'
+          }, null, 2);
+          return;
+        }
+      } catch (e) {
+        console.error('load from /debug/last_ai failed:', e);
+      }
+    
+      // 3) 都沒有 → 提示回去重新上傳
+      alert('找不到分析結果，請回到上一步重新上傳並開始分析。');
+      window.location.href = '/static/landing.html';
+    }
+    
+    document.addEventListener('DOMContentLoaded', loadResult);
+    
+    
     function clearAndRestart(){
       try{
         localStorage.removeItem('sa_result');
