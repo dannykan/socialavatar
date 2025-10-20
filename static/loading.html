@@ -77,5 +77,44 @@
       location.href = "./result.html";
     })();
   </script>
+
+<script type="module">
+  // 1) CDN imports
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+  import {
+    getAuth, onAuthStateChanged, signInWithPopup,
+    GoogleAuthProvider, FacebookAuthProvider, signOut, deleteUser
+  } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+  import {
+    getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc
+  } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+
+  // 2) 你的 config（從 Console 貼）
+  const firebaseConfig = {
+    apiKey: "AI...your key...",
+    authDomain: "your-project-id.firebaseapp.com",
+    projectId: "your-project-id",
+    storageBucket: "your-project-id.appspot.com",
+    messagingSenderId: "...",
+    appId: "1:...:web:..."
+  };
+
+  // 3) 初始化
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db   = getFirestore(app);
+
+  // 4) 讓別的 script 可取用（可選）
+  window.firebase = { app, auth, db,
+    onAuthStateChanged, signInWithPopup, GoogleAuthProvider, FacebookAuthProvider,
+    signOut, deleteUser, doc, getDoc, setDoc, updateDoc, deleteDoc
+  };
+</script>
+
+<script>
+  // 使用 history.replaceState，避免上一頁返回到 upload.html
+  history.replaceState(null, "", "./loading.html");
+</script>
+
 </body>
 </html>
