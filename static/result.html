@@ -1,118 +1,62 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="utf-8" />
+  <meta charset="UTF-8" />
+  <title>分析結果｜IG 人格分析 (MBTI)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>分析結果 — SocialAvatar</title>
   <style>
-    body{margin:0;background:#0b0f14;color:#e6eef9;font-family:ui-sans-serif,system-ui,Segoe UI,Roboto}
-    .wrap{min-height:100svh;display:grid;place-items:center;padding:40px 16px}
-    .card{width:min(960px,96vw);padding:28px;border-radius:16px;background:
-      radial-gradient(1200px 600px at 10% -10%,#3f51b5 0%,transparent 60%),
-      radial-gradient(1200px 600px at 110% 110%,#8a4fff 0%,transparent 60%),
-      #0f1724;border:1px solid #1f2a3c;box-shadow:0 10px 30px rgba(0,0,0,.35)}
-    h2{margin:0 0 8px}
-    .row{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0}
-    .pill{padding:8px 12px;border-radius:999px;background:#1b2436;border:1px solid #2b3b55}
-    .badge{padding:10px 14px;border-radius:999px;background:#ffb86c;color:#1d1306;font-weight:800;letter-spacing:.1em}
-    .box{margin-top:10px;padding:14px;border-radius:12px;background:#121a2a;border:1px solid #24324a;line-height:1.6}
-    button{padding:10px 12px;border-radius:10px;border:1px solid #334155;background:#172031;color:#e6eef9;cursor:pointer}
-    button:hover{background:#1b263a}
-    .footer{opacity:.7;margin-top:10px;font-size:12px}
+    :root{--bg1:#121321;--bg2:#1a1d33;--card:#181a2a;--line:#262a44;--fg:#eef1ff;--muted:#aeb6d9;--accent:#5f86ff;--ok:#a9f7cc}
+    html,body{height:100%;margin:0;background:radial-gradient(1200px 800px at 20% 10%,var(--bg2),var(--bg1));color:var(--fg);font-family:ui-sans-serif,system-ui,-apple-system,"Noto Sans TC",Roboto}
+    .wrap{min-height:100%;display:flex;align-items:center;justify-content:center;padding:36px}
+    .card{width:min(960px,94vw);background:var(--card);border:1px solid var(--line);border-radius:16px;padding:28px 24px;box-shadow:0 12px 40px rgba(0,0,0,.35)}
+    h1{margin:0 0 6px}
+    .row{display:flex;flex-wrap:wrap;gap:10px;margin:4px 0 12px}
+    .pill{background:#23263b;border:1px solid var(--line);padding:8px 10px;border-radius:999px}
+    .mbti{font-weight:700;letter-spacing:1px}
+    .summary{margin-top:10px;line-height:1.8;color:#cfd7ff}
+    .foot{margin-top:16px;color:#8ea3e3;font-size:13px}
+    .btn{margin-top:14px;background:#3d56ff;color:#fff;border:none;padding:10px 14px;border-radius:12px;cursor:pointer}
+    .danger{background:#db4f4f}
   </style>
 </head>
 <body>
   <div class="wrap">
     <div class="card">
-      <h2 id="name">—</h2>
+      <h1 id="name">分析結果</h1>
       <div class="row">
-        <div id="username" class="pill">@—</div>
-        <div id="f1" class="pill">Followers 0</div>
-        <div id="f2" class="pill">Following 0</div>
-        <div id="p"  class="pill">Posts 0</div>
+        <div class="pill">@<span id="username">—</span></div>
+        <div class="pill">Followers <span id="followers">—</span></div>
+        <div class="pill">Following <span id="following">—</span></div>
+        <div class="pill">Posts <span id="posts">—</span></div>
+        <div class="pill mbti" id="mbti">MBTI</div>
+        <div class="pill" id="vehicle">載具</div>
       </div>
-      <div class="row">
-        <div id="mbti" class="badge">MBTI</div>
-      </div>
-      <div id="summary" class="box">—</div>
+      <div class="summary" id="summary">（沒有摘要內容）</div>
 
-      <div class="row" style="margin-top:16px">
-        <div class="pill" id="vehicle">載具：—</div>
-        <div class="pill" id="fallback" style="display:none">AI：使用保底</div>
-      </div>
-
-      <div class="row" style="margin-top:18px">
-        <button id="btnDelete">註銷此帳號</button>
-      </div>
-      <div class="footer">提示：完成分析後不提供回到上傳頁的入口；若要重新分析，請註銷帳號後重新登入。</div>
+      <div class="foot">若想重新分析，請點「註銷並重來」。這會刪除本地分析結果與登入資訊。</div>
+      <button id="btnReset" class="btn danger">註銷並重來</button>
     </div>
   </div>
 
-  <!-- Firebase：只用來控制登入狀態、載入/刪除 user 文件 -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
-    import {
-      getAuth, onAuthStateChanged, deleteUser, signOut
-    } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
-    import {
-      getFirestore, doc, getDoc, deleteDoc
-    } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+  <script>
+    const data = (()=>{ try{ return JSON.parse(localStorage.getItem('mbti_result')||'{}'); }catch{ return {}; } })();
+    if (!data || Object.keys(data).length===0) location.replace('/static/landing.html');
 
-    /* TODO: 換成你的 Firebase config */
-    const firebaseConfig = {
-      apiKey: "AIzaSyBI2-4yEwzxvYOvui9FZiGAzCE22OhKmU8",
-      authDomain: "social-avatar-d13c8.firebaseapp.com",
-      projectId: "social-avatar-d13c8",
-      storageBucket: "social-avatar-d13c8.appspot.com",
-      messagingSenderId: "280598358339",
-      appId: "1:280598358339:web:214a0d4ca53793163367f6"
+    function set(id,val){const el=document.getElementById(id); if(el) el.textContent = (val ?? '—');}
+    set('name', data.display_name || '分析結果');
+    set('username', data.username || '—');
+    set('followers', data.followers ?? '—');
+    set('following', data.following ?? '—');
+    set('posts', data.posts ?? '—');
+    set('mbti', (data.mbti||'—').toUpperCase());
+    set('vehicle', data.vehicle || '—');
+    set('summary', data.summary || '（沒有摘要內容）');
+
+    document.getElementById('btnReset').onclick = ()=>{
+      localStorage.removeItem('mbti_result');
+      localStorage.removeItem('auth_user');
+      location.replace('/static/landing.html');
     };
-
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db   = getFirestore(app);
-
-    const el = (id)=>document.getElementById(id);
-
-    function render(r){
-      el("name").textContent     = r.display_name || "使用者";
-      el("username").textContent = r.username ? "@"+r.username : "—";
-      el("f1").textContent       = "Followers " + (r.followers ?? 0);
-      el("f2").textContent       = "Following " + (r.following ?? 0);
-      el("p").textContent        = "Posts "     + (r.posts ?? 0);
-      el("mbti").textContent     = r.mbti || "不詳";
-      el("summary").textContent  = r.summary || "—";
-      el("vehicle").textContent  = "載具：" + (r.vehicle || "步行");
-      if (r.used_fallback) el("fallback").style.display = "inline-block";
-    }
-
-    async function loadResult(u){
-      const cache = sessionStorage.getItem("BD_RESULT");
-      if (cache) { render(JSON.parse(cache)); return; }
-      const snap = await getDoc(doc(db,"users",u.uid));
-      const r = snap.data()?.result;
-      if (r){ render(r); sessionStorage.setItem("BD_RESULT", JSON.stringify(r)); }
-      else  { location.replace("./upload.html"); }
-    }
-
-    async function doDeleteAccount(){
-      if (!confirm("確定註銷此帳號？此動作不可復原。")) return;
-      try{
-        const u = auth.currentUser;
-        if (u) await deleteDoc(doc(db,"users",u.uid));
-        if (u) await deleteUser(u);
-      }catch(e){ console.warn(e); }
-      await signOut(auth);
-      sessionStorage.clear();
-      location.replace("./landing.html");
-    }
-
-    el("btnDelete").onclick = doDeleteAccount;
-
-    onAuthStateChanged(auth,(u)=>{
-      if(!u){ location.replace("./landing.html"); return; }
-      loadResult(u);
-    });
   </script>
 </body>
 </html>
