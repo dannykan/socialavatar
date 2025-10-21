@@ -383,12 +383,16 @@
         profileInput.addEventListener('change', function(e) {
           console.log('Profile file selected:', e.target.files.length, 'files');
           console.log('First file:', e.target.files[0] ? e.target.files[0].name : 'none');
+          console.log('Files length check:', e.target.files.length > 0);
           clearPreviews('profilePreview');
           if (e.target.files.length > 0) {
+            console.log('✅ Files length > 0, proceeding...');
             selectedFiles.profile = e.target.files[0];
             console.log('Calling createImagePreview with file:', e.target.files[0].name);
             console.log('Container exists:', !!document.getElementById('profilePreview'));
             createImagePreview(e.target.files[0], 'profilePreview');
+          } else {
+            console.log('❌ No files selected or files.length = 0');
           }
         });
       } else {
@@ -398,11 +402,19 @@
       if (postsInput) {
         postsInput.addEventListener('change', function(e) {
           console.log('Posts files selected:', e.target.files.length);
+          console.log('Posts files length check:', e.target.files.length > 0);
           clearPreviews('postsPreview');
-          selectedFiles.posts = Array.from(e.target.files);
-          selectedFiles.posts.forEach((file, index) => {
-            createImagePreview(file, 'postsPreview', index);
-          });
+          if (e.target.files.length > 0) {
+            console.log('✅ Posts files length > 0, proceeding...');
+            selectedFiles.posts = Array.from(e.target.files);
+            console.log('Posts files array:', selectedFiles.posts.length);
+            selectedFiles.posts.forEach((file, index) => {
+              console.log('Creating preview for post file:', file.name, 'index:', index);
+              createImagePreview(file, 'postsPreview', index);
+            });
+          } else {
+            console.log('❌ No posts files selected');
+          }
         });
       } else {
         console.error('Posts input not found');
