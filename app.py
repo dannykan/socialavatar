@@ -118,9 +118,30 @@ def call_openai_vision(profile_b64: str, posts_b64_list: list[str]):
         "max_tokens": 700
     }
 
-    resp = requests.post(url, headers=headers, json=payload, timeout=90)
-    if not resp.ok:
-        raise RuntimeError(f"OpenAI HTTP {resp.status_code}: {resp.text}")
+    # Try with retry mechanism
+    for attempt in range(2):  # Try twice
+        try:
+            resp = requests.post(url, headers=headers, json=payload, timeout=90)
+            if resp.ok:
+                break
+            if attempt == 0:  # First attempt failed
+                print(f"OpenAI attempt {attempt + 1} failed: {resp.status_code}")
+                continue
+            else:  # Second attempt also failed
+                error_detail = resp.text[:500] if resp.text else "No error details"
+                raise RuntimeError(f"OpenAI HTTP {resp.status_code}: {error_detail}")
+        except requests.exceptions.Timeout:
+            if attempt == 0:
+                print("OpenAI timeout, retrying...")
+                continue
+            else:
+                raise RuntimeError("OpenAI request timeout after retry")
+        except requests.exceptions.RequestException as e:
+            if attempt == 0:
+                print(f"OpenAI request error, retrying: {e}")
+                continue
+            else:
+                raise RuntimeError(f"OpenAI request failed: {e}")
 
     data = resp.json()
     out_text = data.get("choices", [{}])[0].get("message", {}).get("content", "")
