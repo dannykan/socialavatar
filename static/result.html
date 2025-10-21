@@ -181,6 +181,17 @@
         const { getAuth, signOut, onAuthStateChanged } = authModule;
         const { getFirestore, doc, deleteDoc, setDoc, serverTimestamp, deleteField } = firestoreModule;
 
+
+      try {
+        const [{ initializeApp }, authModule, firestoreModule] = await Promise.all([
+          import('https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js'),
+          import('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js'),
+          import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js')
+        ]);
+
+        const { getAuth, signOut, onAuthStateChanged } = authModule;
+        const { getFirestore, doc, deleteDoc } = firestoreModule;
+
         const firebaseConfig = {
           apiKey: "AIzaSyBI2-4yEwzxvYOvui9FZiGAzCE22OhKmU8",
           authDomain: "social-avatar-d13c8.firebaseapp.com",
@@ -191,6 +202,7 @@
         };
 
         const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
+        const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
 
@@ -254,6 +266,31 @@
               console.error('[ERROR] Failed to scrub Firestore data:', fallbackError);
             }
           }
+        });
+
+        let userId = authUser?.uid || null;
+        if (!userId) {
+          try {
+            const savedUser = sessionStorage.getItem('user');
+            if (savedUser) {
+              const parsed = JSON.parse(savedUser);
+              if (parsed?.uid) {
+                userId = parsed.uid;
+              }
+            }
+          } catch (parseError) {
+            console.warn('[WARN] Failed to parse session user:', parseError);
+          }
+        }
+
+        if (userId) {
+          try {
+            console.log('[DEBUG] Deleting Firestore document for:', userId);
+            await deleteDoc(doc(db, 'users', userId));
+            console.log('[DEBUG] ✅ Firestore document deleted');
+          } catch (firestoreError) {
+            console.error('[ERROR] Failed to delete Firestore:', firestoreError);
+          }
         } else {
           console.warn('[WARN] No user ID available for Firestore cleanup');
         }
@@ -281,11 +318,20 @@
           console.error('[ERROR] Sign out error:', signOutError);
         }
 
+
+        try {
+          await signOut(auth);
+          console.log('[DEBUG] ✅ User signed out');
+        } catch (signOutError) {
+          console.error('[ERROR] Sign out error:', signOutError);
+        }
+
         alert('✅ 已清除所有資料並登出\n\n請重新登入以開始新的分析。');
         window.location.href = '/static/landing.html';
       } catch (error) {
         console.error('[ERROR] Clear and restart failed:', error);
         alert('❌ 清除失敗：' + (error?.message || error) + '\n\n請手動登出後再試一次。');
+        alert('❌ 清除失敗：' + error.message + '\n\n請手動登出後再試一次。');
         if (btn) {
           btn.disabled = false;
           btn.textContent = originalLabel;
