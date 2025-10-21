@@ -580,14 +580,22 @@
           hasPosts
         });
         
-        // 如果沒有提取到關鍵資料，顯示警告
+        // 如果沒有提取到關鍵資料，跳回 upload 頁面
         if (!hasUsername && !hasDisplayName) {
-          console.warn('[WARN] No username or display name extracted');
-          alert('⚠️ 無法從截圖中提取用戶名或顯示名稱\n\n請確保上傳的是完整的 IG 個人頁截圖，包含：\n• 用戶名 (@username)\n• 顯示名稱\n• 個人簡介 (bio)\n• 粉絲數、追蹤數、貼文數\n\n建議重新截圖並上傳。');
-        } else if (!hasFollowers || !hasFollowing || !hasPosts) {
-          console.warn('[WARN] Missing some profile statistics');
-          alert('⚠️ 無法完整提取個人頁面統計資料\n\n截圖可能不完整，建議重新截圖確保包含：\n• 粉絲數\n• 追蹤數\n• 貼文數\n\n分析將繼續，但結果可能不準確。');
+          console.warn('[WARN] No username or display name extracted - redirecting to upload');
+          alert('❌ 無法從截圖中提取用戶名或顯示名稱\n\n請確保上傳的是完整的 IG 個人頁截圖，包含：\n• 用戶名 (@username)\n• 顯示名稱\n• 個人簡介 (bio)\n• 粉絲數、追蹤數、貼文數\n\n將返回上傳頁面，請重新截圖並上傳。');
+          window.location.href = '/static/upload.html';
+          return;
         }
+        
+        if (!hasFollowers || !hasFollowing || !hasPosts) {
+          console.warn('[WARN] Missing profile statistics - redirecting to upload');
+          alert('❌ 無法完整提取個人頁面統計資料\n\n截圖可能不完整，請重新截圖確保包含：\n• 粉絲數\n• 追蹤數\n• 貼文數\n\n將返回上傳頁面，請重新截圖並上傳。');
+          window.location.href = '/static/upload.html';
+          return;
+        }
+        
+        console.log('[DEBUG] ✅ All required data extracted successfully');
         
         // Store user info along with result
         data.user = {
