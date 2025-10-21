@@ -378,7 +378,7 @@
       const profileInput = document.getElementById('profile');
       const postsInput = document.getElementById('posts');
       
-      if (profileInput) {
+      if (profileInput && !profileInput.hasAttribute('data-listener-added')) {
         console.log('Adding event listener to profile input');
         profileInput.addEventListener('change', function(e) {
           console.log('Profile file selected:', e.target.files.length, 'files');
@@ -387,14 +387,18 @@
           if (e.target.files.length > 0) {
             selectedFiles.profile = e.target.files[0];
             console.log('Calling createImagePreview with file:', e.target.files[0].name);
+            console.log('Container exists:', !!document.getElementById('profilePreview'));
             createImagePreview(e.target.files[0], 'profilePreview');
           }
         });
+        profileInput.setAttribute('data-listener-added', 'true');
+      } else if (profileInput) {
+        console.log('Profile input listener already added');
       } else {
         console.error('Profile input not found');
       }
       
-      if (postsInput) {
+      if (postsInput && !postsInput.hasAttribute('data-listener-added')) {
         postsInput.addEventListener('change', function(e) {
           console.log('Posts files selected:', e.target.files.length);
           clearPreviews('postsPreview');
@@ -403,30 +407,20 @@
             createImagePreview(file, 'postsPreview', index);
           });
         });
+        postsInput.setAttribute('data-listener-added', 'true');
+      } else if (postsInput) {
+        console.log('Posts input listener already added');
       } else {
         console.error('Posts input not found');
       }
     }
     
-    // 立即嘗試設置事件監聽器
-    setupFileListeners();
-    
-    // 如果元素還沒準備好，使用 DOMContentLoaded 作為備用
+    // 等待 DOM 完全載入後設置事件監聽器
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', setupFileListeners);
+    } else {
+      setupFileListeners();
     }
-    
-    // 額外的備用機制：如果前兩次都失敗，使用 setTimeout
-    setTimeout(() => {
-      const profileInput = document.getElementById('profile');
-      const postsInput = document.getElementById('posts');
-      if (profileInput && !profileInput.hasAttribute('data-listener-added')) {
-        console.log('Adding fallback event listeners');
-        setupFileListeners();
-        if (profileInput) profileInput.setAttribute('data-listener-added', 'true');
-        if (postsInput) postsInput.setAttribute('data-listener-added', 'true');
-      }
-    }, 100);
 
     window.startAnalyze = async function() {
       const errBox = document.getElementById('err');
