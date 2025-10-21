@@ -389,11 +389,24 @@
           const files = e.target.files;
           if (files.length > 0) {
             console.log('✅ Files length > 0, proceeding...');
-            clearPreviews('profilePreview');
-            selectedFiles.profile = files[0];
-            console.log('Calling createImagePreview with file:', files[0].name);
-            console.log('Container exists:', !!document.getElementById('profilePreview'));
-            createImagePreview(files[0], 'profilePreview');
+            console.log('File object:', files[0]);
+            console.log('File name:', files[0] ? files[0].name : 'undefined');
+            
+            // 先清除預覽容器，但不清除文件輸入
+            const container = document.getElementById('profilePreview');
+            if (container) {
+              container.innerHTML = '';
+            }
+            
+            // 確保文件對象存在
+            if (files[0]) {
+              selectedFiles.profile = files[0];
+              console.log('Calling createImagePreview with file:', files[0].name);
+              console.log('Container exists:', !!document.getElementById('profilePreview'));
+              createImagePreview(files[0], 'profilePreview');
+            } else {
+              console.error('❌ files[0] is undefined!');
+            }
           } else {
             console.log('❌ No files selected or files.length = 0');
           }
