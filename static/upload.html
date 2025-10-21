@@ -267,6 +267,11 @@
     
     function createImagePreview(file, containerId, index = null) {
       const container = document.getElementById(containerId);
+      if (!container) {
+        console.error('Container not found:', containerId);
+        return;
+      }
+      
       const reader = new FileReader();
       
       reader.onload = function(e) {
@@ -279,6 +284,7 @@
           <div class="preview-filename">${file.name}</div>
         `;
         container.appendChild(previewItem);
+        console.log('Preview created for:', file.name);
       };
       
       reader.readAsDataURL(file);
@@ -339,21 +345,39 @@
     // 將函數設為全域，以便 HTML 中的 onclick 可以調用
     window.removePreview = removePreview;
     
-    // 監聽文件選擇
-    document.getElementById('profile').addEventListener('change', function(e) {
-      clearPreviews('profilePreview');
-      if (e.target.files.length > 0) {
-        selectedFiles.profile = e.target.files[0];
-        createImagePreview(e.target.files[0], 'profilePreview');
+    // 等待 DOM 載入完成後再添加事件監聽器
+    document.addEventListener('DOMContentLoaded', function() {
+      console.log('DOM loaded, setting up file listeners');
+      
+      // 監聽文件選擇
+      const profileInput = document.getElementById('profile');
+      const postsInput = document.getElementById('posts');
+      
+      if (profileInput) {
+        profileInput.addEventListener('change', function(e) {
+          console.log('Profile file selected:', e.target.files.length);
+          clearPreviews('profilePreview');
+          if (e.target.files.length > 0) {
+            selectedFiles.profile = e.target.files[0];
+            createImagePreview(e.target.files[0], 'profilePreview');
+          }
+        });
+      } else {
+        console.error('Profile input not found');
       }
-    });
-    
-    document.getElementById('posts').addEventListener('change', function(e) {
-      clearPreviews('postsPreview');
-      selectedFiles.posts = Array.from(e.target.files);
-      selectedFiles.posts.forEach((file, index) => {
-        createImagePreview(file, 'postsPreview', index);
-      });
+      
+      if (postsInput) {
+        postsInput.addEventListener('change', function(e) {
+          console.log('Posts files selected:', e.target.files.length);
+          clearPreviews('postsPreview');
+          selectedFiles.posts = Array.from(e.target.files);
+          selectedFiles.posts.forEach((file, index) => {
+            createImagePreview(file, 'postsPreview', index);
+          });
+        });
+      } else {
+        console.error('Posts input not found');
+      }
     });
 
     window.startAnalyze = async function() {
