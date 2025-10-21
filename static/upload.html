@@ -304,12 +304,14 @@
         container.appendChild(previewItem);
         console.log('Preview element added to container:', containerId);
         console.log('Container now has', container.children.length, 'children');
+        console.log('Preview item HTML:', previewItem.outerHTML);
       };
       
       reader.onerror = function(e) {
         console.error('FileReader error:', e);
       };
       
+      console.log('Starting FileReader.readAsDataURL for file:', file.name);
       reader.readAsDataURL(file);
     }
     
@@ -368,9 +370,9 @@
     // 將函數設為全域，以便 HTML 中的 onclick 可以調用
     window.removePreview = removePreview;
     
-    // 等待 DOM 載入完成後再添加事件監聽器
-    document.addEventListener('DOMContentLoaded', function() {
-      console.log('DOM loaded, setting up file listeners');
+    // 設置事件監聽器的函數
+    function setupFileListeners() {
+      console.log('Setting up file listeners');
       
       // 監聽文件選擇
       const profileInput = document.getElementById('profile');
@@ -404,7 +406,27 @@
       } else {
         console.error('Posts input not found');
       }
-    });
+    }
+    
+    // 立即嘗試設置事件監聽器
+    setupFileListeners();
+    
+    // 如果元素還沒準備好，使用 DOMContentLoaded 作為備用
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', setupFileListeners);
+    }
+    
+    // 額外的備用機制：如果前兩次都失敗，使用 setTimeout
+    setTimeout(() => {
+      const profileInput = document.getElementById('profile');
+      const postsInput = document.getElementById('posts');
+      if (profileInput && !profileInput.hasAttribute('data-listener-added')) {
+        console.log('Adding fallback event listeners');
+        setupFileListeners();
+        if (profileInput) profileInput.setAttribute('data-listener-added', 'true');
+        if (postsInput) postsInput.setAttribute('data-listener-added', 'true');
+      }
+    }, 100);
 
     window.startAnalyze = async function() {
       const errBox = document.getElementById('err');
