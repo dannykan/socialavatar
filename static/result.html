@@ -55,6 +55,40 @@
       border-color: var(--border-light);
     }
     
+    .mbti-image-container {
+      text-align: center;
+      margin-bottom: var(--spacing-lg);
+      padding: var(--spacing);
+      background: var(--bg-secondary);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border);
+    }
+    
+    .mbti-image {
+      max-width: 100%;
+      height: auto;
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-md);
+      transition: var(--transition);
+    }
+    
+    .mbti-image:hover {
+      transform: scale(1.02);
+      box-shadow: var(--shadow-lg);
+    }
+    
+    .mbti-image-placeholder {
+      width: 100%;
+      height: 300px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg);
+      border-radius: var(--radius-md);
+      color: var(--muted);
+      font-size: var(--font-size-sm);
+    }
+    
     .result-header {
       display: flex;
       align-items: center;
@@ -138,6 +172,10 @@
       .action-buttons .btn {
         width: 100%;
       }
+      
+      .mbti-image-container {
+        padding: var(--spacing-sm);
+      }
     }
   </style>
   <script>
@@ -185,6 +223,9 @@
       const genderText = genderMap[data.gender] || '—';
       di('#gender', genderText);
 
+      // 載入 MBTI 圖片
+      loadMBTIImage(data.mbti, data.gender);
+
       const mbti = data.mbti || '';
       const badge = document.querySelector('.mbti-badge');
       if (badge && mbti) {
@@ -193,6 +234,46 @@
         badge.style.background = color + '33';
         badge.style.borderColor = color + '88';
       }
+    }
+
+    // 載入 MBTI 圖片的函數
+    function loadMBTIImage(mbti, gender) {
+      const imageEl = document.getElementById('mbtiImage');
+      const placeholderEl = document.getElementById('mbtiImagePlaceholder');
+      
+      if (!mbti || !gender) {
+        placeholderEl.textContent = '無法載入圖片：缺少 MBTI 或性別資訊';
+        return;
+      }
+
+      // 確保 MBTI 類型是大寫
+      const mbtiType = String(mbti).toUpperCase().trim();
+      
+      // 根據你的命名規則：MBTI_gender.png
+      // 例如：ENFJ_male.png 或 INTJ_female.png
+      const imagePath = `/static/images/mbti/${mbtiType}_${gender}.png`;
+      
+      console.log('[DEBUG] Loading MBTI image:', imagePath);
+      
+      // 預載圖片
+      const img = new Image();
+      
+      img.onload = function() {
+        console.log('[DEBUG] ✅ MBTI image loaded successfully');
+        const genderMap = { 'male': '男性', 'female': '女性' };
+        imageEl.src = imagePath;
+        imageEl.alt = `${mbtiType} ${genderMap[gender] || ''}角色圖`;
+        imageEl.style.display = 'block';
+        placeholderEl.style.display = 'none';
+      };
+      
+      img.onerror = function() {
+        console.error('[ERROR] ❌ Failed to load MBTI image:', imagePath);
+        placeholderEl.textContent = `無法載入 ${mbtiType} 圖片`;
+        placeholderEl.style.color = 'var(--error)';
+      };
+      
+      img.src = imagePath;
     }
 
     async function loadResult() {
@@ -404,6 +485,14 @@
     
     <div class="result-grid">
       <div class="result-card">
+        <!-- MBTI 圖片區塊 -->
+        <div class="mbti-image-container" id="mbtiImageContainer">
+          <img id="mbtiImage" class="mbti-image" src="" alt="MBTI 角色圖" style="display: none;">
+          <div id="mbtiImagePlaceholder" class="mbti-image-placeholder">
+            載入中...
+          </div>
+        </div>
+        
         <div class="result-header">
           <span class="mbti-badge" id="mbti">—</span>
           <h2 class="user-name" id="display_name">使用者</h2>
