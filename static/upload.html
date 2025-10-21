@@ -26,6 +26,245 @@
     .err{background:#7f1d1d;color:#fecaca;border:1px solid #ef4444;padding:12px;border-radius:10px;display:none;margin-top:10px;white-space:pre-wrap}
     .ok{background:#052e1a;color:#bbf7d0;border:1px solid #22c55e;padding:12px;border-radius:10px;display:none;margin-top:10px}
   </style>
+</head>
+<body>
+  <header>
+    <div><strong>Social Avatar</strong></div>
+    <div class="user-badge" id="userBadge">載入中...</div>
+  </header>
+
+  <main>
+    <h1>上傳素材</h1>
+    <p class="muted">只需兩步：<br>① 上傳 IG 個人頁截圖（必填）<br>②（可選）上傳 1～6 張最近貼文首圖，有助 AI 更準確。</p>
+
+    <div class="card">
+      <label>IG 個人頁截圖（必填）</label>
+      <input id="profile" type="file" accept="image/*" required />
+      <p class="hint">📸 圖像清晰、包含名稱、bio、粉絲/追蹤/貼文數。建議長邊 &lt;= 3000px。</p>
+    </div>
+
+    <div class="card">
+      <label>貼文首圖（選填，可多選）</label>
+      <input id="posts" type="file" accept="image/*" multiple />
+      <p class="hint">🖼️ 可上傳 1～6 張，系統會自動壓縮以節省用量。</p>
+    </div>
+
+    <div class="row">
+      <button class="primary" onclick="startAnalyze()">🚀 開始分析</button>
+      <a class="ghost" href="/static/landing.html">← 返回首頁</a>
+      <a class="ghost" href="/health" target="_blank">系統狀態</a>
+    </div>
+
+    <div id="err" class="err"></div>
+    <div id="ok" class="ok"></div>
+  </main>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+    import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+    import { getFirestore, doc, setDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+    // Firebase config
+    const firebaseConfig = {
+      apiKey: "AIzaSyBI2-4yEwzxvYOvui9FZiGAzCE22OhKmU8",
+      authDomain: "social-avatar-d13c8.firebaseapp.com",
+      projectId: "social-avatar-d13c8",
+      storageBucket: "social-avatar-d13c8.appspot.com",
+      messagingSenderId: "280598358339",
+      appId: "1:280598358339:web:214a0d4ca53793163367f6"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    console.log('[DEBUG] Firebase initialized in upload.html');
+    console.log('[DEBUG] Firebase Auth:', auth);
+    console.log('[DEBUG] Firestore:', db);
+
+    let currentAuthUser = null;
+
+    // Wait for auth state to be ready
+    onAuthStateChanged(auth, (user) => {
+      console.log('[DEBUG] Auth state changed. User:', user ? user.uid : 'None');
+      currentAuthUser = user;
+      
+      if (!user) {
+        console.error('[ERROR] No authenticated user! Redirecting to login...');
+        alert('請先登入');
+        window.location.href = '/static/landing.html';
+      } else {
+        console.log('[DEBUG] ✅ User authenticated:', user.email);
+        // Update user badge
+        const userBadge = document.getElementById('userBadge');
+        if (userBadge) {
+          if (user.photoURL) {
+            userBadge.innerHTML = `
+              <img class="user-avatar" src="${user.photoURL}" alt="User">
+              <span>${user.displayName || user.email}</span>
+            `;
+          } else {
+            userBadge.innerHTML = `<span>👤 ${user.displayName || user.email}</span>`;
+          }
+        }
+      }
+    });
+
+    window.startAnalyze = async function() {
+      const errBox = document.getElementById('err');
+      const okBox = document.getElementById('ok');
+      errBox.style.display = 'none';
+      okBox.style.display = 'none';
+
+      const form = new FormData();
+      const profile = document.querySelector('#profile').files[0];
+      
+      if (!profile) {
+        alert('請先上傳 IG 個人頁截圖');
+        return;
+      }
+      
+      form.append('profile', profile);
+
+      const posts = document.querySelector('#posts').files;
+      for (let i = 0; i < Math.min(posts.length, 6); i++) {
+        form.append('posts', posts[i]);
+      }
+
+      okBox.textContent = '上傳中，請稍候...';
+      okBox.style.display = 'block';
+
+      try {
+        console.log('[DEBUG] Sending analysis request to backend...');
+        
+        const res = await fetch('/bd/analyze', {
+          method: 'POST',
+          body: form
+        });
+
+        const data = await res.json();
+        
+        console.log('[DEBUG] Backend response:', data);
+
+        if (!data.ok) {
+          console.error('[ERROR] Analysis failed:', data);
+          errBox.textContent = '分析失敗：' + (data.error || 'server error');
+          errBox.style.display = 'block';
+          okBox.style.display = 'none';
+          return;
+        }
+
+        console.log('[DEBUG] Analysis successful, saving to Firestore...');
+        console.log('[DEBUG] 🔥 Current Auth User:', currentAuthUser);
+        
+        if (!currentAuthUser) {
+          console.error('[ERROR] No authenticated user!');
+          alert('⚠️ 未登入，無法儲存結果。請重新登入。');
+          errBox.textContent = '未登入，無法儲存結果';
+          errBox.style.display = 'block';
+          okBox.style.display = 'none';
+          return;
+        }
+
+        // Store user info along with result
+        data.user = {
+          uid: currentAuthUser.uid,
+          email: currentAuthUser.email,
+          displayName: currentAuthUser.displayName,
+          photoURL: currentAuthUser.photoURL
+        };
+        data.timestamp = new Date().toISOString();
+
+        console.log('[DEBUG] User UID:', currentAuthUser.uid);
+        console.log('[DEBUG] User email:', currentAuthUser.email);
+        console.log('[DEBUG] Data to save:', data);
+
+        // Save to Firestore
+        try {
+          console.log('[DEBUG] 1️⃣ Creating document reference...');
+          const userDocRef = doc(db, 'users', currentAuthUser.uid);
+          console.log('[DEBUG] 2️⃣ Document reference created:', userDocRef.path);
+          
+          const firestoreData = {
+            uid: currentAuthUser.uid,
+            email: currentAuthUser.email,
+            displayName: currentAuthUser.displayName,
+            photoURL: currentAuthUser.photoURL,
+            hasAnalysis: true,
+            latestAnalysis: {
+              ok: data.ok,
+              mbti: data.mbti,
+              display_name: data.display_name,
+              username: data.username,
+              followers: data.followers,
+              following: data.following,
+              posts: data.posts,
+              summary: data.summary,
+              vehicle: data.vehicle,
+              diagnose: data.diagnose,
+              timestamp: serverTimestamp()
+            },
+            updatedAt: serverTimestamp()
+          };
+          
+          console.log('[DEBUG] 3️⃣ Prepared Firestore data:', firestoreData);
+          console.log('[DEBUG] 4️⃣ Calling setDoc...');
+          
+          await setDoc(userDocRef, firestoreData);
+          
+          console.log('[DEBUG] 5️⃣ ✅✅✅ Successfully saved to Firestore!');
+          console.log('[DEBUG] 6️⃣ Document path:', `users/${currentAuthUser.uid}`);
+          console.log('[DEBUG] 7️⃣ Check Firestore Console now!');
+        } catch (firestoreError) {
+          console.error('[ERROR] ❌❌❌ Failed to save to Firestore');
+          console.error('[ERROR] Error object:', firestoreError);
+          console.error('[ERROR] Error name:', firestoreError.name);
+          console.error('[ERROR] Error code:', firestoreError.code);
+          console.error('[ERROR] Error message:', firestoreError.message);
+          console.error('[ERROR] Full error:', JSON.stringify(firestoreError, null, 2));
+          
+          // Show alert to user
+          alert('⚠️ 分析完成，但儲存到雲端時發生錯誤。\n\n錯誤：' + firestoreError.message + '\n\n請查看 Console (F12) 了解詳情。\n\n你仍可以查看結果，但下次登入時可能需要重新分析。');
+        }
+
+        // Store in sessionStorage for result.html
+        sessionStorage.setItem('sa_result', JSON.stringify(data));
+        
+        okBox.textContent = '已送出，前往分析中畫面…';
+        setTimeout(() => location.href = '/static/loading.html', 400);
+        
+      } catch (e) {
+        console.error('[ERROR] Network error:', e);
+        errBox.textContent = '網路錯誤：' + e.message;
+        errBox.style.display = 'block';
+        okBox.style.display = 'none';
+      }
+    };
+  </script>
+</body>
+</html>
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
+         margin:0;background:#0b1220;color:#e5e7eb;min-height:100vh}
+    header{padding:16px 20px;border-bottom:1px solid #1f2937;background:#0b1220;position:sticky;top:0;display:flex;justify-content:space-between;align-items:center}
+    .user-badge{background:#065f46;color:#d1fae5;padding:6px 12px;border-radius:8px;font-size:13px;display:flex;align-items:center;gap:8px}
+    .user-avatar{width:24px;height:24px;border-radius:50%;object-fit:cover}
+    main{max-width:760px;margin:0 auto;padding:20px}
+    .card{background:#111827;border:1px solid #1f2937;border-radius:14px;padding:18px;margin:14px 0}
+    h1{margin:6px 0 0}
+    .muted{opacity:.8}
+    label{display:block;margin:10px 0 6px;font-weight:600}
+    input[type=file]{width:100%;background:#0b1220;border:1px dashed #374151;border-radius:10px;padding:14px;color:#e5e7eb;cursor:pointer}
+    input[type=file]:hover{border-color:#22d3ee}
+    .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+    button{border:0;border-radius:12px;padding:12px 16px;font-weight:600;cursor:pointer}
+    .primary{background:#22d3ee;color:#0b1220}
+    .primary:hover{filter:brightness(1.1)}
+    .ghost{background:transparent;border:1px solid #374151;color:#e5e7eb}
+    .hint{font-size:13px;opacity:.8;margin-top:6px}
+    .err{background:#7f1d1d;color:#fecaca;border:1px solid #ef4444;padding:12px;border-radius:10px;display:none;margin-top:10px;white-space:pre-wrap}
+    .ok{background:#052e1a;color:#bbf7d0;border:1px solid #22c55e;padding:12px;border-radius:10px;display:none;margin-top:10px}
+  </style>
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
     import { getFirestore, doc, setDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
