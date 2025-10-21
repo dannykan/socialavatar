@@ -4,59 +4,158 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>上傳素材｜Social Avatar</title>
+  <link rel="stylesheet" href="/static/app.css">
   <style>
-    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
-         margin:0;background:#0b1220;color:#e5e7eb;min-height:100vh}
-    header{padding:16px 20px;border-bottom:1px solid #1f2937;background:#0b1220;position:sticky;top:0;display:flex;justify-content:space-between;align-items:center}
-    .user-badge{background:#065f46;color:#d1fae5;padding:6px 12px;border-radius:8px;font-size:13px;display:flex;align-items:center;gap:8px}
-    .user-avatar{width:24px;height:24px;border-radius:50%;object-fit:cover}
-    main{max-width:760px;margin:0 auto;padding:20px}
-    .card{background:#111827;border:1px solid #1f2937;border-radius:14px;padding:18px;margin:14px 0}
-    h1{margin:6px 0 0}
-    .muted{opacity:.8}
-    label{display:block;margin:10px 0 6px;font-weight:600}
-    input[type=file]{width:100%;background:#0b1220;border:1px dashed #374151;border-radius:10px;padding:14px;color:#e5e7eb;cursor:pointer}
-    input[type=file]:hover{border-color:#22d3ee}
-    .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
-    button{border:0;border-radius:12px;padding:12px 16px;font-weight:600;cursor:pointer}
-    .primary{background:#22d3ee;color:#0b1220}
-    .primary:hover{filter:brightness(1.1)}
-    .ghost{background:transparent;border:1px solid #374151;color:#e5e7eb}
-    .hint{font-size:13px;opacity:.8;margin-top:6px}
-    .err{background:#7f1d1d;color:#fecaca;border:1px solid #ef4444;padding:12px;border-radius:10px;display:none;margin-top:10px;white-space:pre-wrap}
-    .ok{background:#052e1a;color:#bbf7d0;border:1px solid #22c55e;padding:12px;border-radius:10px;display:none;margin-top:10px}
+    body {
+      background: var(--bg);
+      min-height: 100vh;
+    }
+    
+    .header {
+      padding: var(--spacing) var(--spacing-md);
+      border-bottom: 1px solid var(--border);
+      background: var(--bg);
+      position: sticky;
+      top: 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      backdrop-filter: blur(8px);
+      z-index: 100;
+    }
+    
+    .user-badge {
+      background: rgba(6, 95, 70, 0.2);
+      color: #d1fae5;
+      padding: var(--spacing-sm) var(--spacing);
+      border-radius: var(--radius);
+      font-size: var(--font-size-sm);
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+      border: 1px solid rgba(34, 197, 94, 0.3);
+    }
+    
+    .user-avatar {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+    
+    .container {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: var(--spacing-lg);
+    }
+    
+    .page-title {
+      margin: 0 0 var(--spacing);
+      font-size: var(--font-size-2xl);
+      font-weight: 700;
+      color: var(--text);
+    }
+    
+    .page-description {
+      opacity: 0.8;
+      margin-bottom: var(--spacing-lg);
+      font-size: var(--font-size-lg);
+      line-height: 1.6;
+    }
+    
+    .upload-section {
+      margin-bottom: var(--spacing-lg);
+    }
+    
+    .upload-hint {
+      font-size: var(--font-size-xs);
+      opacity: 0.8;
+      margin-top: var(--spacing-sm);
+      color: var(--muted);
+    }
+    
+    .action-buttons {
+      display: flex;
+      gap: var(--spacing);
+      flex-wrap: wrap;
+      margin-top: var(--spacing-lg);
+    }
+    
+    @media (max-width: 768px) {
+      .action-buttons {
+        flex-direction: column;
+      }
+      
+      .action-buttons .btn {
+        width: 100%;
+      }
+    }
   </style>
 </head>
 <body>
-  <header>
+  <header class="header">
     <div><strong>Social Avatar</strong></div>
     <div class="user-badge" id="userBadge">載入中...</div>
   </header>
 
-  <main>
-    <h1>上傳素材</h1>
-    <p class="muted">只需兩步：<br>① 上傳 IG 個人頁截圖（必填）<br>②（可選）上傳 1～6 張最近貼文首圖，有助 AI 更準確。</p>
+  <main class="container">
+    <h1 class="page-title">上傳素材</h1>
+    <p class="page-description">只需兩步：<br>① 上傳 IG 個人頁截圖（必填）<br>②（可選）上傳 1～6 張最近貼文首圖，有助 AI 更準確。</p>
 
-    <div class="card">
-      <label>IG 個人頁截圖（必填）</label>
-      <input id="profile" type="file" accept="image/*" required />
-      <p class="hint">📸 圖像清晰、包含名稱、bio、粉絲/追蹤/貼文數。建議長邊 &lt;= 3000px。</p>
+    <div class="card upload-section">
+      <div class="form-group">
+        <label class="form-label">IG 個人頁截圖（必填）</label>
+        <div class="file-upload">
+          <input id="profile" type="file" accept="image/*" required />
+          <div>
+            <div style="font-size: 24px; margin-bottom: 8px;">📸</div>
+            <div>點擊選擇 IG 個人頁截圖</div>
+            <div style="font-size: 12px; opacity: 0.7; margin-top: 4px;">建議長邊 ≤ 3000px</div>
+          </div>
+        </div>
+        <p class="upload-hint">圖像清晰、包含名稱、bio、粉絲/追蹤/貼文數</p>
+      </div>
     </div>
 
-    <div class="card">
-      <label>貼文首圖（選填，可多選）</label>
-      <input id="posts" type="file" accept="image/*" multiple />
-      <p class="hint">🖼️ 可上傳 1～6 張，系統會自動壓縮以節省用量。</p>
+    <div class="card upload-section">
+      <div class="form-group">
+        <label class="form-label">貼文首圖（選填，可多選）</label>
+        <div class="file-upload">
+          <input id="posts" type="file" accept="image/*" multiple />
+          <div>
+            <div style="font-size: 24px; margin-bottom: 8px;">🖼️</div>
+            <div>點擊選擇貼文首圖（可多選）</div>
+            <div style="font-size: 12px; opacity: 0.7; margin-top: 4px;">最多 6 張</div>
+          </div>
+        </div>
+        <p class="upload-hint">可上傳 1～6 張，系統會自動壓縮以節省用量</p>
+      </div>
     </div>
 
-    <div class="row">
-      <button class="primary" onclick="startAnalyze()">🚀 開始分析</button>
-      <a class="ghost" href="/static/landing.html">← 返回首頁</a>
-      <a class="ghost" href="/health" target="_blank">系統狀態</a>
+    <div class="action-buttons">
+      <button class="btn btn-primary" onclick="startAnalyze()">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+        </svg>
+        開始分析
+      </button>
+      <a class="btn btn-ghost" href="/static/landing.html">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M19 12H5M12 19l-7-7 7-7"/>
+        </svg>
+        返回首頁
+      </a>
+      <a class="btn btn-ghost" href="/health" target="_blank">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M12 6v6l4 2"/>
+        </svg>
+        系統狀態
+      </a>
     </div>
 
-    <div id="err" class="err"></div>
-    <div id="ok" class="ok"></div>
+    <div id="err" class="status-error hidden"></div>
+    <div id="ok" class="status-success hidden"></div>
   </main>
 
   <script type="module">

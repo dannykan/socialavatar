@@ -4,30 +4,157 @@
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>分析結果｜Social Avatar</title>
+  <link rel="stylesheet" href="/static/app.css">
   <style>
-    :root{
-      --bg:#0b1220; --card:#0f172a; --border:#1f2937; --text:#e5e7eb;
-      --accent:#22d3ee; --muted:#94a3b8;
+    body {
+      background: radial-gradient(1000px 600px at -10% -10%, var(--primary-dark) 0, transparent 60%),
+                  radial-gradient(1200px 600px at 110% 0%, var(--secondary) 0, transparent 60%),
+                  var(--bg);
+      min-height: 100vh;
     }
-    body{margin:0;background:radial-gradient(1000px 600px at -10% -10%, #0ea5e9 0, transparent 60%),
-                   radial-gradient(1200px 600px at 110% 0%, #9333ea 0, transparent 60%),
-                   var(--bg);
-         color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;min-height:100vh}
-    header{padding:16px 20px;border-bottom:1px solid var(--border);background:#0b1220aa;backdrop-filter:blur(6px);position:sticky;top:0}
-    main{max-width:900px;margin:0 auto;padding:20px}
-    .grid{display:grid;grid-template-columns:1.1fr .9fr;gap:16px}
-    @media (max-width:860px){.grid{grid-template-columns:1fr;}}
-    .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px}
-    .title{display:flex;align-items:center;gap:10px;margin:2px 0 10px;flex-wrap:wrap}
-    .badge{padding:6px 10px;border-radius:999px;font-weight:700;background:#1f2937;color:#e2e8f0;border:1px solid #334155}
-    .vehicle{font-weight:700;padding:8px 12px;border-radius:10px;background:#052e1a;border:1px solid #14532d;color:#bbf7d0;display:inline-block}
-    .muted{color:var(--muted)}
-    .buttons{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
-    button,.btn{border:0;border-radius:12px;padding:12px 16px;font-weight:600;cursor:pointer;text-decoration:none;display:inline-block}
-    .btn-primary{background:var(--accent);color:#0b1220}
-    .btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text)}
-    pre{white-space:pre-wrap;background:#0b1220;border:1px solid var(--border);padding:10px;border-radius:8px;font-size:12px}
-    .err{background:#7f1d1d;color:#fecaca;border:1px solid #ef4444;padding:12px;border-radius:10px;margin:10px 0}
+    
+    .header {
+      padding: var(--spacing) var(--spacing-md);
+      border-bottom: 1px solid var(--border);
+      background: rgba(11, 18, 32, 0.8);
+      backdrop-filter: blur(8px);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: var(--spacing-lg);
+    }
+    
+    .result-grid {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: var(--spacing);
+    }
+    
+    @media (max-width: 860px) {
+      .result-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+    
+    .result-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: var(--spacing-lg);
+      box-shadow: var(--shadow-md);
+      transition: var(--transition);
+    }
+    
+    .result-card:hover {
+      box-shadow: var(--shadow-lg);
+      border-color: var(--border-light);
+    }
+    
+    .result-header {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing);
+      margin-bottom: var(--spacing);
+      flex-wrap: wrap;
+    }
+    
+    .mbti-badge {
+      padding: var(--spacing-sm) var(--spacing);
+      border-radius: 999px;
+      font-weight: 700;
+      background: var(--bg-secondary);
+      color: var(--text);
+      border: 1px solid var(--border-light);
+      font-size: var(--font-size-sm);
+    }
+    
+    .user-name {
+      margin: 0;
+      font-size: var(--font-size-xl);
+      font-weight: 700;
+      color: var(--text);
+    }
+    
+    .user-handle {
+      color: var(--muted);
+      font-size: var(--font-size-sm);
+    }
+    
+    .stats {
+      color: var(--muted);
+      margin-bottom: var(--spacing);
+      font-size: var(--font-size-sm);
+    }
+    
+    .stats strong {
+      color: var(--text);
+      font-weight: 600;
+    }
+    
+    .summary {
+      line-height: 1.7;
+      margin-bottom: var(--spacing-lg);
+      font-size: var(--font-size);
+    }
+    
+    .vehicle-card {
+      background: rgba(5, 46, 26, 0.2);
+      border: 1px solid rgba(20, 83, 45, 0.3);
+      border-radius: var(--radius-md);
+      padding: var(--spacing);
+      margin-bottom: var(--spacing);
+    }
+    
+    .vehicle-name {
+      font-weight: 700;
+      color: #bbf7d0;
+      font-size: var(--font-size-lg);
+      margin: 0 0 var(--spacing-sm);
+    }
+    
+    .vehicle-hint {
+      color: var(--muted);
+      font-size: var(--font-size-sm);
+      margin: 0;
+    }
+    
+    .debug-section {
+      margin-top: var(--spacing);
+    }
+    
+    .debug-content {
+      white-space: pre-wrap;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      padding: var(--spacing);
+      border-radius: var(--radius);
+      font-size: var(--font-size-xs);
+      font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    
+    .action-buttons {
+      display: flex;
+      gap: var(--spacing);
+      flex-wrap: wrap;
+      margin-top: var(--spacing);
+    }
+    
+    @media (max-width: 768px) {
+      .action-buttons {
+        flex-direction: column;
+      }
+      
+      .action-buttons .btn {
+        width: 100%;
+      }
+    }
   </style>
   <script>
     let hasRedirected = false; // Prevent multiple redirects
@@ -71,7 +198,7 @@
       di('#summary', dn(data.summary || ''));
 
       const mbti = data.mbti || '';
-      const badge = document.querySelector('.badge');
+      const badge = document.querySelector('.mbti-badge');
       if (badge && mbti) {
         const colorMap = { E: '#22d3ee', I: '#a78bfa' };
         const color = colorMap[mbti[0]] || '#22c55e';
@@ -295,49 +422,67 @@
   </script>
 </head>
 <body>
-  <header>
-    <div style="display:flex;justify-content:space-between;align-items:center;">
+  <header class="header">
+    <div class="flex justify-between items-center">
       <div><strong>Social Avatar</strong></div>
-      <nav class="buttons">
-        <button class="btn btn-ghost" onclick="clearAndRestart(event)">清除並重新開始</button>
+      <nav class="action-buttons">
+        <button class="btn btn-ghost" onclick="clearAndRestart(event)">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+          </svg>
+          清除並重新開始
+        </button>
       </nav>
     </div>
   </header>
 
-  <main>
-    <h1 style="margin:10px 0 12px">分析結果</h1>
-    <div id="err" class="err" style="display:none"></div>
+  <main class="container">
+    <h1 class="page-title">分析結果</h1>
+    <div id="err" class="status-error hidden"></div>
     
-    <div class="grid">
-      <div class="card">
-        <div class="title">
-          <span class="badge" id="mbti">—</span>
-          <h2 style="margin:0" id="display_name">使用者</h2>
-          <span class="muted" id="username">—</span>
+    <div class="result-grid">
+      <div class="result-card">
+        <div class="result-header">
+          <span class="mbti-badge" id="mbti">—</span>
+          <h2 class="user-name" id="display_name">使用者</h2>
+          <span class="user-handle" id="username">—</span>
         </div>
-        <p class="muted">
+        <p class="stats">
           Followers / Following / Posts ： 
           <strong id="followers">—</strong> / 
           <strong id="following">—</strong> / 
           <strong id="posts">—</strong>
         </p>
-        <p style="line-height:1.7" id="summary">讀取中…</p>
-        <div class="buttons">
-          <button class="btn btn-primary" onclick="clearAndRestart(event)">清除並重新開始</button>
-          <a class="btn btn-ghost" href="/debug/last_ai" target="_blank">檢視原始 AI</a>
+        <p class="summary" id="summary">讀取中…</p>
+        <div class="action-buttons">
+          <button class="btn btn-primary" onclick="clearAndRestart(event)">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+            </svg>
+            清除並重新開始
+          </button>
+          <a class="btn btn-ghost" href="/debug/last_ai" target="_blank">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <path d="M12 6v6l4 2"/>
+            </svg>
+            檢視原始 AI
+          </a>
         </div>
       </div>
       
-      <div class="card">
-        <h3 style="margin-top:0">你的載具</h3>
-        <p class="vehicle" id="vehicle">—</p>
-        <p class="muted">（之後可解鎖更多造型與動畫）</p>
+      <div class="result-card">
+        <h3 class="card-title">你的載具</h3>
+        <div class="vehicle-card">
+          <div class="vehicle-name" id="vehicle">—</div>
+          <p class="vehicle-hint">（之後可解鎖更多造型與動畫）</p>
+        </div>
       </div>
     </div>
 
-    <details class="card" style="margin-top:14px">
-      <summary>診斷資訊（debug）</summary>
-      <pre id="diagnose_json">讀取中…</pre>
+    <details class="card debug-section">
+      <summary class="card-title">診斷資訊（debug）</summary>
+      <div class="debug-content" id="diagnose_json">讀取中…</div>
     </details>
   </main>
 </body>
