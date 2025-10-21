@@ -1,4 +1,4 @@
-# app.py — Fixed version
+# app.py — Fixed version with gender support
 import os, io, base64, json
 from datetime import datetime, timezone
 from flask import Flask, request, jsonify, send_from_directory
@@ -81,7 +81,7 @@ def pick_vehicle(followers: int) -> str:
 # -----------------------------------------------------------------------------
 # OpenAI
 # -----------------------------------------------------------------------------
-def call_openai_vision(profile_b64: str, posts_b64_list: list[str]):
+def call_openai_vision(profile_b64: str, posts_b64_list: list[str], gender: str = ""):
     if not OPENAI_API_KEY:
         raise RuntimeError("No OPENAI_API_KEY configured")
 
@@ -91,9 +91,16 @@ def call_openai_vision(profile_b64: str, posts_b64_list: list[str]):
         "Content-Type": "application/json",
     }
 
+    # 根據性別調整 prompt
+    gender_context = ""
+    if gender == "male":
+        gender_context = "此帳號使用者為男性。"
+    elif gender == "female":
+        gender_context = "此帳號使用者為女性。"
+
     sys_prompt = (
-        "你是一位社群人格分析師。請用『第一次打開 IG 個人頁』的直覺來判讀此帳號："
-        "只根據個人頁可見的資料（粉絲/追蹤/貼文數、名稱、自我介紹、首屏縮圖），"
+        f"你是一位社群人格分析師。{gender_context}"
+        "透過第一次打開 IG 個人頁，根據可見的資料（粉絲/追蹤/貼文數、名稱、自我介紹、提供截圖中的各個首圖縮圖），"
         "判斷對方的社群 MBTI 類型（如：INTP/ESFJ 等），並用自然、有個性的口吻，"
         "給一段約 200 字的分析說明（為什麼會這樣覺得）。不要用制式報表語氣。\n"
         "請務必只輸出 JSON，不要加任何註解或 Markdown 區塊。\n"
@@ -188,6 +195,16 @@ def bd_analyze():
         "posts_sent": 0,
     }
 
+    # 讀取性別資料
+    gender = request.form.get("gender", "").strip()
+    if not gender:
+        return jsonify({"ok": False, "error": "missing_gender"}), 400
+    
+    # 驗證性別值
+    valid_genders = ["male", "female"]
+    if gender not in valid_genders:
+        return jsonify({"ok": False, "error": "invalid_gender"}), 400
+
     # Read profile image
     f_profile = request.files.get("profile")
     if not f_profile:
@@ -210,11 +227,11 @@ def bd_analyze():
     
     diagnose["posts_sent"] = len(posts_b64)
 
-    # Call OpenAI
+    # Call OpenAI with gender
     parsed, ai_text, raw = None, "", ""
     try:
         if OPENAI_API_KEY:
-            ai_text, raw = call_openai_vision(profile_b64, posts_b64)
+            ai_text, raw = call_openai_vision(profile_b64, posts_b64, gender)
             parsed = _extract_json_block(ai_text)
             if not parsed:
                 diagnose["fail_reason"] = "json_parse"
@@ -238,6 +255,7 @@ def bd_analyze():
             "posts": 0,
             "mbti": "ESFJ",
             "summary": "依上傳截圖初步推斷，僅供娛樂參考。",
+            "gender": gender,
         }
     else:
         def _to_int(x):
@@ -251,6 +269,7 @@ def bd_analyze():
             "posts": _to_int(parsed.get("posts")),
             "mbti": str(parsed.get("mbti") or "").strip()[:10].upper(),
             "summary": str(parsed.get("summary") or "").strip()[:600],
+            "gender": gender,
         }
 
     result["vehicle"] = pick_vehicle(result.get("followers", 0))

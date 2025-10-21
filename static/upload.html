@@ -158,6 +158,43 @@
       margin-top: var(--spacing-lg);
     }
     
+    .gender-option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 20px;
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-md);
+      background: var(--bg-secondary);
+      cursor: pointer;
+      transition: var(--transition);
+      min-width: 120px;
+    }
+    
+    .gender-option:hover {
+      border-color: var(--primary);
+      background: rgba(34, 211, 238, 0.05);
+    }
+    
+    .gender-option input[type="radio"] {
+      margin: 0;
+      width: 18px;
+      height: 18px;
+      accent-color: var(--primary);
+      cursor: pointer;
+    }
+    
+    .gender-option input[type="radio"]:checked + .gender-label {
+      color: var(--primary);
+      font-weight: 600;
+    }
+    
+    .gender-label {
+      font-size: var(--font-size-sm);
+      transition: var(--transition);
+      cursor: pointer;
+    }
+    
     @media (max-width: 768px) {
       .action-buttons {
         flex-direction: column;
@@ -165,6 +202,13 @@
       
       .action-buttons .btn {
         width: 100%;
+      }
+    }
+    
+    @media (max-width: 640px) {
+      .gender-option {
+        min-width: calc(50% - 6px);
+        justify-content: center;
       }
     }
   </style>
@@ -178,6 +222,24 @@
   <main class="container">
     <h1 class="page-title">上傳素材</h1>
     <p class="page-description">只需兩步：<br>① 上傳 IG 個人頁截圖（必填）<br>②（可選）上傳 1～6 張最近貼文首圖，有助 AI 更準確。</p>
+
+    <!-- 性別選擇區塊 -->
+    <div class="card upload-section">
+      <div class="form-group">
+        <label class="form-label">性別（必填）</label>
+        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+          <label class="gender-option">
+            <input type="radio" name="gender" value="male" required />
+            <span class="gender-label">👨 男性</span>
+          </label>
+          <label class="gender-option">
+            <input type="radio" name="gender" value="female" required />
+            <span class="gender-label">👩 女性</span>
+          </label>
+        </div>
+        <p class="upload-hint">性別資料將幫助 AI 更準確分析你的社群人格</p>
+      </div>
+    </div>
 
     <div class="card upload-section">
       <div class="form-group">
@@ -234,7 +296,6 @@
     import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
     import { getFirestore, doc, setDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
-    // Firebase config
     const firebaseConfig = {
       apiKey: "AIzaSyBI2-4yEwzxvYOvui9FZiGAzCE22OhKmU8",
       authDomain: "social-avatar-d13c8.firebaseapp.com",
@@ -248,10 +309,6 @@
     const auth = getAuth(app);
     const db = getFirestore(app);
 
-    console.log('[DEBUG] Firebase initialized in upload.html');
-    console.log('[DEBUG] Firebase Auth:', auth);
-    console.log('[DEBUG] Firestore:', db);
-
     let currentAuthUser = null;
     let authReadySettled = false;
     let authReadyResolve;
@@ -259,30 +316,20 @@
       authReadyResolve = resolve;
     });
 
-    // Wait for auth state to be ready
     onAuthStateChanged(auth, (user) => {
-      console.log('[DEBUG] Auth state changed. User:', user ? user.uid : 'None');
       currentAuthUser = user;
-
       if (!authReadySettled) {
         authReadySettled = true;
         authReadyResolve(user);
       }
-
       if (!user) {
-        console.error('[ERROR] No authenticated user! Redirecting to login...');
         alert('請先登入');
         window.location.href = '/static/landing.html';
       } else {
-        console.log('[DEBUG] ✅ User authenticated:', user.email);
-        // Update user badge
         const userBadge = document.getElementById('userBadge');
         if (userBadge) {
           if (user.photoURL) {
-            userBadge.innerHTML = `
-              <img class="user-avatar" src="${user.photoURL}" alt="User">
-              <span>${user.displayName || user.email}</span>
-            `;
+            userBadge.innerHTML = `<img class="user-avatar" src="${user.photoURL}" alt="User"><span>${user.displayName || user.email}</span>`;
           } else {
             userBadge.innerHTML = `<span>👤 ${user.displayName || user.email}</span>`;
           }
@@ -290,89 +337,44 @@
       }
     });
 
-    // 圖片預覽功能
-    let selectedFiles = {
-      profile: null,
-      posts: []
-    };
+    let selectedFiles = { profile: null, posts: [] };
     
-    // 顯示分析結果提示
     function showAnalysisHint(containerId, message, isError = false) {
       const container = document.getElementById(containerId);
       if (!container) return;
-      
-      // 移除現有的提示
       const existingHint = container.querySelector('.analysis-hint');
-      if (existingHint) {
-        existingHint.remove();
-      }
-      
-      // 添加新提示
+      if (existingHint) existingHint.remove();
       const hint = document.createElement('div');
       hint.className = `analysis-hint ${isError ? 'hint-error' : 'hint-info'}`;
-      hint.innerHTML = `
-        <div style="display: flex; align-items: center; gap: 8px; padding: 8px; border-radius: 4px; font-size: 12px; margin-top: 8px;">
-          <span style="font-size: 16px;">${isError ? '⚠️' : '💡'}</span>
-          <span>${message}</span>
-        </div>
-      `;
+      hint.innerHTML = `<div style="display: flex; align-items: center; gap: 8px; padding: 8px; border-radius: 4px; font-size: 12px; margin-top: 8px;"><span style="font-size: 16px;">${isError ? '⚠️' : '💡'}</span><span>${message}</span></div>`;
       container.appendChild(hint);
     }
     
     function createImagePreview(file, containerId, index = null) {
-      console.log('🎯 createImagePreview called for:', file.name, 'in container:', containerId);
       const container = document.getElementById(containerId);
-      if (!container) {
-        console.error('❌ Container not found:', containerId);
-        return;
-      }
-      
-      console.log('✅ Container found, creating FileReader');
+      if (!container) return;
       const reader = new FileReader();
-      
       reader.onload = function(e) {
-        console.log('📸 FileReader loaded, creating preview element');
         const previewItem = document.createElement('div');
         previewItem.className = 'preview-item';
         previewItem.setAttribute('data-index', index !== null ? index : 'single');
-        previewItem.innerHTML = `
-          <img src="${e.target.result}" class="preview-image" alt="預覽" style="width: 100%; height: 120px; object-fit: cover; display: block;">
-          <button class="preview-remove" onclick="removePreview('${containerId}', this)" style="position: absolute; top: 4px; right: 4px; background: rgba(239, 68, 68, 0.9); color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer;">×</button>
-          <div class="preview-filename" style="padding: 8px; font-size: 12px; color: #94a3b8; text-align: center;">${file.name}</div>
-        `;
+        previewItem.innerHTML = `<img src="${e.target.result}" class="preview-image" alt="預覽"><button class="preview-remove" onclick="removePreview('${containerId}', this)">×</button><div class="preview-filename">${file.name}</div>`;
         container.appendChild(previewItem);
-        console.log('✅ Preview element added to container:', containerId);
-        console.log('📊 Container now has', container.children.length, 'children');
-        console.log('🔍 Preview item HTML:', previewItem.outerHTML);
       };
-      
-      reader.onerror = function(e) {
-        console.error('❌ FileReader error:', e);
-      };
-      
-      console.log('🚀 Starting FileReader.readAsDataURL for file:', file.name);
       reader.readAsDataURL(file);
     }
     
     function removePreview(containerId, buttonElement) {
       const previewItem = buttonElement.parentElement;
       const index = previewItem.getAttribute('data-index');
-      
-      // 移除預覽元素
       previewItem.remove();
-      
-      // 更新文件輸入
       if (containerId === 'profilePreview') {
-        // 清除個人頁截圖
         selectedFiles.profile = null;
         document.getElementById('profile').value = '';
       } else if (containerId === 'postsPreview') {
-        // 從貼文列表中移除
         if (index !== 'single' && index !== null && !isNaN(parseInt(index))) {
           selectedFiles.posts.splice(parseInt(index), 1);
           updatePostsInput();
-          
-          // 重新渲染所有預覽，更新索引
           const container = document.getElementById('postsPreview');
           container.innerHTML = '';
           selectedFiles.posts.forEach((file, newIndex) => {
@@ -385,18 +387,13 @@
     function updatePostsInput() {
       const postsInput = document.getElementById('posts');
       const dt = new DataTransfer();
-      
-      selectedFiles.posts.forEach(file => {
-        dt.items.add(file);
-      });
-      
+      selectedFiles.posts.forEach(file => dt.items.add(file));
       postsInput.files = dt.files;
     }
     
     function clearPreviews(containerId) {
       const container = document.getElementById(containerId);
       container.innerHTML = '';
-      
       if (containerId === 'profilePreview') {
         selectedFiles.profile = null;
         document.getElementById('profile').value = '';
@@ -406,79 +403,38 @@
       }
     }
     
-    // 將函數設為全域，以便 HTML 中的 onclick 可以調用
     window.removePreview = removePreview;
     
-    // 簡單直接的事件監聽器設置
     document.addEventListener('DOMContentLoaded', function() {
-      console.log('DOM loaded, setting up file listeners');
-      
-      // 監聽文件選擇
       const profileInput = document.getElementById('profile');
       const postsInput = document.getElementById('posts');
       
       if (profileInput) {
-        console.log('Adding event listener to profile input');
         profileInput.addEventListener('change', function(e) {
-          console.log('Profile file selected:', e.target.files.length, 'files');
-          console.log('First file:', e.target.files[0] ? e.target.files[0].name : 'none');
-          console.log('Files length check:', e.target.files.length > 0);
-          
-          // 先保存文件，再清除預覽
           const files = e.target.files;
           if (files.length > 0) {
-            console.log('✅ Files length > 0, proceeding...');
-            console.log('File object:', files[0]);
-            console.log('File name:', files[0] ? files[0].name : 'undefined');
-            
-            // 先清除預覽容器，但不清除文件輸入
             const container = document.getElementById('profilePreview');
-            if (container) {
-              container.innerHTML = '';
-            }
-            
-            // 確保文件對象存在
+            if (container) container.innerHTML = '';
             if (files[0]) {
               selectedFiles.profile = files[0];
-              console.log('Calling createImagePreview with file:', files[0].name);
-              console.log('Container exists:', !!document.getElementById('profilePreview'));
               createImagePreview(files[0], 'profilePreview');
-              
-              // 顯示提示信息
               showAnalysisHint('profilePreview', '💡 請確保截圖包含完整的 IG 個人頁面信息（用戶名、bio、粉絲數等）', false);
-            } else {
-              console.error('❌ files[0] is undefined!');
             }
-          } else {
-            console.log('❌ No files selected or files.length = 0');
           }
         });
-      } else {
-        console.error('Profile input not found');
       }
       
       if (postsInput) {
         postsInput.addEventListener('change', function(e) {
-          console.log('Posts files selected:', e.target.files.length);
-          console.log('Posts files length check:', e.target.files.length > 0);
-          
-          // 先保存文件，再清除預覽
           const files = e.target.files;
           if (files.length > 0) {
-            console.log('✅ Posts files length > 0, proceeding...');
             clearPreviews('postsPreview');
             selectedFiles.posts = Array.from(files);
-            console.log('Posts files array:', selectedFiles.posts.length);
             selectedFiles.posts.forEach((file, index) => {
-              console.log('Creating preview for post file:', file.name, 'index:', index);
               createImagePreview(file, 'postsPreview', index);
             });
-          } else {
-            console.log('❌ No posts files selected');
           }
         });
-      } else {
-        console.error('Posts input not found');
       }
     });
 
@@ -488,10 +444,17 @@
       errBox.style.display = 'none';
       okBox.style.display = 'none';
 
+      const selectedGender = document.querySelector('input[name="gender"]:checked');
+      if (!selectedGender) {
+        alert('請選擇性別');
+        errBox.textContent = '請選擇性別後再開始分析';
+        errBox.style.display = 'block';
+        return;
+      }
+
       const form = new FormData();
       const profile = document.querySelector('#profile').files[0];
-
-      const primaryBtn = document.querySelector('button.primary');
+      const primaryBtn = document.querySelector('button.btn-primary');
       const originalBtnHTML = primaryBtn?.innerHTML;
 
       if (primaryBtn) {
@@ -508,11 +471,9 @@
         return;
       }
 
-      // 更新按鈕狀態
-      if (primaryBtn) {
-        primaryBtn.innerHTML = '⏳ 上傳中…';
-      }
+      if (primaryBtn) primaryBtn.innerHTML = '⏳ 上傳中…';
 
+      form.append('gender', selectedGender.value);
       form.append('profile', profile);
 
       const posts = document.querySelector('#posts').files;
@@ -522,23 +483,15 @@
 
       okBox.textContent = '上傳中，請稍候...';
       okBox.style.display = 'block';
-
       let succeeded = false;
 
       try {
         await authReady;
+        if (!currentAuthUser) throw new Error('未登入，請先回首頁登入帳號');
 
-        if (!currentAuthUser) {
-          throw new Error('未登入，請先回首頁登入帳號');
-        }
+        console.log('[DEBUG] Sending analysis request with gender:', selectedGender.value);
 
-        console.log('[DEBUG] Sending analysis request to backend...');
-
-        const res = await fetch('/bd/analyze', {
-          method: 'POST',
-          body: form
-        });
-
+        const res = await fetch('/bd/analyze', { method: 'POST', body: form });
         if (!res.ok) {
           const errorText = await res.text();
           throw new Error(`伺服器錯誤（${res.status}）：${errorText.slice(0, 200)}`);
@@ -548,56 +501,36 @@
         try {
           data = await res.json();
         } catch (jsonError) {
-          console.error('[ERROR] Failed to parse JSON response:', jsonError);
           throw new Error('伺服器回傳格式錯誤，請稍後再試。');
         }
 
-        console.log('[DEBUG] Backend response:', data);
-
         if (!data.ok) {
-          console.error('[ERROR] Analysis failed:', data);
           errBox.textContent = '分析失敗：' + (data.error || 'server error');
           errBox.style.display = 'block';
           okBox.style.display = 'none';
           return;
         }
 
-        console.log('[DEBUG] Analysis successful, saving to Firestore...');
-        console.log('[DEBUG] 🔥 Current Auth User:', currentAuthUser);
-        
-        // 檢查是否成功提取到關鍵資料
+        data.gender = selectedGender.value;
+
         const hasUsername = data.username && data.username.trim() !== '';
         const hasDisplayName = data.display_name && data.display_name.trim() !== '';
         const hasFollowers = data.followers && data.followers > 0;
         const hasFollowing = data.following && data.following > 0;
         const hasPosts = data.posts && data.posts > 0;
         
-        console.log('[DEBUG] Data extraction check:', {
-          hasUsername,
-          hasDisplayName,
-          hasFollowers,
-          hasFollowing,
-          hasPosts
-        });
-        
-        // 如果沒有提取到關鍵資料，跳回 upload 頁面
         if (!hasUsername && !hasDisplayName) {
-          console.warn('[WARN] No username or display name extracted - redirecting to upload');
-          alert('❌ 無法從截圖中提取用戶名或顯示名稱\n\n請確保上傳的是完整的 IG 個人頁截圖，包含：\n• 用戶名 (@username)\n• 顯示名稱\n• 個人簡介 (bio)\n• 粉絲數、追蹤數、貼文數\n\n將返回上傳頁面，請重新截圖並上傳。');
+          alert('❌ 無法從截圖中提取用戶名或顯示名稱\n\n請確保上傳的是完整的 IG 個人頁截圖。');
           window.location.href = '/static/upload.html';
           return;
         }
         
         if (!hasFollowers || !hasFollowing || !hasPosts) {
-          console.warn('[WARN] Missing profile statistics - redirecting to upload');
-          alert('❌ 無法完整提取個人頁面統計資料\n\n截圖可能不完整，請重新截圖確保包含：\n• 粉絲數\n• 追蹤數\n• 貼文數\n\n將返回上傳頁面，請重新截圖並上傳。');
+          alert('❌ 無法完整提取個人頁面統計資料\n\n截圖可能不完整，請重新截圖。');
           window.location.href = '/static/upload.html';
           return;
         }
         
-        console.log('[DEBUG] ✅ All required data extracted successfully');
-        
-        // Store user info along with result
         data.user = {
           uid: currentAuthUser.uid,
           email: currentAuthUser.email,
@@ -612,22 +545,15 @@
           console.warn('[WARN] Unable to persist user session:', storageError);
         }
 
-        console.log('[DEBUG] User UID:', currentAuthUser.uid);
-        console.log('[DEBUG] User email:', currentAuthUser.email);
-        console.log('[DEBUG] Data to save:', data);
-
-        // Save to Firestore
         try {
-          console.log('[DEBUG] 1️⃣ Creating document reference...');
           const userDocRef = doc(db, 'users', currentAuthUser.uid);
-          console.log('[DEBUG] 2️⃣ Document reference created:', userDocRef.path);
-          
           const firestoreData = {
             uid: currentAuthUser.uid,
             email: currentAuthUser.email,
             displayName: currentAuthUser.displayName,
             photoURL: currentAuthUser.photoURL,
             hasAnalysis: true,
+            gender: selectedGender.value,
             latestAnalysis: {
               ok: data.ok,
               mbti: data.mbti,
@@ -638,48 +564,27 @@
               posts: data.posts,
               summary: data.summary,
               vehicle: data.vehicle,
+              gender: selectedGender.value,
               diagnose: data.diagnose,
               timestamp: serverTimestamp()
             },
             updatedAt: serverTimestamp()
           };
-          
-          console.log('[DEBUG] 3️⃣ Prepared Firestore data:', firestoreData);
-          console.log('[DEBUG] 4️⃣ Calling setDoc...');
-          
           await setDoc(userDocRef, firestoreData);
-          
-          console.log('[DEBUG] 5️⃣ ✅✅✅ Successfully saved to Firestore!');
-          console.log('[DEBUG] 6️⃣ Document path:', `users/${currentAuthUser.uid}`);
-          console.log('[DEBUG] 7️⃣ Check Firestore Console now!');
         } catch (firestoreError) {
-          console.error('[ERROR] ❌❌❌ Failed to save to Firestore');
-          console.error('[ERROR] Error object:', firestoreError);
-          console.error('[ERROR] Error name:', firestoreError.name);
-          console.error('[ERROR] Error code:', firestoreError.code);
-          console.error('[ERROR] Error message:', firestoreError.message);
-          console.error('[ERROR] Full error:', JSON.stringify(firestoreError, null, 2));
-          
-          // Show alert to user
-          alert('⚠️ 分析完成，但儲存到雲端時發生錯誤。\n\n錯誤：' + firestoreError.message + '\n\n請查看 Console (F12) 了解詳情。\n\n你仍可以查看結果，但下次登入時可能需要重新分析。');
+          console.error('[ERROR] Failed to save to Firestore:', firestoreError);
+          alert('⚠️ 分析完成，但儲存到雲端時發生錯誤。\n\n你仍可以查看結果，但下次登入時可能需要重新分析。');
         }
 
-        // Store in sessionStorage for result.html
         sessionStorage.setItem('sa_result', JSON.stringify(data));
-        
         okBox.textContent = '已送出，前往分析中畫面…';
         succeeded = true;
-
         setTimeout(() => location.href = '/static/loading.html', 400);
 
       } catch (e) {
         console.error('[ERROR] Network error:', e);
         const message = e?.message || e || '未知錯誤';
-        if (String(message).includes('未登入')) {
-          errBox.textContent = message;
-        } else {
-          errBox.textContent = '網路錯誤：' + message;
-        }
+        errBox.textContent = String(message).includes('未登入') ? message : '網路錯誤：' + message;
         errBox.style.display = 'block';
         okBox.style.display = 'none';
       } finally {
