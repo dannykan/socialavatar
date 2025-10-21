@@ -79,6 +79,21 @@
       grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
       gap: var(--spacing);
       margin-top: var(--spacing);
+      min-height: 50px;
+      border: 1px dashed var(--border-light);
+      border-radius: var(--radius);
+      padding: var(--spacing-sm);
+    }
+    
+    .preview-container:empty::before {
+      content: "選擇圖片後會在這裡顯示預覽";
+      color: var(--muted);
+      font-size: var(--font-size-xs);
+      text-align: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 50px;
     }
     
     .preview-item {
@@ -266,25 +281,33 @@
     };
     
     function createImagePreview(file, containerId, index = null) {
+      console.log('Creating preview for:', file.name, 'in container:', containerId);
       const container = document.getElementById(containerId);
       if (!container) {
         console.error('Container not found:', containerId);
         return;
       }
       
+      console.log('Container found, creating FileReader');
       const reader = new FileReader();
       
       reader.onload = function(e) {
+        console.log('FileReader loaded, creating preview element');
         const previewItem = document.createElement('div');
         previewItem.className = 'preview-item';
         previewItem.setAttribute('data-index', index !== null ? index : 'single');
         previewItem.innerHTML = `
-          <img src="${e.target.result}" class="preview-image" alt="預覽">
-          <button class="preview-remove" onclick="removePreview('${containerId}', this)">×</button>
-          <div class="preview-filename">${file.name}</div>
+          <img src="${e.target.result}" class="preview-image" alt="預覽" style="width: 100%; height: 120px; object-fit: cover; display: block;">
+          <button class="preview-remove" onclick="removePreview('${containerId}', this)" style="position: absolute; top: 4px; right: 4px; background: rgba(239, 68, 68, 0.9); color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer;">×</button>
+          <div class="preview-filename" style="padding: 8px; font-size: 12px; color: #94a3b8; text-align: center;">${file.name}</div>
         `;
         container.appendChild(previewItem);
-        console.log('Preview created for:', file.name);
+        console.log('Preview element added to container:', containerId);
+        console.log('Container now has', container.children.length, 'children');
+      };
+      
+      reader.onerror = function(e) {
+        console.error('FileReader error:', e);
       };
       
       reader.readAsDataURL(file);
@@ -354,11 +377,14 @@
       const postsInput = document.getElementById('posts');
       
       if (profileInput) {
+        console.log('Adding event listener to profile input');
         profileInput.addEventListener('change', function(e) {
-          console.log('Profile file selected:', e.target.files.length);
+          console.log('Profile file selected:', e.target.files.length, 'files');
+          console.log('First file:', e.target.files[0] ? e.target.files[0].name : 'none');
           clearPreviews('profilePreview');
           if (e.target.files.length > 0) {
             selectedFiles.profile = e.target.files[0];
+            console.log('Calling createImagePreview with file:', e.target.files[0].name);
             createImagePreview(e.target.files[0], 'profilePreview');
           }
         });
