@@ -260,6 +260,11 @@
     });
 
     // 圖片預覽功能
+    let selectedFiles = {
+      profile: null,
+      posts: []
+    };
+    
     function createImagePreview(file, containerId, index = null) {
       const container = document.getElementById(containerId);
       const reader = new FileReader();
@@ -267,9 +272,10 @@
       reader.onload = function(e) {
         const previewItem = document.createElement('div');
         previewItem.className = 'preview-item';
+        previewItem.setAttribute('data-index', index !== null ? index : 'single');
         previewItem.innerHTML = `
           <img src="${e.target.result}" class="preview-image" alt="預覽">
-          <button class="preview-remove" onclick="removePreview('${containerId}', ${index !== null ? index : 'this.parentElement'})">×</button>
+          <button class="preview-remove" onclick="removePreview('${containerId}', this)">×</button>
           <div class="preview-filename">${file.name}</div>
         `;
         container.appendChild(previewItem);
@@ -278,31 +284,74 @@
       reader.readAsDataURL(file);
     }
     
-    function removePreview(containerId, index) {
-      const container = document.getElementById(containerId);
-      if (typeof index === 'number') {
-        container.children[index].remove();
-      } else {
-        index.remove();
+    function removePreview(containerId, buttonElement) {
+      const previewItem = buttonElement.parentElement;
+      const index = previewItem.getAttribute('data-index');
+      
+      // 移除預覽元素
+      previewItem.remove();
+      
+      // 更新文件輸入
+      if (containerId === 'profilePreview') {
+        // 清除個人頁截圖
+        selectedFiles.profile = null;
+        document.getElementById('profile').value = '';
+      } else if (containerId === 'postsPreview') {
+        // 從貼文列表中移除
+        if (index !== 'single' && index !== null && !isNaN(parseInt(index))) {
+          selectedFiles.posts.splice(parseInt(index), 1);
+          updatePostsInput();
+          
+          // 重新渲染所有預覽，更新索引
+          const container = document.getElementById('postsPreview');
+          container.innerHTML = '';
+          selectedFiles.posts.forEach((file, newIndex) => {
+            createImagePreview(file, 'postsPreview', newIndex);
+          });
+        }
       }
+    }
+    
+    function updatePostsInput() {
+      const postsInput = document.getElementById('posts');
+      const dt = new DataTransfer();
+      
+      selectedFiles.posts.forEach(file => {
+        dt.items.add(file);
+      });
+      
+      postsInput.files = dt.files;
     }
     
     function clearPreviews(containerId) {
       const container = document.getElementById(containerId);
       container.innerHTML = '';
+      
+      if (containerId === 'profilePreview') {
+        selectedFiles.profile = null;
+        document.getElementById('profile').value = '';
+      } else if (containerId === 'postsPreview') {
+        selectedFiles.posts = [];
+        updatePostsInput();
+      }
     }
+    
+    // 將函數設為全域，以便 HTML 中的 onclick 可以調用
+    window.removePreview = removePreview;
     
     // 監聽文件選擇
     document.getElementById('profile').addEventListener('change', function(e) {
       clearPreviews('profilePreview');
       if (e.target.files.length > 0) {
+        selectedFiles.profile = e.target.files[0];
         createImagePreview(e.target.files[0], 'profilePreview');
       }
     });
     
     document.getElementById('posts').addEventListener('change', function(e) {
       clearPreviews('postsPreview');
-      Array.from(e.target.files).forEach((file, index) => {
+      selectedFiles.posts = Array.from(e.target.files);
+      selectedFiles.posts.forEach((file, index) => {
         createImagePreview(file, 'postsPreview', index);
       });
     });
