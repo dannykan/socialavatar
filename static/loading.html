@@ -20,7 +20,7 @@
       // 若沒有 sa_result（上一步沒送出），導回上傳頁
       const raw = sessionStorage.getItem('sa_result') || localStorage.getItem('sa_result');
       if (!raw) {
-        location.href='/static/upload.html';
+        location.replace('/static/upload.html'); // 改用 replace
         return;
       }
       try {
@@ -28,7 +28,8 @@
         localStorage.removeItem('sa_result');
       } catch {}
       // 直接進結果頁（分析已完成，loading 只作為過場）
-      setTimeout(()=>location.href='/static/result.html', 600);
+      // 使用 replace 而不是 href，防止返回
+      setTimeout(()=>window.location.replace('/static/result.html'), 600);
     })();
   </script>
 </head>
