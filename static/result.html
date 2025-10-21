@@ -179,6 +179,42 @@
     }
   </style>
   <script>
+    // ==========================================
+    // 防止使用者返回上一頁
+    // ==========================================
+    (function() {
+      if (window.history && window.history.pushState) {
+        window.history.pushState(null, null, window.location.href);
+        
+        window.addEventListener('popstate', function(event) {
+          window.history.pushState(null, null, window.location.href);
+          
+          const shouldClear = confirm(
+            '⚠️ 無法返回上一頁\n\n' +
+            '若要重新分析，請點擊「清除並重新開始」按鈕。\n\n' +
+            '是否現在清除資料並重新開始？'
+          );
+          
+          if (shouldClear) {
+            clearAndRestart();
+          }
+        });
+      }
+      
+      window.addEventListener('beforeunload', function(e) {
+        const message = '確定要離開此頁面嗎？你的分析結果可能會遺失。';
+        e.returnValue = message;
+        return message;
+      });
+      
+      try {
+        sessionStorage.removeItem('uploadInProgress');
+        sessionStorage.removeItem('uploadData');
+      } catch (e) {
+        console.warn('Unable to clear session data:', e);
+      }
+    })();
+
     let hasRedirected = false;
 
     function safeParseJson(mixed) {
@@ -215,7 +251,6 @@
       di('#vehicle', data.vehicle || '—');
       di('#summary', dn(data.summary || ''));
       
-      // 顯示性別
       const genderMap = {
         'male': '👨 男性',
         'female': '👩 女性'
@@ -223,7 +258,6 @@
       const genderText = genderMap[data.gender] || '—';
       di('#gender', genderText);
 
-      // 載入 MBTI 圖片
       loadMBTIImage(data.mbti, data.gender);
 
       const mbti = data.mbti || '';
@@ -236,7 +270,6 @@
       }
     }
 
-    // 載入 MBTI 圖片的函數
     function loadMBTIImage(mbti, gender) {
       const imageEl = document.getElementById('mbtiImage');
       const placeholderEl = document.getElementById('mbtiImagePlaceholder');
@@ -246,16 +279,11 @@
         return;
       }
 
-      // 確保 MBTI 類型是大寫
       const mbtiType = String(mbti).toUpperCase().trim();
-      
-      // 根據你的命名規則：MBTI_gender.png
-      // 例如：ENFJ_male.png 或 INTJ_female.png
       const imagePath = `/static/images/mbti/${mbtiType}_${gender}.png`;
       
       console.log('[DEBUG] Loading MBTI image:', imagePath);
       
-      // 預載圖片
       const img = new Image();
       
       img.onload = function() {
@@ -336,8 +364,12 @@
     }
 
     async function clearAndRestart(evt) {
-      if (!confirm('確定要清除所有資料並重新開始嗎？\n\n⚠️ 這將會：\n• 刪除你的分析結果\n• 登出你的帳號\n\n你需要重新登入才能再次使用。')) {
-        return;
+      const isFromPopstate = (evt === undefined || evt === null);
+      
+      if (!isFromPopstate) {
+        if (!confirm('確定要清除所有資料並重新開始嗎？\n\n⚠️ 這將會：\n• 刪除你的分析結果\n• 登出你的帳號\n\n你需要重新登入才能再次使用。')) {
+          return;
+        }
       }
 
       const btn = evt?.target;
@@ -433,15 +465,11 @@
         }
 
         try {
-          sessionStorage.removeItem('sa_result');
-          sessionStorage.removeItem('user');
+          sessionStorage.clear();
+          localStorage.clear();
         } catch (storageError) {
-          console.error('[ERROR] Failed to clear session storage:', storageError);
+          console.error('[ERROR] Failed to clear storage:', storageError);
         }
-
-        try {
-          localStorage.removeItem('sa_result');
-        } catch {}
 
         try {
           await signOut(auth);
@@ -450,7 +478,10 @@
         }
 
         alert('✅ 已清除所有資料並登出\n\n請重新登入以開始新的分析。');
-        window.location.href = '/static/landing.html';
+        
+        window.history.replaceState(null, null, '/static/landing.html');
+        window.location.replace('/static/landing.html');
+        
       } catch (error) {
         console.error('[ERROR] Clear and restart failed:', error);
         alert('❌ 清除失敗：' + (error?.message || error) + '\n\n請手動登出後再試一次。');
@@ -485,7 +516,6 @@
     
     <div class="result-grid">
       <div class="result-card">
-        <!-- MBTI 圖片區塊 -->
         <div class="mbti-image-container" id="mbtiImageContainer">
           <img id="mbtiImage" class="mbti-image" src="" alt="MBTI 角色圖" style="display: none;">
           <div id="mbtiImagePlaceholder" class="mbti-image-placeholder">
