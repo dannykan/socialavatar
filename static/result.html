@@ -218,10 +218,6 @@
           // Validate data structure
           if (data && data.ok === true && (data.mbti || data.display_name)) {
             fillUI(data);
-            const dbg = document.querySelector('#diagnose_json');
-            if (dbg && data.diagnose) {
-              dbg.textContent = JSON.stringify(data.diagnose, null, 2);
-            }
             return; // Success - don't redirect
           } else {
             // Invalid data structure
@@ -253,18 +249,6 @@
               diagnose: { ai_on: true, model: 'from-last_ai', source: 'debug/last_ai' }
             };
             fillUI(fallbackData);
-
-            try {
-              const cfg = await fetch(`/debug/config?ts=${Date.now()}`, { cache: 'no-store' }).then(x => x.json());
-              const dbg = document.querySelector('#diagnose_json');
-              if (dbg) {
-                dbg.textContent = JSON.stringify({
-                  ai_on: cfg?.ai_on ?? true,
-                  model: cfg?.model ?? 'gpt-4o-mini',
-                  source: 'debug/last_ai'
-                }, null, 2);
-              }
-            } catch {}
             return; // Success - don't redirect
           }
         }
@@ -461,13 +445,6 @@
             </svg>
             清除並重新開始
           </button>
-          <a class="btn btn-ghost" href="/debug/last_ai" target="_blank">
-            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="10"/>
-              <path d="M12 6v6l4 2"/>
-            </svg>
-            檢視原始 AI
-          </a>
         </div>
       </div>
       
@@ -480,10 +457,6 @@
       </div>
     </div>
 
-    <details class="card debug-section">
-      <summary class="card-title">診斷資訊（debug）</summary>
-      <div class="debug-content" id="diagnose_json">讀取中…</div>
-    </details>
   </main>
 </body>
 </html>

@@ -74,6 +74,52 @@
       color: var(--muted);
     }
     
+    .preview-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      gap: var(--spacing);
+      margin-top: var(--spacing);
+    }
+    
+    .preview-item {
+      position: relative;
+      border-radius: var(--radius);
+      overflow: hidden;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+    }
+    
+    .preview-image {
+      width: 100%;
+      height: 120px;
+      object-fit: cover;
+    }
+    
+    .preview-remove {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      background: rgba(239, 68, 68, 0.9);
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    
+    .preview-filename {
+      padding: var(--spacing-sm);
+      font-size: var(--font-size-xs);
+      color: var(--muted);
+      text-align: center;
+      word-break: break-all;
+    }
+    
     .action-buttons {
       display: flex;
       gap: var(--spacing);
@@ -110,10 +156,10 @@
           <div>
             <div style="font-size: 24px; margin-bottom: 8px;">📸</div>
             <div>點擊選擇 IG 個人頁截圖</div>
-            <div style="font-size: 12px; opacity: 0.7; margin-top: 4px;">建議長邊 ≤ 3000px</div>
           </div>
         </div>
         <p class="upload-hint">圖像清晰、包含名稱、bio、粉絲/追蹤/貼文數</p>
+        <div class="preview-container" id="profilePreview"></div>
       </div>
     </div>
 
@@ -129,6 +175,7 @@
           </div>
         </div>
         <p class="upload-hint">可上傳 1～6 張，系統會自動壓縮以節省用量</p>
+        <div class="preview-container" id="postsPreview"></div>
       </div>
     </div>
 
@@ -144,13 +191,6 @@
           <path d="M19 12H5M12 19l-7-7 7-7"/>
         </svg>
         返回首頁
-      </a>
-      <a class="btn btn-ghost" href="/health" target="_blank">
-        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="10"/>
-          <path d="M12 6v6l4 2"/>
-        </svg>
-        系統狀態
       </a>
     </div>
 
@@ -217,6 +257,54 @@
           }
         }
       }
+    });
+
+    // 圖片預覽功能
+    function createImagePreview(file, containerId, index = null) {
+      const container = document.getElementById(containerId);
+      const reader = new FileReader();
+      
+      reader.onload = function(e) {
+        const previewItem = document.createElement('div');
+        previewItem.className = 'preview-item';
+        previewItem.innerHTML = `
+          <img src="${e.target.result}" class="preview-image" alt="預覽">
+          <button class="preview-remove" onclick="removePreview('${containerId}', ${index !== null ? index : 'this.parentElement'})">×</button>
+          <div class="preview-filename">${file.name}</div>
+        `;
+        container.appendChild(previewItem);
+      };
+      
+      reader.readAsDataURL(file);
+    }
+    
+    function removePreview(containerId, index) {
+      const container = document.getElementById(containerId);
+      if (typeof index === 'number') {
+        container.children[index].remove();
+      } else {
+        index.remove();
+      }
+    }
+    
+    function clearPreviews(containerId) {
+      const container = document.getElementById(containerId);
+      container.innerHTML = '';
+    }
+    
+    // 監聽文件選擇
+    document.getElementById('profile').addEventListener('change', function(e) {
+      clearPreviews('profilePreview');
+      if (e.target.files.length > 0) {
+        createImagePreview(e.target.files[0], 'profilePreview');
+      }
+    });
+    
+    document.getElementById('posts').addEventListener('change', function(e) {
+      clearPreviews('postsPreview');
+      Array.from(e.target.files).forEach((file, index) => {
+        createImagePreview(file, 'postsPreview', index);
+      });
     });
 
     window.startAnalyze = async function() {
