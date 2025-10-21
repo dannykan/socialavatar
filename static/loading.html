@@ -18,11 +18,15 @@
   <script>
     (function(){
       // 若沒有 sa_result（上一步沒送出），導回上傳頁
-      const raw = localStorage.getItem('sa_result');
+      const raw = sessionStorage.getItem('sa_result') || localStorage.getItem('sa_result');
       if (!raw) {
         location.href='/static/upload.html';
         return;
       }
+      try {
+        sessionStorage.setItem('sa_result', raw);
+        localStorage.removeItem('sa_result');
+      } catch {}
       // 直接進結果頁（分析已完成，loading 只作為過場）
       setTimeout(()=>location.href='/static/result.html', 600);
     })();
