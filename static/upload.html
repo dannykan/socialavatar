@@ -135,6 +135,22 @@
       word-break: break-all;
     }
     
+    .image-warning {
+      margin-top: var(--spacing-sm);
+    }
+    
+    .warning-error {
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #fca5a5;
+    }
+    
+    .warning-info {
+      background: rgba(59, 130, 246, 0.1);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      color: #93c5fd;
+    }
+    
     .action-buttons {
       display: flex;
       gap: var(--spacing);
@@ -280,6 +296,79 @@
       posts: []
     };
     
+    // 圖片驗證功能
+    function validateProfileImage(file) {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const img = new Image();
+          img.onload = function() {
+            // 檢查圖片尺寸（IG 個人頁截圖通常是豎向的）
+            const isVertical = img.height > img.width;
+            const hasGoodSize = img.width >= 300 && img.height >= 400;
+            
+            // 檢查圖片是否包含文字（簡單檢查）
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            ctx.drawImage(img, 0, 0);
+            
+            // 簡單的圖片質量檢查
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const pixels = imageData.data;
+            let hasText = false;
+            
+            // 檢查是否有足夠的對比度（可能表示有文字）
+            for (let i = 0; i < pixels.length; i += 4) {
+              const r = pixels[i];
+              const g = pixels[i + 1];
+              const b = pixels[i + 2];
+              const brightness = (r + g + b) / 3;
+              if (brightness < 50 || brightness > 200) {
+                hasText = true;
+                break;
+              }
+            }
+            
+            const isValid = isVertical && hasGoodSize && hasText;
+            resolve({
+              isValid,
+              isVertical,
+              hasGoodSize,
+              hasText,
+              width: img.width,
+              height: img.height
+            });
+          };
+          img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+    
+    function showImageValidationWarning(containerId, message, isError = false) {
+      const container = document.getElementById(containerId);
+      if (!container) return;
+      
+      // 移除現有的警告
+      const existingWarning = container.querySelector('.image-warning');
+      if (existingWarning) {
+        existingWarning.remove();
+      }
+      
+      // 添加新警告
+      const warning = document.createElement('div');
+      warning.className = `image-warning ${isError ? 'warning-error' : 'warning-info'}`;
+      warning.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 8px; padding: 8px; border-radius: 4px; font-size: 12px; margin-top: 8px;">
+          <span style="font-size: 16px;">${isError ? '⚠️' : '💡'}</span>
+          <span>${message}</span>
+        </div>
+      `;
+      container.appendChild(warning);
+    }
+    
     function createImagePreview(file, containerId, index = null) {
       console.log('🎯 createImagePreview called for:', file.name, 'in container:', containerId);
       const container = document.getElementById(containerId);
@@ -404,6 +493,24 @@
               console.log('Calling createImagePreview with file:', files[0].name);
               console.log('Container exists:', !!document.getElementById('profilePreview'));
               createImagePreview(files[0], 'profilePreview');
+              
+              // 驗證圖片
+              validateProfileImage(files[0]).then(validation => {
+                console.log('Image validation result:', validation);
+                if (!validation.isValid) {
+                  let message = '圖片可能不適合分析：';
+                  if (!validation.isVertical) {
+                    message += ' 建議使用豎向截圖';
+                  } else if (!validation.hasGoodSize) {
+                    message += ' 圖片尺寸太小，建議使用更高解析度的截圖';
+                  } else if (!validation.hasText) {
+                    message += ' 圖片可能不包含足夠的文字信息';
+                  }
+                  showImageValidationWarning('profilePreview', message, true);
+                } else {
+                  showImageValidationWarning('profilePreview', '✅ 圖片看起來很適合分析！', false);
+                }
+              });
             } else {
               console.error('❌ files[0] is undefined!');
             }
@@ -454,7 +561,7 @@
 
       if (primaryBtn) {
         primaryBtn.disabled = true;
-        primaryBtn.innerHTML = '⏳ 上傳中…';
+        primaryBtn.innerHTML = '⏳ 檢查中…';
       }
 
       if (!profile) {
@@ -464,6 +571,37 @@
           primaryBtn.innerHTML = originalBtnHTML;
         }
         return;
+      }
+
+      // 最終驗證圖片
+      try {
+        const validation = await validateProfileImage(profile);
+        if (!validation.isValid) {
+          let message = '圖片不適合分析，請重新選擇：\n';
+          if (!validation.isVertical) {
+            message += '• 請使用豎向的 IG 個人頁截圖\n';
+          }
+          if (!validation.hasGoodSize) {
+            message += '• 請使用更高解析度的截圖\n';
+          }
+          if (!validation.hasText) {
+            message += '• 請確保截圖包含完整的個人頁面信息\n';
+          }
+          message += '\n建議：截圖應包含用戶名、bio、粉絲數、追蹤數、貼文數等信息';
+          
+          alert(message);
+          if (primaryBtn) {
+            primaryBtn.disabled = false;
+            primaryBtn.innerHTML = originalBtnHTML;
+          }
+          return;
+        }
+      } catch (error) {
+        console.error('Image validation error:', error);
+        // 如果驗證失敗，仍然允許繼續，但顯示警告
+        if (primaryBtn) {
+          primaryBtn.innerHTML = '⏳ 上傳中…';
+        }
       }
 
       form.append('profile', profile);
