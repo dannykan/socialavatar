@@ -281,18 +281,18 @@
     };
     
     function createImagePreview(file, containerId, index = null) {
-      console.log('Creating preview for:', file.name, 'in container:', containerId);
+      console.log('🎯 createImagePreview called for:', file.name, 'in container:', containerId);
       const container = document.getElementById(containerId);
       if (!container) {
-        console.error('Container not found:', containerId);
+        console.error('❌ Container not found:', containerId);
         return;
       }
       
-      console.log('Container found, creating FileReader');
+      console.log('✅ Container found, creating FileReader');
       const reader = new FileReader();
       
       reader.onload = function(e) {
-        console.log('FileReader loaded, creating preview element');
+        console.log('📸 FileReader loaded, creating preview element');
         const previewItem = document.createElement('div');
         previewItem.className = 'preview-item';
         previewItem.setAttribute('data-index', index !== null ? index : 'single');
@@ -302,16 +302,16 @@
           <div class="preview-filename" style="padding: 8px; font-size: 12px; color: #94a3b8; text-align: center;">${file.name}</div>
         `;
         container.appendChild(previewItem);
-        console.log('Preview element added to container:', containerId);
-        console.log('Container now has', container.children.length, 'children');
-        console.log('Preview item HTML:', previewItem.outerHTML);
+        console.log('✅ Preview element added to container:', containerId);
+        console.log('📊 Container now has', container.children.length, 'children');
+        console.log('🔍 Preview item HTML:', previewItem.outerHTML);
       };
       
       reader.onerror = function(e) {
-        console.error('FileReader error:', e);
+        console.error('❌ FileReader error:', e);
       };
       
-      console.log('Starting FileReader.readAsDataURL for file:', file.name);
+      console.log('🚀 Starting FileReader.readAsDataURL for file:', file.name);
       reader.readAsDataURL(file);
     }
     
@@ -370,15 +370,15 @@
     // 將函數設為全域，以便 HTML 中的 onclick 可以調用
     window.removePreview = removePreview;
     
-    // 設置事件監聽器的函數
-    function setupFileListeners() {
-      console.log('Setting up file listeners');
+    // 簡單直接的事件監聽器設置
+    document.addEventListener('DOMContentLoaded', function() {
+      console.log('DOM loaded, setting up file listeners');
       
       // 監聽文件選擇
       const profileInput = document.getElementById('profile');
       const postsInput = document.getElementById('posts');
       
-      if (profileInput && !profileInput.hasAttribute('data-listener-added')) {
+      if (profileInput) {
         console.log('Adding event listener to profile input');
         profileInput.addEventListener('change', function(e) {
           console.log('Profile file selected:', e.target.files.length, 'files');
@@ -391,14 +391,11 @@
             createImagePreview(e.target.files[0], 'profilePreview');
           }
         });
-        profileInput.setAttribute('data-listener-added', 'true');
-      } else if (profileInput) {
-        console.log('Profile input listener already added');
       } else {
         console.error('Profile input not found');
       }
       
-      if (postsInput && !postsInput.hasAttribute('data-listener-added')) {
+      if (postsInput) {
         postsInput.addEventListener('change', function(e) {
           console.log('Posts files selected:', e.target.files.length);
           clearPreviews('postsPreview');
@@ -407,20 +404,10 @@
             createImagePreview(file, 'postsPreview', index);
           });
         });
-        postsInput.setAttribute('data-listener-added', 'true');
-      } else if (postsInput) {
-        console.log('Posts input listener already added');
       } else {
         console.error('Posts input not found');
       }
-    }
-    
-    // 等待 DOM 完全載入後設置事件監聽器
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', setupFileListeners);
-    } else {
-      setupFileListeners();
-    }
+    });
 
     window.startAnalyze = async function() {
       const errBox = document.getElementById('err');
