@@ -159,81 +159,138 @@
       }
     }
 
-    function clearAndRestart() {
-      // Confirm with user
+    async function clearAndRestart(evt) {
       if (!confirm('確定要清除所有資料並重新開始嗎？\n\n⚠️ 這將會：\n• 刪除你的分析結果\n• 登出你的帳號\n\n你需要重新登入才能再次使用。')) {
         return;
       }
 
-      // Show loading
-      const btn = event.target;
-      btn.disabled = true;
-      btn.textContent = '處理中...';
+      const btn = evt?.target;
+      const originalLabel = btn?.textContent || '清除並重新開始';
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = '處理中...';
+      }
 
-      // Import Firebase dynamically
-      import('https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js')
-        .then(({ initializeApp }) => {
-          return Promise.all([
-            import('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js'),
-            import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js')
-          ]).then(([authModule, firestoreModule]) => {
-            const { getAuth, signOut } = authModule;
-            const { getFirestore, doc, deleteDoc } = firestoreModule;
+      try {
+        const [{ initializeApp, getApps }, authModule, firestoreModule] = await Promise.all([
+          import('https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js'),
+          import('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js'),
+          import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js')
+        ]);
 
-            const firebaseConfig = {
-              apiKey: "AIzaSyBI2-4yEwzxvYOvui9FZiGAzCE22OhKmU8",
-              authDomain: "social-avatar-d13c8.firebaseapp.com",
-              projectId: "social-avatar-d13c8",
-              storageBucket: "social-avatar-d13c8.appspot.com",
-              messagingSenderId: "280598358339",
-              appId: "1:280598358339:web:214a0d4ca53793163367f6"
-            };
+        const { getAuth, signOut, onAuthStateChanged } = authModule;
+        const { getFirestore, doc, deleteDoc, setDoc, serverTimestamp, deleteField } = firestoreModule;
 
-            const app = initializeApp(firebaseConfig);
-            const auth = getAuth(app);
-            const db = getFirestore(app);
+        const firebaseConfig = {
+          apiKey: "AIzaSyBI2-4yEwzxvYOvui9FZiGAzCE22OhKmU8",
+          authDomain: "social-avatar-d13c8.firebaseapp.com",
+          projectId: "social-avatar-d13c8",
+          storageBucket: "social-avatar-d13c8.appspot.com",
+          messagingSenderId: "280598358339",
+          appId: "1:280598358339:web:214a0d4ca53793163367f6"
+        };
 
-            return { auth, db, signOut, deleteDoc, doc };
-          });
-        })
-        .then(async ({ auth, db, signOut, deleteDoc, doc }) => {
-          const user = auth.currentUser;
-          
-          // 1. Delete Firestore data
-          if (user) {
+        const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        const authUser = await new Promise((resolve) => {
+          const immediate = auth.currentUser;
+          if (immediate) {
+            resolve(immediate);
+            return;
+          }
+
+          try {
+            const unsub = onAuthStateChanged(auth, (user) => {
+              unsub();
+              resolve(user);
+            }, (error) => {
+              console.error('[ERROR] onAuthStateChanged failed:', error);
+              resolve(null);
+            });
+          } catch (error) {
+            console.error('[ERROR] Unable to observe auth state:', error);
+            resolve(null);
+          }
+        });
+
+        let userId = authUser?.uid || null;
+        if (!userId) {
+          try {
+            const savedUser = sessionStorage.getItem('user');
+            if (savedUser) {
+              const parsed = JSON.parse(savedUser);
+              if (parsed?.uid) {
+                userId = parsed.uid;
+              }
+            }
+          } catch (parseError) {
+            console.warn('[WARN] Failed to parse session user:', parseError);
+          }
+        }
+
+        let clearedFirestore = false;
+
+        if (userId) {
+          const userDocRef = doc(db, 'users', userId);
+          try {
+            console.log('[DEBUG] Deleting Firestore document for:', userId);
+            await deleteDoc(userDocRef);
+            clearedFirestore = true;
+            console.log('[DEBUG] ✅ Firestore document deleted');
+          } catch (firestoreError) {
+            console.error('[ERROR] Failed to delete Firestore document:', firestoreError);
             try {
-              console.log('[DEBUG] Deleting Firestore document for:', user.uid);
-              const userDocRef = doc(db, 'users', user.uid);
-              await deleteDoc(userDocRef);
-              console.log('[DEBUG] ✅ Firestore document deleted');
-            } catch (firestoreError) {
-              console.error('[ERROR] Failed to delete Firestore:', firestoreError);
-              // Continue anyway
+              console.log('[WARN] Attempting to scrub Firestore data instead of deleting');
+              await setDoc(userDocRef, {
+                hasAnalysis: false,
+                latestAnalysis: deleteField ? deleteField() : null,
+                clearedAt: serverTimestamp()
+              }, { merge: true });
+              clearedFirestore = true;
+              console.log('[DEBUG] ✅ Firestore document scrubbed');
+            } catch (fallbackError) {
+              console.error('[ERROR] Failed to scrub Firestore data:', fallbackError);
             }
           }
+        } else {
+          console.warn('[WARN] No user ID available for Firestore cleanup');
+        }
 
-          // 2. Clear session storage
-          sessionStorage.clear();
+        if (!clearedFirestore) {
+          throw new Error('Firestore 資料清除失敗，請稍後再試。');
+        }
+
+        try {
+          sessionStorage.removeItem('sa_result');
+          sessionStorage.removeItem('user');
           console.log('[DEBUG] ✅ Session storage cleared');
+        } catch (storageError) {
+          console.error('[ERROR] Failed to clear session storage:', storageError);
+        }
 
-          // 3. Sign out
-          try {
-            await signOut(auth);
-            console.log('[DEBUG] ✅ User signed out');
-          } catch (signOutError) {
-            console.error('[ERROR] Sign out error:', signOutError);
-          }
+        try {
+          localStorage.removeItem('sa_result');
+        } catch {}
 
-          // 4. Redirect to landing page
-          alert('✅ 已清除所有資料並登出\n\n請重新登入以開始新的分析。');
-          window.location.href = '/static/landing.html';
-        })
-        .catch((error) => {
-          console.error('[ERROR] Clear and restart failed:', error);
-          alert('❌ 清除失敗：' + error.message + '\n\n請手動登出後再試一次。');
+        try {
+          await signOut(auth);
+          console.log('[DEBUG] ✅ User signed out');
+        } catch (signOutError) {
+          console.error('[ERROR] Sign out error:', signOutError);
+        }
+
+        alert('✅ 已清除所有資料並登出\n\n請重新登入以開始新的分析。');
+        window.location.href = '/static/landing.html';
+      } catch (error) {
+        console.error('[ERROR] Clear and restart failed:', error);
+        alert('❌ 清除失敗：' + (error?.message || error) + '\n\n請手動登出後再試一次。');
+        if (btn) {
           btn.disabled = false;
-          btn.textContent = '清除並重新開始';
-        });
+          btn.textContent = originalLabel;
+        }
+      }
     }
 
     window.addEventListener('DOMContentLoaded', loadResult);
@@ -244,7 +301,7 @@
     <div style="display:flex;justify-content:space-between;align-items:center;">
       <div><strong>Social Avatar</strong></div>
       <nav class="buttons">
-        <button class="btn btn-ghost" onclick="clearAndRestart()">清除並重新開始</button>
+        <button class="btn btn-ghost" onclick="clearAndRestart(event)">清除並重新開始</button>
       </nav>
     </div>
   </header>
@@ -268,7 +325,7 @@
         </p>
         <p style="line-height:1.7" id="summary">讀取中…</p>
         <div class="buttons">
-          <button class="btn btn-primary" onclick="clearAndRestart()">清除並重新開始</button>
+          <button class="btn btn-primary" onclick="clearAndRestart(event)">清除並重新開始</button>
           <a class="btn btn-ghost" href="/debug/last_ai" target="_blank">檢視原始 AI</a>
         </div>
       </div>
