@@ -83,12 +83,22 @@
     console.log('[DEBUG] Firestore:', db);
 
     let currentAuthUser = null;
+    let authReadySettled = false;
+    let authReadyResolve;
+    const authReady = new Promise((resolve) => {
+      authReadyResolve = resolve;
+    });
 
     // Wait for auth state to be ready
     onAuthStateChanged(auth, (user) => {
       console.log('[DEBUG] Auth state changed. User:', user ? user.uid : 'None');
       currentAuthUser = user;
-      
+
+      if (!authReadySettled) {
+        authReadySettled = true;
+        authReadyResolve(user);
+      }
+
       if (!user) {
         console.error('[ERROR] No authenticated user! Redirecting to login...');
         alert('請先登入');
@@ -118,12 +128,24 @@
 
       const form = new FormData();
       const profile = document.querySelector('#profile').files[0];
-      
+
+      const primaryBtn = document.querySelector('button.primary');
+      const originalBtnHTML = primaryBtn?.innerHTML;
+
+      if (primaryBtn) {
+        primaryBtn.disabled = true;
+        primaryBtn.innerHTML = '⏳ 上傳中…';
+      }
+
       if (!profile) {
         alert('請先上傳 IG 個人頁截圖');
+        if (primaryBtn) {
+          primaryBtn.disabled = false;
+          primaryBtn.innerHTML = originalBtnHTML;
+        }
         return;
       }
-      
+
       form.append('profile', profile);
 
       const posts = document.querySelector('#posts').files;
@@ -134,16 +156,35 @@
       okBox.textContent = '上傳中，請稍候...';
       okBox.style.display = 'block';
 
+      let succeeded = false;
+
       try {
+        await authReady;
+
+        if (!currentAuthUser) {
+          throw new Error('未登入，請先回首頁登入帳號');
+        }
+
         console.log('[DEBUG] Sending analysis request to backend...');
-        
+
         const res = await fetch('/bd/analyze', {
           method: 'POST',
           body: form
         });
 
-        const data = await res.json();
-        
+        if (!res.ok) {
+          const errorText = await res.text();
+          throw new Error(`伺服器錯誤（${res.status}）：${errorText.slice(0, 200)}`);
+        }
+
+        let data;
+        try {
+          data = await res.json();
+        } catch (jsonError) {
+          console.error('[ERROR] Failed to parse JSON response:', jsonError);
+          throw new Error('伺服器回傳格式錯誤，請稍後再試。');
+        }
+
         console.log('[DEBUG] Backend response:', data);
 
         if (!data.ok) {
@@ -157,15 +198,6 @@
         console.log('[DEBUG] Analysis successful, saving to Firestore...');
         console.log('[DEBUG] 🔥 Current Auth User:', currentAuthUser);
         
-        if (!currentAuthUser) {
-          console.error('[ERROR] No authenticated user!');
-          alert('⚠️ 未登入，無法儲存結果。請重新登入。');
-          errBox.textContent = '未登入，無法儲存結果';
-          errBox.style.display = 'block';
-          okBox.style.display = 'none';
-          return;
-        }
-
         // Store user info along with result
         data.user = {
           uid: currentAuthUser.uid,
@@ -237,13 +269,25 @@
         sessionStorage.setItem('sa_result', JSON.stringify(data));
         
         okBox.textContent = '已送出，前往分析中畫面…';
+        succeeded = true;
+
         setTimeout(() => location.href = '/static/loading.html', 400);
-        
+
       } catch (e) {
         console.error('[ERROR] Network error:', e);
-        errBox.textContent = '網路錯誤：' + e.message;
+        const message = e?.message || e || '未知錯誤';
+        if (String(message).includes('未登入')) {
+          errBox.textContent = message;
+        } else {
+          errBox.textContent = '網路錯誤：' + message;
+        }
         errBox.style.display = 'block';
         okBox.style.display = 'none';
+      } finally {
+        if (!succeeded && primaryBtn) {
+          primaryBtn.disabled = false;
+          primaryBtn.innerHTML = originalBtnHTML;
+        }
       }
     };
   </script>
