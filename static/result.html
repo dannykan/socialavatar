@@ -123,22 +123,6 @@
       margin: 0;
     }
     
-    .debug-section {
-      margin-top: var(--spacing);
-    }
-    
-    .debug-content {
-      white-space: pre-wrap;
-      background: var(--bg-secondary);
-      border: 1px solid var(--border);
-      padding: var(--spacing);
-      border-radius: var(--radius);
-      font-size: var(--font-size-xs);
-      font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-      max-height: 200px;
-      overflow-y: auto;
-    }
-    
     .action-buttons {
       display: flex;
       gap: var(--spacing);
@@ -157,27 +141,23 @@
     }
   </style>
   <script>
-    let hasRedirected = false; // Prevent multiple redirects
+    let hasRedirected = false;
 
     function safeParseJson(mixed) {
       if (!mixed) return null;
       if (typeof mixed === 'object') return mixed;
       const text = String(mixed).trim();
-
       try { return JSON.parse(text); } catch {}
-
       const fence = text.match(/```json\s*([\s\S]*?)```/i);
       if (fence) {
         try { return JSON.parse(fence[1]); } catch {}
       }
-
       const firstBrace = text.indexOf('{');
       const lastBrace = text.lastIndexOf('}');
       if (firstBrace >= 0 && lastBrace > firstBrace) {
         const body = text.slice(firstBrace, lastBrace + 1);
         try { return JSON.parse(body); } catch {}
       }
-
       return null;
     }
 
@@ -196,6 +176,14 @@
       di('#mbti', (data.mbti || '—').toUpperCase());
       di('#vehicle', data.vehicle || '—');
       di('#summary', dn(data.summary || ''));
+      
+      // 顯示性別
+      const genderMap = {
+        'male': '👨 男性',
+        'female': '👩 女性'
+      };
+      const genderText = genderMap[data.gender] || '—';
+      di('#gender', genderText);
 
       const mbti = data.mbti || '';
       const badge = document.querySelector('.mbti-badge');
@@ -208,19 +196,16 @@
     }
 
     async function loadResult() {
-      // Prevent redirect loop
       if (hasRedirected) return;
 
       const saved = sessionStorage.getItem('sa_result');
       if (saved) {
         try {
           const data = JSON.parse(saved);
-          // Validate data structure
           if (data && data.ok === true && (data.mbti || data.display_name)) {
             fillUI(data);
-            return; // Success - don't redirect
+            return;
           } else {
-            // Invalid data structure
             console.warn('Invalid data in sessionStorage:', data);
             sessionStorage.removeItem('sa_result');
           }
@@ -230,7 +215,6 @@
         }
       }
 
-      // Try to load from debug endpoint as fallback
       try {
         const r = await fetch(`/debug/last_ai?ts=${Date.now()}`, { cache: 'no-store' });
         if (r.ok) {
@@ -246,17 +230,17 @@
               mbti: String(parsed.mbti || '').toUpperCase(),
               summary: parsed.summary || '',
               vehicle: parsed.vehicle || '—',
+              gender: parsed.gender || '',
               diagnose: { ai_on: true, model: 'from-last_ai', source: 'debug/last_ai' }
             };
             fillUI(fallbackData);
-            return; // Success - don't redirect
+            return;
           }
         }
       } catch (e) {
         console.error('load from /debug/last_ai failed:', e);
       }
 
-      // Only redirect if we haven't already tried
       if (!hasRedirected) {
         hasRedirected = true;
         const errBox = document.getElementById('err');
@@ -346,21 +330,17 @@
         if (userId) {
           const userDocRef = doc(db, 'users', userId);
           try {
-            console.log('[DEBUG] Deleting Firestore document for:', userId);
             await deleteDoc(userDocRef);
             clearedFirestore = true;
-            console.log('[DEBUG] ✅ Firestore document deleted');
           } catch (firestoreError) {
             console.error('[ERROR] Failed to delete Firestore document:', firestoreError);
             try {
-              console.log('[WARN] Attempting to scrub Firestore data instead of deleting');
               await setDoc(userDocRef, {
                 hasAnalysis: false,
                 latestAnalysis: deleteField ? deleteField() : null,
                 clearedAt: serverTimestamp()
               }, { merge: true });
               clearedFirestore = true;
-              console.log('[DEBUG] ✅ Firestore document scrubbed');
             } catch (fallbackError) {
               console.error('[ERROR] Failed to scrub Firestore data:', fallbackError);
             }
@@ -374,7 +354,6 @@
         try {
           sessionStorage.removeItem('sa_result');
           sessionStorage.removeItem('user');
-          console.log('[DEBUG] ✅ Session storage cleared');
         } catch (storageError) {
           console.error('[ERROR] Failed to clear session storage:', storageError);
         }
@@ -385,7 +364,6 @@
 
         try {
           await signOut(auth);
-          console.log('[DEBUG] ✅ User signed out');
         } catch (signOutError) {
           console.error('[ERROR] Sign out error:', signOutError);
         }
@@ -436,6 +414,9 @@
           <strong id="followers">—</strong> / 
           <strong id="following">—</strong> / 
           <strong id="posts">—</strong>
+        </p>
+        <p class="stats">
+          性別：<strong id="gender">—</strong>
         </p>
         <p class="summary" id="summary">讀取中…</p>
         <div class="action-buttons">
