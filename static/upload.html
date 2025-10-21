@@ -296,6 +296,27 @@
     import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
     import { getFirestore, doc, setDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
+    // ==========================================
+    // 檢查是否已提交分析（防止返回）
+    // ==========================================
+    (function() {
+      const analysisSubmitted = sessionStorage.getItem('analysis_submitted');
+      const hasResult = sessionStorage.getItem('sa_result');
+      
+      if (analysisSubmitted === 'true' || hasResult) {
+        console.log('[DEBUG] Analysis already submitted, redirecting to result page');
+        
+        if (hasResult) {
+          alert('你已經完成分析，將導向結果頁面。\n\n若要重新分析，請點擊「清除並重新開始」。');
+          window.location.replace('/static/result.html');
+        } else {
+          alert('偵測到異常狀態，將返回首頁。');
+          sessionStorage.clear();
+          window.location.replace('/static/landing.html');
+        }
+      }
+    })();
+
     const firebaseConfig = {
       apiKey: "AIzaSyBI2-4yEwzxvYOvui9FZiGAzCE22OhKmU8",
       authDomain: "social-avatar-d13c8.firebaseapp.com",
@@ -577,9 +598,14 @@
         }
 
         sessionStorage.setItem('sa_result', JSON.stringify(data));
+        sessionStorage.setItem('analysis_submitted', 'true'); // 標記已提交
+        
         okBox.textContent = '已送出，前往分析中畫面…';
         succeeded = true;
-        setTimeout(() => location.href = '/static/loading.html', 400);
+        
+        setTimeout(() => {
+          window.location.replace('/static/loading.html'); // 使用 replace 防止返回
+        }, 400);
 
       } catch (e) {
         console.error('[ERROR] Network error:', e);
