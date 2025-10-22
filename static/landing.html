@@ -186,7 +186,7 @@
 
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-    import { getAuth, signInWithPopup, signInWithRedirect, getRedirectResult, FacebookAuthProvider, GoogleAuthProvider, onAuthStateChanged, signOut, fetchSignInMethodsForEmail, linkWithCredential } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+    import { getAuth, signInWithPopup, FacebookAuthProvider, GoogleAuthProvider, onAuthStateChanged, signOut, fetchSignInMethodsForEmail, linkWithCredential } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
     import { getFirestore, doc, getDoc, setDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
     const firebaseConfig = {
@@ -202,35 +202,8 @@
     const auth = getAuth(app);
     const db = getFirestore(app);
 
-    // 頁面載入時檢查 redirect 結果
-    (async function checkRedirectResult() {
-      try {
-        console.log('[DEBUG] Checking redirect result...');
-        const result = await getRedirectResult(auth);
-        
-        if (result && result.user) {
-          console.log('[DEBUG] ✅ Redirect login successful:', result.user.uid);
-          const loginMethod = sessionStorage.getItem('loginMethod');
-          console.log('[DEBUG] Login method was:', loginMethod);
-          
-          sessionStorage.removeItem('loginMethod');
-          document.getElementById('loadingOverlay').style.display = 'flex';
-          
-          await handleSuccessfulLogin(result.user);
-        } else {
-          console.log('[DEBUG] No redirect result found');
-        }
-      } catch (error) {
-        console.error('[ERROR] Redirect result error:', error);
-        
-        // 處理帳號衝突
-        if (error.code === 'auth/account-exists-with-different-credential') {
-          await handleAccountLinking(error);
-        } else {
-          showError('登入處理失敗：' + error.message);
-        }
-      }
-    })();
+    // 頁面載入時不再檢查 redirect 結果（改為只用 popup）
+    console.log('[DEBUG] Page loaded, waiting for auth state...');
 
     // 處理帳號連結
     async function handleAccountLinking(error) {
@@ -425,12 +398,6 @@
 
     onAuthStateChanged(auth, async (user) => {
       const loadingOverlay = document.getElementById('loadingOverlay');
-      
-      if (sessionStorage.getItem('loginMethod')) {
-        console.log('[DEBUG] Waiting for redirect result, skipping onAuthStateChanged');
-        return;
-      }
-      
       loadingOverlay.style.display = 'flex';
 
       if (user) {
@@ -591,51 +558,43 @@
 
     window.loginWithFacebook = async function(pendingCredential = null) {
       const provider = new FacebookAuthProvider();
-      setButtonLoading('fbLoginBtn', true);
+      
+      // 如果不是連結流程，設置按鈕載入狀態
+      if (!pendingCredential) {
+        setButtonLoading('fbLoginBtn', true);
+      }
       
       try {
         console.log('[DEBUG] Starting Facebook login...');
+        console.log('[DEBUG] Pending credential:', pendingCredential ? 'exists' : 'null');
         
-        try {
-          const result = await signInWithPopup(auth, provider);
-          console.log('[DEBUG] ✅ Facebook login successful:', result.user.uid);
-          
-          document.getElementById('loadingOverlay').style.display = 'flex';
-          await handleSuccessfulLogin(result.user, pendingCredential);
-          
-        } catch (popupError) {
-          console.warn('[WARN] Popup failed:', popupError.code);
-          
-          // 處理帳號衝突
-          if (popupError.code === 'auth/account-exists-with-different-credential') {
-            await handleAccountLinking(popupError);
-            return;
-          }
-          
-          // 改用 redirect
-          if (popupError.code === 'auth/popup-blocked' || 
-              popupError.code === 'auth/popup-closed-by-user' ||
-              popupError.code === 'auth/cancelled-popup-request') {
-            
-            console.log('[DEBUG] Switching to redirect...');
-            sessionStorage.setItem('loginMethod', 'facebook');
-            if (pendingCredential) {
-              sessionStorage.setItem('pendingCred', JSON.stringify(pendingCredential));
-            }
-            await signInWithRedirect(auth, provider);
-            return;
-          }
-          
-          throw popupError;
-        }
+        // 只使用 popup，不再 fallback 到 redirect
+        const result = await signInWithPopup(auth, provider);
+        console.log('[DEBUG] ✅ Facebook login successful:', result.user.uid);
+        
+        document.getElementById('loadingOverlay').style.display = 'flex';
+        await handleSuccessfulLogin(result.user, pendingCredential);
         
       } catch (error) {
         console.error('[ERROR] Facebook login failed:', error);
+        console.error('[ERROR] Error code:', error.code);
         
+        // 處理帳號衝突
+        if (error.code === 'auth/account-exists-with-different-credential') {
+          await handleAccountLinking(error);
+          return;
+        }
+        
+        // 其他錯誤
         let errorMessage = 'Facebook 登入失敗';
         
         if (error.code === 'auth/popup-blocked') {
-          errorMessage = '彈出視窗被阻擋，請允許彈出視窗後再試。';
+          errorMessage = '⚠️ 彈出視窗被阻擋<br><br>請允許彈出視窗後重試，或改用 Google 登入。';
+        } else if (error.code === 'auth/popup-closed-by-user') {
+          errorMessage = '登入視窗已關閉，請重試。';
+        } else if (error.code === 'auth/cancelled-popup-request') {
+          console.log('[DEBUG] Popup cancelled, user probably clicked again');
+          return; // 不顯示錯誤，使用者可能重複點擊
         } else if (error.code === 'auth/network-request-failed') {
           errorMessage = '網路連線失敗，請檢查網路後重試。';
         } else {
@@ -643,57 +602,51 @@
         }
         
         showError(errorMessage);
-        setTimeout(() => location.reload(), 3000);
+        setTimeout(() => {
+          document.getElementById('errorMsg').style.display = 'none';
+        }, 5000);
       }
     };
 
     window.loginWithGoogle = async function(pendingCredential = null) {
       const provider = new GoogleAuthProvider();
-      setButtonLoading('googleLoginBtn', true);
+      
+      // 如果不是連結流程，設置按鈕載入狀態
+      if (!pendingCredential) {
+        setButtonLoading('googleLoginBtn', true);
+      }
       
       try {
         console.log('[DEBUG] Starting Google login...');
+        console.log('[DEBUG] Pending credential:', pendingCredential ? 'exists' : 'null');
         
-        try {
-          const result = await signInWithPopup(auth, provider);
-          console.log('[DEBUG] ✅ Google login successful:', result.user.uid);
-          
-          document.getElementById('loadingOverlay').style.display = 'flex';
-          await handleSuccessfulLogin(result.user, pendingCredential);
-          
-        } catch (popupError) {
-          console.warn('[WARN] Popup failed:', popupError.code);
-          
-          // 處理帳號衝突
-          if (popupError.code === 'auth/account-exists-with-different-credential') {
-            await handleAccountLinking(popupError);
-            return;
-          }
-          
-          // 改用 redirect
-          if (popupError.code === 'auth/popup-blocked' || 
-              popupError.code === 'auth/popup-closed-by-user' ||
-              popupError.code === 'auth/cancelled-popup-request') {
-            
-            console.log('[DEBUG] Switching to redirect...');
-            sessionStorage.setItem('loginMethod', 'google');
-            if (pendingCredential) {
-              sessionStorage.setItem('pendingCred', JSON.stringify(pendingCredential));
-            }
-            await signInWithRedirect(auth, provider);
-            return;
-          }
-          
-          throw popupError;
-        }
+        // 只使用 popup，不再 fallback 到 redirect
+        const result = await signInWithPopup(auth, provider);
+        console.log('[DEBUG] ✅ Google login successful:', result.user.uid);
+        
+        document.getElementById('loadingOverlay').style.display = 'flex';
+        await handleSuccessfulLogin(result.user, pendingCredential);
         
       } catch (error) {
         console.error('[ERROR] Google login failed:', error);
+        console.error('[ERROR] Error code:', error.code);
         
+        // 處理帳號衝突
+        if (error.code === 'auth/account-exists-with-different-credential') {
+          await handleAccountLinking(error);
+          return;
+        }
+        
+        // 其他錯誤
         let errorMessage = 'Google 登入失敗';
         
         if (error.code === 'auth/popup-blocked') {
-          errorMessage = '彈出視窗被阻擋，請允許彈出視窗後再試。';
+          errorMessage = '⚠️ 彈出視窗被阻擋<br><br>請允許彈出視窗後重試，或改用 Facebook 登入。';
+        } else if (error.code === 'auth/popup-closed-by-user') {
+          errorMessage = '登入視窗已關閉，請重試。';
+        } else if (error.code === 'auth/cancelled-popup-request') {
+          console.log('[DEBUG] Popup cancelled, user probably clicked again');
+          return; // 不顯示錯誤
         } else if (error.code === 'auth/network-request-failed') {
           errorMessage = '網路連線失敗，請檢查網路後重試。';
         } else {
@@ -701,7 +654,9 @@
         }
         
         showError(errorMessage);
-        setTimeout(() => location.reload(), 3000);
+        setTimeout(() => {
+          document.getElementById('errorMsg').style.display = 'none';
+        }, 5000);
       }
     };
 
