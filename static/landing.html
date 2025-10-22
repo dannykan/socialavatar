@@ -187,7 +187,7 @@
 
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-    import { getAuth, signInWithPopup, FacebookAuthProvider, GoogleAuthProvider, onAuthStateChanged, signOut, fetchSignInMethodsForEmail, linkWithCredential } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+    import { getAuth, signInWithPopup, signInWithRedirect, getRedirectResult, FacebookAuthProvider, GoogleAuthProvider, onAuthStateChanged, signOut, fetchSignInMethodsForEmail, linkWithCredential } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
     import { getFirestore, doc, getDoc, setDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
     const firebaseConfig = {
@@ -203,7 +203,48 @@
     const auth = getAuth(app);
     const db = getFirestore(app);
 
-    console.log('[DEBUG] Page loaded, waiting for auth state...');
+    // 偵測是否為移動設備
+    function isMobileDevice() {
+      return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
+    }
+
+    console.log('[DEBUG] Page loaded, isMobile:', isMobileDevice());
+
+    // 檢查是否從 redirect 返回
+    (async function checkRedirectResult() {
+      try {
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        loadingOverlay.style.display = 'flex';
+        
+        console.log('[DEBUG] Checking redirect result...');
+        const result = await getRedirectResult(auth);
+        
+        if (result && result.user) {
+          console.log('[DEBUG] ✅ Redirect login successful:', result.user.uid);
+          await handleSuccessfulLogin(result.user);
+        } else {
+          console.log('[DEBUG] No redirect result found');
+        }
+      } catch (error) {
+        console.error('[ERROR] Redirect result error:', error);
+        
+        if (error.code === 'auth/account-exists-with-different-credential') {
+          await handleAccountLinking(error);
+        } else if (error.code !== 'auth/popup-closed-by-user') {
+          let errorMessage = '登入失敗';
+          
+          if (error.code === 'auth/network-request-failed') {
+            errorMessage = '網路連線失敗，請檢查網路後重試。';
+          } else {
+            errorMessage = `登入失敗：${error.message}`;
+          }
+          
+          showError(errorMessage);
+        }
+      } finally {
+        document.getElementById('loadingOverlay').style.display = 'none';
+      }
+    })();
 
     // 處理帳號連結
     async function handleAccountLinking(error) {
@@ -222,7 +263,6 @@
         
         console.log('[DEBUG] Email:', email);
         
-        // 取得待連結的憑證
         let pendingCred = null;
         let newProvider = '';
         
@@ -534,22 +574,33 @@
       }
     }
 
+    // Facebook 登入：手機用 redirect，電腦用 popup
     window.loginWithFacebook = async function(pendingCredential = null) {
       const provider = new FacebookAuthProvider();
+      const isMobile = isMobileDevice();
+      
+      console.log('[DEBUG] Starting Facebook login... (isMobile:', isMobile, ')');
       
       if (!pendingCredential) {
         setButtonLoading('fbLoginBtn', true);
       }
       
       try {
-        console.log('[DEBUG] Starting Facebook login...');
-        console.log('[DEBUG] Pending credential:', pendingCredential ? 'exists' : 'null');
-        
-        const result = await signInWithPopup(auth, provider);
-        console.log('[DEBUG] ✅ Facebook login successful:', result.user.uid);
-        
-        document.getElementById('loadingOverlay').style.display = 'flex';
-        await handleSuccessfulLogin(result.user, pendingCredential);
+        if (isMobile) {
+          // 手機端使用 redirect
+          console.log('[DEBUG] Using redirect mode for mobile');
+          showInfo('正在跳轉到 Facebook 登入頁面...');
+          await signInWithRedirect(auth, provider);
+          // redirect 會離開頁面，不會執行到這裡
+        } else {
+          // 電腦端使用 popup
+          console.log('[DEBUG] Using popup mode for desktop');
+          const result = await signInWithPopup(auth, provider);
+          console.log('[DEBUG] ✅ Facebook login successful:', result.user.uid);
+          
+          document.getElementById('loadingOverlay').style.display = 'flex';
+          await handleSuccessfulLogin(result.user, pendingCredential);
+        }
         
       } catch (error) {
         console.error('[ERROR] Facebook login failed:', error);
@@ -570,20 +621,13 @@
               <strong>請依照以下步驟操作：</strong>
               <br><br>
               <div style="background: rgba(59, 130, 246, 0.1); padding: 12px; border-radius: 8px; margin: 8px 0;">
-                <strong>📱 如果你使用手機：</strong><br>
-                1️⃣ 點擊網址列右側的 <strong>[🔒]</strong> 圖示<br>
-                2️⃣ 找到「彈出式視窗」並設定為 <strong>允許</strong><br>
-                3️⃣ 重新整理頁面後再試一次
-              </div>
-              <div style="background: rgba(59, 130, 246, 0.1); padding: 12px; border-radius: 8px; margin: 8px 0;">
-                <strong>💻 如果你使用電腦：</strong><br>
                 1️⃣ 點擊網址列右側的 <strong>[彈出式視窗已遭到封鎖]</strong> 圖示<br>
                 2️⃣ 選擇「一律允許此網站顯示彈出式視窗」<br>
                 3️⃣ 重新整理頁面後再試一次
               </div>
               <br>
               <div style="text-align: center; background: rgba(34, 197, 94, 0.1); padding: 8px; border-radius: 8px;">
-                💡 <strong>或者直接改用 Google 登入（通常不會被封鎖）</strong>
+                💡 <strong>或者直接改用 Google 登入</strong>
               </div>
             </div>
           `;
@@ -600,12 +644,12 @@
         
         showError(errorMessage);
         
-        const displayTime = error.code === 'auth/popup-blocked' ? 15000 : 5000;
+        const displayTime = error.code === 'auth/popup-blocked' ? 10000 : 5000;
         setTimeout(() => {
           document.getElementById('errorMsg').style.display = 'none';
         }, displayTime);
       } finally {
-        if (!pendingCredential) {
+        if (!pendingCredential && !isMobile) {
           const btn = document.getElementById('fbLoginBtn');
           if (btn) {
             btn.disabled = false;
@@ -620,22 +664,33 @@
       }
     };
 
+    // Google 登入：手機用 redirect，電腦用 popup
     window.loginWithGoogle = async function(pendingCredential = null) {
       const provider = new GoogleAuthProvider();
+      const isMobile = isMobileDevice();
+      
+      console.log('[DEBUG] Starting Google login... (isMobile:', isMobile, ')');
       
       if (!pendingCredential) {
         setButtonLoading('googleLoginBtn', true);
       }
       
       try {
-        console.log('[DEBUG] Starting Google login...');
-        console.log('[DEBUG] Pending credential:', pendingCredential ? 'exists' : 'null');
-        
-        const result = await signInWithPopup(auth, provider);
-        console.log('[DEBUG] ✅ Google login successful:', result.user.uid);
-        
-        document.getElementById('loadingOverlay').style.display = 'flex';
-        await handleSuccessfulLogin(result.user, pendingCredential);
+        if (isMobile) {
+          // 手機端使用 redirect
+          console.log('[DEBUG] Using redirect mode for mobile');
+          showInfo('正在跳轉到 Google 登入頁面...');
+          await signInWithRedirect(auth, provider);
+          // redirect 會離開頁面，不會執行到這裡
+        } else {
+          // 電腦端使用 popup
+          console.log('[DEBUG] Using popup mode for desktop');
+          const result = await signInWithPopup(auth, provider);
+          console.log('[DEBUG] ✅ Google login successful:', result.user.uid);
+          
+          document.getElementById('loadingOverlay').style.display = 'flex';
+          await handleSuccessfulLogin(result.user, pendingCredential);
+        }
         
       } catch (error) {
         console.error('[ERROR] Google login failed:', error);
@@ -656,13 +711,6 @@
               <strong>請依照以下步驟操作：</strong>
               <br><br>
               <div style="background: rgba(59, 130, 246, 0.1); padding: 12px; border-radius: 8px; margin: 8px 0;">
-                <strong>📱 如果你使用手機：</strong><br>
-                1️⃣ 點擊網址列右側的 <strong>[🔒]</strong> 圖示<br>
-                2️⃣ 找到「彈出式視窗」並設定為 <strong>允許</strong><br>
-                3️⃣ 重新整理頁面後再試一次
-              </div>
-              <div style="background: rgba(59, 130, 246, 0.1); padding: 12px; border-radius: 8px; margin: 8px 0;">
-                <strong>💻 如果你使用電腦：</strong><br>
                 1️⃣ 點擊網址列右側的 <strong>[彈出式視窗已遭到封鎖]</strong> 圖示<br>
                 2️⃣ 選擇「一律允許此網站顯示彈出式視窗」<br>
                 3️⃣ 重新整理頁面後再試一次
@@ -686,12 +734,12 @@
         
         showError(errorMessage);
         
-        const displayTime = error.code === 'auth/popup-blocked' ? 15000 : 5000;
+        const displayTime = error.code === 'auth/popup-blocked' ? 10000 : 5000;
         setTimeout(() => {
           document.getElementById('errorMsg').style.display = 'none';
         }, displayTime);
       } finally {
-        if (!pendingCredential) {
+        if (!pendingCredential && !isMobile) {
           const btn = document.getElementById('googleLoginBtn');
           if (btn) {
             btn.disabled = false;
