@@ -931,13 +931,28 @@
       window.firestoreDB = db;
 
       // 添加事件監聽器
-      document.getElementById('fbLoginBtn').addEventListener('click', () => {
-        window.loginWithFacebook();
-      });
+      const fbBtn = document.getElementById('fbLoginBtn');
+      const googleBtn = document.getElementById('googleLoginBtn');
+      
+      if (fbBtn) {
+        logMobileDebug('Adding Facebook button event listener');
+        fbBtn.addEventListener('click', () => {
+          logMobileDebug('Facebook button clicked');
+          window.loginWithFacebook();
+        });
+      } else {
+        logMobileDebug('Facebook button not found');
+      }
 
-      document.getElementById('googleLoginBtn').addEventListener('click', () => {
-        window.loginWithGoogle();
-      });
+      if (googleBtn) {
+        logMobileDebug('Adding Google button event listener');
+        googleBtn.addEventListener('click', () => {
+          logMobileDebug('Google button clicked');
+          window.loginWithGoogle();
+        });
+      } else {
+        logMobileDebug('Google button not found');
+      }
 
     })().catch(error => {
       console.error('[ERROR] Failed to initialize app:', error);
