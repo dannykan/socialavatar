@@ -250,11 +250,10 @@
         return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
       }
 
-      // 立即檢查 redirect 結果（在頁面加載時）
-      let redirectProcessed = false;
-      (async function checkRedirectResultImmediately() {
+      // 檢查是否從 redirect 返回（使用更簡單的方法）
+      (async function checkRedirectResult() {
         try {
-          logMobileDebug('Checking redirect result immediately...');
+          logMobileDebug('Checking redirect result...');
           const result = await window.getRedirectResult(auth);
           
           if (result && result.user) {
@@ -263,10 +262,6 @@
               email: result.user.email,
               provider: result.providerId 
             });
-            
-            // 設置 redirect 已處理標記
-            redirectProcessed = true;
-            sessionStorage.setItem('redirectProcessed', 'true');
             
             // 檢查是否有待連結的憑證
             const pendingLink = sessionStorage.getItem('pendingLink');
@@ -547,12 +542,17 @@
         logMobileDebug('onAuthStateChanged: User logged in', { userId: user.uid, email: user.email });
         
         // 檢查是否已經處理過 redirect 結果
+        const redirectProcessed = sessionStorage.getItem('redirectProcessed');
         if (!redirectProcessed) {
-          logMobileDebug('Redirect not processed yet, but user is logged in - using normal flow');
+          logMobileDebug('User logged in but redirect not processed - handling login');
+          // 用戶已登入但沒有處理過 redirect，直接處理登入
+          await handleSuccessfulLogin(user);
+          sessionStorage.setItem('redirectProcessed', 'true');
+        } else {
+          logMobileDebug('Redirect already processed, using normal flow');
+          // 使用正常流程處理已登入的用戶
+          await checkUserAnalysis(user);
         }
-        
-        // 使用正常流程處理已登入的用戶
-        await checkUserAnalysis(user);
       } else {
         logMobileDebug('onAuthStateChanged: No user');
         showLoggedOutState();
