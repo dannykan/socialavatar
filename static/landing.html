@@ -265,36 +265,12 @@
         return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
       }
 
-      // 檢查是否從 redirect 返回（使用更簡單的方法）
-      let redirectChecked = false;
-      
+      // 簡化的 redirect 結果檢查（主要用於降級情況）
       async function checkRedirectResult() {
-        if (redirectChecked) {
-          logMobileDebug('Redirect already checked, skipping');
-          return;
-        }
-        
         try {
           logMobileDebug('Checking redirect result...');
-          redirectChecked = true;
-          
-          // 添加更長的延遲確保 Firebase 完全初始化
-          await new Promise(resolve => setTimeout(resolve, 500));
           
           const result = await window.getRedirectResult(auth);
-          
-          // 使用 console.log 確保調試信息顯示
-          console.log('[DEBUG] getRedirectResult result:', result);
-          console.log('[DEBUG] getRedirectResult type:', typeof result);
-          console.log('[DEBUG] getRedirectResult hasResult:', !!result);
-          console.log('[DEBUG] getRedirectResult hasUser:', !!(result && result.user));
-          
-          logMobileDebug('getRedirectResult returned:', { 
-            hasResult: !!result, 
-            hasUser: !!(result && result.user),
-            providerId: result?.providerId,
-            resultType: typeof result
-          });
           
           if (result && result.user) {
             logMobileDebug('Redirect login successful', { 
@@ -312,7 +288,7 @@
                 const linkData = JSON.parse(pendingLink);
                 logMobileDebug('Found pending link data', linkData);
                 
-                // 從錯誤中獲取憑證
+                // 從結果中獲取憑證
                 const fbCred = window.FacebookAuthProvider.credentialFromResult(result);
                 const gCred = window.GoogleAuthProvider.credentialFromResult(result);
                 
@@ -332,15 +308,17 @@
             }
             
             await handleSuccessfulLogin(result.user, pendingCred);
-            return; // 如果成功處理 redirect，就不需要繼續執行後面的代碼
+            return true; // 成功處理 redirect
           } else {
             logMobileDebug('No redirect result found');
+            return false;
           }
         } catch (error) {
           console.error('[ERROR] Redirect result error:', error);
           
           if (error.code === 'auth/account-exists-with-different-credential') {
             await handleAccountLinking(error);
+            return true;
           } else if (error.code !== 'auth/popup-closed-by-user') {
             let errorMessage = '登入失敗';
             
@@ -352,6 +330,7 @@
             
             showError(errorMessage);
           }
+          return false;
         }
       }
       
@@ -584,22 +563,12 @@
       if (user) {
         logMobileDebug('onAuthStateChanged: User logged in', { userId: user.uid, email: user.email });
         
-        // 如果還沒有檢查過 redirect 結果，先檢查
-        if (!redirectChecked) {
-          logMobileDebug('User logged in but redirect not checked - checking redirect result');
-          await checkRedirectResult();
-        }
+        // 檢查是否有 redirect 結果需要處理
+        const redirectHandled = await checkRedirectResult();
         
-        // 檢查是否已經處理過 redirect 結果
-        const redirectProcessed = sessionStorage.getItem('redirectProcessed');
-        if (!redirectProcessed) {
-          logMobileDebug('User logged in but redirect not processed - handling login');
-          // 用戶已登入但沒有處理過 redirect，直接處理登入
-          await handleSuccessfulLogin(user);
-          sessionStorage.setItem('redirectProcessed', 'true');
-        } else {
-          logMobileDebug('Redirect already processed, using normal flow');
-          // 使用正常流程處理已登入的用戶
+        if (!redirectHandled) {
+          // 沒有 redirect 結果，使用正常流程
+          logMobileDebug('No redirect result, using normal flow');
           await checkUserAnalysis(user);
         }
       } else {
@@ -782,20 +751,25 @@
           setButtonLoading('fbLoginBtn', true);
         }
         
-        if (isMobile) {
-          // 手機端使用 redirect
-          logMobileDebug('Using redirect mode for Facebook login');
-          showInfo('正在跳轉到 Facebook 登入頁面...');
-          await window.signInWithRedirect(auth, provider);
-          // redirect 會離開頁面，不會執行到這裡
-        } else {
-          // 電腦端使用 popup
-          logMobileDebug('Using popup mode for Facebook login');
+        // 統一使用 popup 模式，但添加手機端特殊處理
+        logMobileDebug('Using popup mode for Facebook login');
+        
+        try {
           const result = await window.signInWithPopup(auth, provider);
           logMobileDebug('Facebook login successful', { userId: result.user.uid });
           
           document.getElementById('loadingOverlay').style.display = 'flex';
           await handleSuccessfulLogin(result.user, pendingCredential);
+        } catch (error) {
+          // 如果是手機端 popup 被阻止，自動降級到 redirect
+          if (error.code === 'auth/popup-blocked' || error.code === 'auth/popup-closed-by-user') {
+            logMobileDebug('Popup blocked on mobile, falling back to redirect');
+            showInfo('正在跳轉到 Facebook 登入頁面...');
+            await window.signInWithRedirect(auth, provider);
+            // redirect 會離開頁面，不會執行到這裡
+          } else {
+            throw error;
+          }
         }
       } catch (error) {
         console.error('[ERROR] Facebook login failed:', error);
@@ -872,20 +846,25 @@
           setButtonLoading('googleLoginBtn', true);
         }
         
-        if (isMobile) {
-          // 手機端使用 redirect
-          logMobileDebug('Using redirect mode for Google login');
-          showInfo('正在跳轉到 Google 登入頁面...');
-          await window.signInWithRedirect(auth, provider);
-          // redirect 會離開頁面，不會執行到這裡
-        } else {
-          // 電腦端使用 popup
-          logMobileDebug('Using popup mode for Google login');
+        // 統一使用 popup 模式，但添加手機端特殊處理
+        logMobileDebug('Using popup mode for Google login');
+        
+        try {
           const result = await window.signInWithPopup(auth, provider);
           logMobileDebug('Google login successful', { userId: result.user.uid });
           
           document.getElementById('loadingOverlay').style.display = 'flex';
           await handleSuccessfulLogin(result.user, pendingCredential);
+        } catch (error) {
+          // 如果是手機端 popup 被阻止，自動降級到 redirect
+          if (error.code === 'auth/popup-blocked' || error.code === 'auth/popup-closed-by-user') {
+            logMobileDebug('Popup blocked on mobile, falling back to redirect');
+            showInfo('正在跳轉到 Google 登入頁面...');
+            await window.signInWithRedirect(auth, provider);
+            // redirect 會離開頁面，不會執行到這裡
+          } else {
+            throw error;
+          }
         }
       } catch (error) {
         console.error('[ERROR] Google login failed:', error);
