@@ -93,6 +93,7 @@
       margin-top: var(--spacing);
       font-size: var(--font-size-sm);
       display: none;
+      line-height: 1.6;
     }
     
     .error {
@@ -202,7 +203,6 @@
     const auth = getAuth(app);
     const db = getFirestore(app);
 
-    // 頁面載入時不再檢查 redirect 結果（改為只用 popup）
     console.log('[DEBUG] Page loaded, waiting for auth state...');
 
     // 處理帳號連結
@@ -230,7 +230,6 @@
           pendingCred = error.credential;
           newProvider = pendingCred.providerId.includes('google') ? 'Google' : 'Facebook';
         } else {
-          // 從錯誤碼判斷是哪個 provider
           const fbCred = FacebookAuthProvider.credentialFromError(error);
           const gCred = GoogleAuthProvider.credentialFromError(error);
           
@@ -246,7 +245,6 @@
         console.log('[DEBUG] New provider:', newProvider);
         console.log('[DEBUG] Pending credential exists:', !!pendingCred);
         
-        // 嘗試取得已存在的登入方式
         let existingProvider = '';
         
         try {
@@ -260,14 +258,11 @@
           console.warn('[WARN] fetchSignInMethodsForEmail failed:', fetchError);
         }
         
-        // 如果 fetchSignInMethodsForEmail 失敗，用另一種判斷方式
         if (!existingProvider) {
-          // 根據新的 provider 推測現有的 provider
           existingProvider = newProvider === 'Facebook' ? 'Google' : 'Facebook';
           console.log('[DEBUG] Inferred existing provider:', existingProvider);
         }
         
-        // 如果是同一個 provider，直接登入
         if (existingProvider === newProvider) {
           console.log('[DEBUG] Same provider, attempting direct login');
           showInfo('正在為你登入...');
@@ -280,7 +275,6 @@
           return;
         }
         
-        // 顯示友善提示
         showInfo(
           `✨ 偵測到帳號整合機會！<br><br>` +
           `此 Email (<strong>${email}</strong>) 已使用 <strong>${existingProvider}</strong> 註冊。<br><br>` +
@@ -288,10 +282,8 @@
           `請稍候，正在處理...`
         );
         
-        // 等待 1.5 秒後自動觸發正確的登入方式
         await new Promise(resolve => setTimeout(resolve, 1500));
         
-        // 儲存待連結資訊
         if (pendingCred) {
           try {
             sessionStorage.setItem('pendingLink', JSON.stringify({
@@ -304,7 +296,6 @@
           }
         }
         
-        // 觸發現有 provider 的登入
         if (existingProvider === 'Google') {
           console.log('[DEBUG] Triggering Google login for linking...');
           await loginWithGoogle(pendingCred);
@@ -323,7 +314,6 @@
         );
         
         setTimeout(() => {
-          // 清除錯誤訊息，讓使用者可以重新選擇
           document.getElementById('infoMsg').style.display = 'none';
           document.getElementById('errorMsg').style.display = 'none';
         }, 5000);
@@ -335,7 +325,6 @@
       console.log('[DEBUG] User email:', user.email);
       console.log('[DEBUG] Pending credential:', pendingCred ? 'exists' : 'null');
       
-      // 如果有待連結的憑證，進行連結
       if (pendingCred) {
         try {
           console.log('[DEBUG] Attempting to link credential...');
@@ -352,14 +341,12 @@
           console.error('[ERROR] Link credential failed:', linkError);
           console.error('[ERROR] Link error code:', linkError.code);
           
-          // 如果已經連結過，不算錯誤
           if (linkError.code === 'auth/credential-already-in-use' || 
               linkError.code === 'auth/email-already-in-use') {
             console.log('[DEBUG] Credential already linked, continuing...');
             showInfo('✓ 此帳號已整合完成。');
             await new Promise(resolve => setTimeout(resolve, 1000));
           } else {
-            // 其他錯誤也繼續，不影響登入
             console.warn('[WARN] Link failed but continuing login:', linkError.message);
           }
         }
@@ -517,13 +504,8 @@
       errorMsg.innerHTML = message;
       errorMsg.style.display = 'block';
       
-      // 隱藏其他訊息
       document.getElementById('warningMsg').style.display = 'none';
       document.getElementById('infoMsg').style.display = 'none';
-      
-      setTimeout(() => {
-        errorMsg.style.display = 'none';
-      }, 8000);
     }
 
     function showWarning(message) {
@@ -533,10 +515,6 @@
       
       document.getElementById('errorMsg').style.display = 'none';
       document.getElementById('infoMsg').style.display = 'none';
-      
-      setTimeout(() => {
-        warningMsg.style.display = 'none';
-      }, 8000);
     }
 
     function showInfo(message) {
@@ -559,7 +537,6 @@
     window.loginWithFacebook = async function(pendingCredential = null) {
       const provider = new FacebookAuthProvider();
       
-      // 如果不是連結流程，設置按鈕載入狀態
       if (!pendingCredential) {
         setButtonLoading('fbLoginBtn', true);
       }
@@ -568,7 +545,6 @@
         console.log('[DEBUG] Starting Facebook login...');
         console.log('[DEBUG] Pending credential:', pendingCredential ? 'exists' : 'null');
         
-        // 只使用 popup，不再 fallback 到 redirect
         const result = await signInWithPopup(auth, provider);
         console.log('[DEBUG] ✅ Facebook login successful:', result.user.uid);
         
@@ -579,22 +555,43 @@
         console.error('[ERROR] Facebook login failed:', error);
         console.error('[ERROR] Error code:', error.code);
         
-        // 處理帳號衝突
         if (error.code === 'auth/account-exists-with-different-credential') {
           await handleAccountLinking(error);
           return;
         }
         
-        // 其他錯誤
         let errorMessage = 'Facebook 登入失敗';
         
         if (error.code === 'auth/popup-blocked') {
-          errorMessage = '⚠️ 彈出視窗被阻擋<br><br>請允許彈出視窗後重試，或改用 Google 登入。';
+          errorMessage = `
+            <div style="text-align: left;">
+              <strong style="font-size: 16px;">⚠️ 瀏覽器封鎖了彈出視窗</strong>
+              <br><br>
+              <strong>請依照以下步驟操作：</strong>
+              <br><br>
+              <div style="background: rgba(59, 130, 246, 0.1); padding: 12px; border-radius: 8px; margin: 8px 0;">
+                <strong>📱 如果你使用手機：</strong><br>
+                1️⃣ 點擊網址列右側的 <strong>[🔒]</strong> 圖示<br>
+                2️⃣ 找到「彈出式視窗」並設定為 <strong>允許</strong><br>
+                3️⃣ 重新整理頁面後再試一次
+              </div>
+              <div style="background: rgba(59, 130, 246, 0.1); padding: 12px; border-radius: 8px; margin: 8px 0;">
+                <strong>💻 如果你使用電腦：</strong><br>
+                1️⃣ 點擊網址列右側的 <strong>[彈出式視窗已遭到封鎖]</strong> 圖示<br>
+                2️⃣ 選擇「一律允許此網站顯示彈出式視窗」<br>
+                3️⃣ 重新整理頁面後再試一次
+              </div>
+              <br>
+              <div style="text-align: center; background: rgba(34, 197, 94, 0.1); padding: 8px; border-radius: 8px;">
+                💡 <strong>或者直接改用 Google 登入（通常不會被封鎖）</strong>
+              </div>
+            </div>
+          `;
         } else if (error.code === 'auth/popup-closed-by-user') {
           errorMessage = '登入視窗已關閉，請重試。';
         } else if (error.code === 'auth/cancelled-popup-request') {
           console.log('[DEBUG] Popup cancelled, user probably clicked again');
-          return; // 不顯示錯誤，使用者可能重複點擊
+          return;
         } else if (error.code === 'auth/network-request-failed') {
           errorMessage = '網路連線失敗，請檢查網路後重試。';
         } else {
@@ -602,16 +599,30 @@
         }
         
         showError(errorMessage);
+        
+        const displayTime = error.code === 'auth/popup-blocked' ? 15000 : 5000;
         setTimeout(() => {
           document.getElementById('errorMsg').style.display = 'none';
-        }, 5000);
+        }, displayTime);
+      } finally {
+        if (!pendingCredential) {
+          const btn = document.getElementById('fbLoginBtn');
+          if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = `
+              <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+              </svg>
+              使用 Facebook 登入
+            `;
+          }
+        }
       }
     };
 
     window.loginWithGoogle = async function(pendingCredential = null) {
       const provider = new GoogleAuthProvider();
       
-      // 如果不是連結流程，設置按鈕載入狀態
       if (!pendingCredential) {
         setButtonLoading('googleLoginBtn', true);
       }
@@ -620,7 +631,6 @@
         console.log('[DEBUG] Starting Google login...');
         console.log('[DEBUG] Pending credential:', pendingCredential ? 'exists' : 'null');
         
-        // 只使用 popup，不再 fallback 到 redirect
         const result = await signInWithPopup(auth, provider);
         console.log('[DEBUG] ✅ Google login successful:', result.user.uid);
         
@@ -631,22 +641,43 @@
         console.error('[ERROR] Google login failed:', error);
         console.error('[ERROR] Error code:', error.code);
         
-        // 處理帳號衝突
         if (error.code === 'auth/account-exists-with-different-credential') {
           await handleAccountLinking(error);
           return;
         }
         
-        // 其他錯誤
         let errorMessage = 'Google 登入失敗';
         
         if (error.code === 'auth/popup-blocked') {
-          errorMessage = '⚠️ 彈出視窗被阻擋<br><br>請允許彈出視窗後重試，或改用 Facebook 登入。';
+          errorMessage = `
+            <div style="text-align: left;">
+              <strong style="font-size: 16px;">⚠️ 瀏覽器封鎖了彈出視窗</strong>
+              <br><br>
+              <strong>請依照以下步驟操作：</strong>
+              <br><br>
+              <div style="background: rgba(59, 130, 246, 0.1); padding: 12px; border-radius: 8px; margin: 8px 0;">
+                <strong>📱 如果你使用手機：</strong><br>
+                1️⃣ 點擊網址列右側的 <strong>[🔒]</strong> 圖示<br>
+                2️⃣ 找到「彈出式視窗」並設定為 <strong>允許</strong><br>
+                3️⃣ 重新整理頁面後再試一次
+              </div>
+              <div style="background: rgba(59, 130, 246, 0.1); padding: 12px; border-radius: 8px; margin: 8px 0;">
+                <strong>💻 如果你使用電腦：</strong><br>
+                1️⃣ 點擊網址列右側的 <strong>[彈出式視窗已遭到封鎖]</strong> 圖示<br>
+                2️⃣ 選擇「一律允許此網站顯示彈出式視窗」<br>
+                3️⃣ 重新整理頁面後再試一次
+              </div>
+              <br>
+              <div style="text-align: center; background: rgba(34, 197, 94, 0.1); padding: 8px; border-radius: 8px;">
+                💡 <strong>或者直接改用 Facebook 登入</strong>
+              </div>
+            </div>
+          `;
         } else if (error.code === 'auth/popup-closed-by-user') {
           errorMessage = '登入視窗已關閉，請重試。';
         } else if (error.code === 'auth/cancelled-popup-request') {
           console.log('[DEBUG] Popup cancelled, user probably clicked again');
-          return; // 不顯示錯誤
+          return;
         } else if (error.code === 'auth/network-request-failed') {
           errorMessage = '網路連線失敗，請檢查網路後重試。';
         } else {
@@ -654,9 +685,27 @@
         }
         
         showError(errorMessage);
+        
+        const displayTime = error.code === 'auth/popup-blocked' ? 15000 : 5000;
         setTimeout(() => {
           document.getElementById('errorMsg').style.display = 'none';
-        }, 5000);
+        }, displayTime);
+      } finally {
+        if (!pendingCredential) {
+          const btn = document.getElementById('googleLoginBtn');
+          if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = `
+              <svg class="icon" viewBox="0 0 24 24">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+              </svg>
+              使用 Google 登入
+            `;
+          }
+        }
       }
     };
 
