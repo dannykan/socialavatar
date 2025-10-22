@@ -87,15 +87,30 @@
       border: 1px solid rgba(34, 197, 94, 0.3);
     }
     
-    .error {
-      background: rgba(239, 68, 68, 0.1);
-      color: var(--error);
-      border: 1px solid rgba(239, 68, 68, 0.3);
+    .error, .warning, .info {
       padding: var(--spacing);
       border-radius: var(--radius-md);
       margin-top: var(--spacing);
       font-size: var(--font-size-sm);
       display: none;
+    }
+    
+    .error {
+      background: rgba(239, 68, 68, 0.1);
+      color: var(--error);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+    
+    .warning {
+      background: rgba(245, 158, 11, 0.1);
+      color: var(--warning);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+    
+    .info {
+      background: rgba(59, 130, 246, 0.1);
+      color: var(--info);
+      border: 1px solid rgba(59, 130, 246, 0.3);
     }
     
     .hint-text {
@@ -163,13 +178,15 @@
     </div>
 
     <div class="error" id="errorMsg"></div>
+    <div class="warning" id="warningMsg"></div>
+    <div class="info" id="infoMsg"></div>
     
-    <p class="hint-text" id="hintText">💡 提示：登入後即可開始分析你的 IG 社群人格。</p>
+    <p class="hint-text" id="hintText">💡 提示：同一個 Email 可使用 Google 或 Facebook 登入。</p>
   </div>
 
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-    import { getAuth, signInWithPopup, signInWithRedirect, getRedirectResult, FacebookAuthProvider, GoogleAuthProvider, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+    import { getAuth, signInWithPopup, signInWithRedirect, getRedirectResult, FacebookAuthProvider, GoogleAuthProvider, onAuthStateChanged, signOut, fetchSignInMethodsForEmail, linkWithCredential } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
     import { getFirestore, doc, getDoc, setDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
     const firebaseConfig = {
@@ -205,16 +222,88 @@
         }
       } catch (error) {
         console.error('[ERROR] Redirect result error:', error);
-        console.error('[ERROR] Error code:', error.code);
-        console.error('[ERROR] Error message:', error.message);
-        showError('登入處理失敗：' + error.message);
+        
+        // 處理帳號衝突
+        if (error.code === 'auth/account-exists-with-different-credential') {
+          await handleAccountLinking(error);
+        } else {
+          showError('登入處理失敗：' + error.message);
+        }
       }
     })();
 
-    async function handleSuccessfulLogin(user) {
+    // 處理帳號連結
+    async function handleAccountLinking(error) {
+      console.log('[DEBUG] Handling account linking...');
+      
+      try {
+        const email = error.customData?.email;
+        const pendingCred = FacebookAuthProvider.credentialFromError(error) || 
+                           GoogleAuthProvider.credentialFromError(error);
+        
+        if (!email || !pendingCred) {
+          throw new Error('無法取得帳號資訊');
+        }
+        
+        console.log('[DEBUG] Email:', email);
+        
+        // 取得已存在的登入方式
+        const methods = await fetchSignInMethodsForEmail(auth, email);
+        console.log('[DEBUG] Existing sign-in methods:', methods);
+        
+        if (methods.length === 0) {
+          throw new Error('找不到現有帳號');
+        }
+        
+        // 判斷現有登入方式
+        const existingProvider = methods[0].includes('google') ? 'Google' : 'Facebook';
+        const newProvider = pendingCred.providerId.includes('google') ? 'Google' : 'Facebook';
+        
+        console.log('[DEBUG] Existing provider:', existingProvider);
+        console.log('[DEBUG] New provider:', newProvider);
+        
+        // 顯示友善提示
+        showInfo(
+          `✨ 太好了！<br><br>` +
+          `此 Email (<strong>${email}</strong>) 已使用 <strong>${existingProvider}</strong> 註冊。<br><br>` +
+          `我們會自動為你連結 ${newProvider} 帳號，下次可以用兩種方式登入！<br><br>` +
+          `請先用 <strong>${existingProvider}</strong> 登入以完成連結...`
+        );
+        
+        // 等待 3 秒後自動觸發正確的登入方式
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        
+        if (existingProvider === 'Google') {
+          console.log('[DEBUG] Auto-triggering Google login for linking...');
+          await loginWithGoogle(pendingCred);
+        } else {
+          console.log('[DEBUG] Auto-triggering Facebook login for linking...');
+          await loginWithFacebook(pendingCred);
+        }
+        
+      } catch (linkError) {
+        console.error('[ERROR] Account linking failed:', linkError);
+        showError('帳號連結失敗：' + linkError.message);
+      }
+    }
+
+    async function handleSuccessfulLogin(user, pendingCred = null) {
       console.log('[DEBUG] handleSuccessfulLogin called for:', user.uid);
-      console.log('[DEBUG] User email:', user.email);
-      console.log('[DEBUG] User displayName:', user.displayName);
+      
+      // 如果有待連結的憑證，進行連結
+      if (pendingCred) {
+        try {
+          console.log('[DEBUG] Linking credential...');
+          await linkWithCredential(user, pendingCred);
+          console.log('[DEBUG] ✅ Account linked successfully!');
+          
+          showInfo('🎉 帳號連結成功！下次可以用 Google 或 Facebook 登入。');
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        } catch (linkError) {
+          console.error('[ERROR] Link credential failed:', linkError);
+          // 連結失敗也沒關係，繼續正常流程
+        }
+      }
       
       storeUserSession(user);
       
@@ -371,11 +460,38 @@
 
     function showError(message) {
       const errorMsg = document.getElementById('errorMsg');
-      errorMsg.textContent = message;
+      errorMsg.innerHTML = message;
       errorMsg.style.display = 'block';
+      
+      // 隱藏其他訊息
+      document.getElementById('warningMsg').style.display = 'none';
+      document.getElementById('infoMsg').style.display = 'none';
+      
       setTimeout(() => {
         errorMsg.style.display = 'none';
       }, 8000);
+    }
+
+    function showWarning(message) {
+      const warningMsg = document.getElementById('warningMsg');
+      warningMsg.innerHTML = message;
+      warningMsg.style.display = 'block';
+      
+      document.getElementById('errorMsg').style.display = 'none';
+      document.getElementById('infoMsg').style.display = 'none';
+      
+      setTimeout(() => {
+        warningMsg.style.display = 'none';
+      }, 8000);
+    }
+
+    function showInfo(message) {
+      const infoMsg = document.getElementById('infoMsg');
+      infoMsg.innerHTML = message;
+      infoMsg.style.display = 'block';
+      
+      document.getElementById('errorMsg').style.display = 'none';
+      document.getElementById('warningMsg').style.display = 'none';
     }
 
     function setButtonLoading(buttonId, isLoading) {
@@ -386,29 +502,39 @@
       }
     }
 
-    window.loginWithFacebook = async function() {
+    window.loginWithFacebook = async function(pendingCredential = null) {
       const provider = new FacebookAuthProvider();
       setButtonLoading('fbLoginBtn', true);
       
       try {
-        console.log('[DEBUG] Starting Facebook login with popup...');
+        console.log('[DEBUG] Starting Facebook login...');
         
         try {
           const result = await signInWithPopup(auth, provider);
-          console.log('[DEBUG] ✅ Facebook popup login successful:', result.user.uid);
+          console.log('[DEBUG] ✅ Facebook login successful:', result.user.uid);
           
           document.getElementById('loadingOverlay').style.display = 'flex';
-          await handleSuccessfulLogin(result.user);
+          await handleSuccessfulLogin(result.user, pendingCredential);
           
         } catch (popupError) {
-          console.warn('[WARN] Popup method failed:', popupError.code);
+          console.warn('[WARN] Popup failed:', popupError.code);
           
+          // 處理帳號衝突
+          if (popupError.code === 'auth/account-exists-with-different-credential') {
+            await handleAccountLinking(popupError);
+            return;
+          }
+          
+          // 改用 redirect
           if (popupError.code === 'auth/popup-blocked' || 
               popupError.code === 'auth/popup-closed-by-user' ||
               popupError.code === 'auth/cancelled-popup-request') {
             
-            console.log('[DEBUG] Switching to redirect method...');
+            console.log('[DEBUG] Switching to redirect...');
             sessionStorage.setItem('loginMethod', 'facebook');
+            if (pendingCredential) {
+              sessionStorage.setItem('pendingCred', JSON.stringify(pendingCredential));
+            }
             await signInWithRedirect(auth, provider);
             return;
           }
@@ -418,14 +544,11 @@
         
       } catch (error) {
         console.error('[ERROR] Facebook login failed:', error);
-        console.error('[ERROR] Error code:', error.code);
         
         let errorMessage = 'Facebook 登入失敗';
         
-        if (error.code === 'auth/account-exists-with-different-credential') {
-          errorMessage = '此 Email 已使用其他方式註冊（如 Google），請使用相同方式登入。';
-        } else if (error.code === 'auth/popup-blocked') {
-          errorMessage = '彈出視窗被阻擋，請允許彈出視窗或重新整理頁面再試。';
+        if (error.code === 'auth/popup-blocked') {
+          errorMessage = '彈出視窗被阻擋，請允許彈出視窗後再試。';
         } else if (error.code === 'auth/network-request-failed') {
           errorMessage = '網路連線失敗，請檢查網路後重試。';
         } else {
@@ -437,29 +560,39 @@
       }
     };
 
-    window.loginWithGoogle = async function() {
+    window.loginWithGoogle = async function(pendingCredential = null) {
       const provider = new GoogleAuthProvider();
       setButtonLoading('googleLoginBtn', true);
       
       try {
-        console.log('[DEBUG] Starting Google login with popup...');
+        console.log('[DEBUG] Starting Google login...');
         
         try {
           const result = await signInWithPopup(auth, provider);
-          console.log('[DEBUG] ✅ Google popup login successful:', result.user.uid);
+          console.log('[DEBUG] ✅ Google login successful:', result.user.uid);
           
           document.getElementById('loadingOverlay').style.display = 'flex';
-          await handleSuccessfulLogin(result.user);
+          await handleSuccessfulLogin(result.user, pendingCredential);
           
         } catch (popupError) {
-          console.warn('[WARN] Popup method failed:', popupError.code);
+          console.warn('[WARN] Popup failed:', popupError.code);
           
+          // 處理帳號衝突
+          if (popupError.code === 'auth/account-exists-with-different-credential') {
+            await handleAccountLinking(popupError);
+            return;
+          }
+          
+          // 改用 redirect
           if (popupError.code === 'auth/popup-blocked' || 
               popupError.code === 'auth/popup-closed-by-user' ||
               popupError.code === 'auth/cancelled-popup-request') {
             
-            console.log('[DEBUG] Switching to redirect method...');
+            console.log('[DEBUG] Switching to redirect...');
             sessionStorage.setItem('loginMethod', 'google');
+            if (pendingCredential) {
+              sessionStorage.setItem('pendingCred', JSON.stringify(pendingCredential));
+            }
             await signInWithRedirect(auth, provider);
             return;
           }
@@ -469,14 +602,11 @@
         
       } catch (error) {
         console.error('[ERROR] Google login failed:', error);
-        console.error('[ERROR] Error code:', error.code);
         
         let errorMessage = 'Google 登入失敗';
         
-        if (error.code === 'auth/account-exists-with-different-credential') {
-          errorMessage = '此 Email 已使用其他方式註冊（如 Facebook），請使用相同方式登入。';
-        } else if (error.code === 'auth/popup-blocked') {
-          errorMessage = '彈出視窗被阻擋，請允許彈出視窗或重新整理頁面再試。';
+        if (error.code === 'auth/popup-blocked') {
+          errorMessage = '彈出視窗被阻擋，請允許彈出視窗後再試。';
         } else if (error.code === 'auth/network-request-failed') {
           errorMessage = '網路連線失敗，請檢查網路後重試。';
         } else {
@@ -496,13 +626,6 @@
       } catch (error) {
         console.error('Logout error:', error);
         showError('登出失敗：' + error.message);
-      }
-    };
-
-    window.reanalyze = function() {
-      if (confirm('確定要重新分析？這將覆蓋你目前的分析結果。')) {
-        sessionStorage.removeItem('sa_result');
-        location.href = '/static/upload.html';
       }
     };
 
