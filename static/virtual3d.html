@@ -1,0 +1,1466 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>3D 虛擬空間｜Social Avatar</title>
+  <link rel="stylesheet" href="/static/app.css">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%);
+      min-height: 100vh;
+      color: #ffffff;
+      font-family: 'Arial', sans-serif;
+      overflow: hidden;
+    }
+    
+    /* 3D場景容器 */
+    .scene-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 1;
+    }
+    
+    #threejs-container {
+      width: 100%;
+      height: 100%;
+    }
+    
+    /* UI覆蓋層 */
+    .ui-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 10;
+    }
+    
+    .ui-panel {
+      pointer-events: auto;
+      background: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(10px);
+      border: 2px solid #4a90e2;
+      border-radius: 15px;
+      padding: 20px;
+    }
+    
+    /* 頂部狀態欄 */
+    .status-bar {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      right: 20px;
+      height: 80px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+    
+    .character-name {
+      font-size: 24px;
+      font-weight: bold;
+      color: #4a90e2;
+      text-shadow: 0 0 10px rgba(74, 144, 226, 0.5);
+    }
+    
+    .level-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .level-badge {
+      background: linear-gradient(45deg, #ff6b6b, #ffd93d);
+      padding: 5px 15px;
+      border-radius: 20px;
+      font-weight: bold;
+      color: #000;
+      font-size: 14px;
+    }
+    
+    .power-level {
+      background: rgba(74, 144, 226, 0.2);
+      padding: 5px 15px;
+      border-radius: 20px;
+      border: 1px solid #4a90e2;
+      font-size: 14px;
+    }
+    
+    .currency-display {
+      display: flex;
+      gap: 15px;
+    }
+    
+    .currency-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      background: rgba(255, 255, 255, 0.1);
+      padding: 8px 12px;
+      border-radius: 15px;
+      font-size: 14px;
+    }
+    
+    /* 左側道具欄 */
+    .inventory-panel {
+      position: fixed;
+      top: 120px;
+      left: 20px;
+      width: 300px;
+      height: calc(100vh - 200px);
+      overflow-y: auto;
+    }
+    
+    .panel-title {
+      font-size: 18px;
+      font-weight: bold;
+      margin-bottom: 15px;
+      color: #4a90e2;
+      text-align: center;
+      border-bottom: 2px solid rgba(74, 144, 226, 0.3);
+      padding-bottom: 10px;
+    }
+    
+    .category-tabs {
+      display: flex;
+      gap: 5px;
+      margin-bottom: 15px;
+    }
+    
+    .category-tab {
+      flex: 1;
+      padding: 8px 12px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(74, 144, 226, 0.3);
+      border-radius: 8px;
+      cursor: pointer;
+      text-align: center;
+      font-size: 12px;
+      transition: all 0.3s ease;
+    }
+    
+    .category-tab.active {
+      background: rgba(74, 144, 226, 0.3);
+      border-color: #4a90e2;
+    }
+    
+    .items-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+    
+    .item-card {
+      background: rgba(255, 255, 255, 0.05);
+      border: 2px solid rgba(74, 144, 226, 0.3);
+      border-radius: 10px;
+      padding: 10px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      position: relative;
+      text-align: center;
+    }
+    
+    .item-card:hover {
+      border-color: #4a90e2;
+      background: rgba(74, 144, 226, 0.1);
+      transform: translateY(-2px);
+    }
+    
+    .item-card.equipped {
+      border-color: #4a90e2;
+      background: rgba(74, 144, 226, 0.2);
+      box-shadow: 0 0 15px rgba(74, 144, 226, 0.5);
+    }
+    
+    .item-card.premium {
+      border-color: #ffd700;
+      background: rgba(255, 215, 0, 0.1);
+    }
+    
+    .item-card.premium::after {
+      content: '💎';
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      font-size: 12px;
+    }
+    
+    .item-icon {
+      font-size: 24px;
+      margin-bottom: 5px;
+    }
+    
+    .item-name {
+      font-size: 12px;
+      margin-bottom: 3px;
+    }
+    
+    .item-power {
+      font-size: 10px;
+      color: #4a90e2;
+    }
+    
+    .item-price {
+      font-size: 10px;
+      color: #ffd700;
+      margin-top: 3px;
+    }
+    
+    /* 右側控制面板 */
+    .control-panel {
+      position: fixed;
+      top: 120px;
+      right: 20px;
+      width: 300px;
+      height: calc(100vh - 200px);
+      overflow-y: auto;
+    }
+    
+    .camera-controls {
+      margin-bottom: 20px;
+    }
+    
+    .control-group {
+      margin-bottom: 15px;
+    }
+    
+    .control-label {
+      font-size: 14px;
+      color: #4a90e2;
+      margin-bottom: 5px;
+      display: block;
+    }
+    
+    .control-slider {
+      width: 100%;
+      height: 6px;
+      border-radius: 3px;
+      background: rgba(255, 255, 255, 0.1);
+      outline: none;
+      -webkit-appearance: none;
+    }
+    
+    .control-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #4a90e2;
+      cursor: pointer;
+    }
+    
+    .control-slider::-moz-range-thumb {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #4a90e2;
+      cursor: pointer;
+      border: none;
+    }
+    
+    .background-section {
+      margin-bottom: 20px;
+    }
+    
+    .background-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+    
+    .background-option {
+      background: rgba(255, 255, 255, 0.05);
+      border: 2px solid rgba(74, 144, 226, 0.3);
+      border-radius: 10px;
+      padding: 10px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-align: center;
+    }
+    
+    .background-option:hover {
+      border-color: #4a90e2;
+    }
+    
+    .background-option.selected {
+      border-color: #4a90e2;
+      background: rgba(74, 144, 226, 0.2);
+    }
+    
+    .background-option.premium {
+      border-color: #ffd700;
+    }
+    
+    .background-preview {
+      width: 100%;
+      height: 60px;
+      border-radius: 5px;
+      margin-bottom: 5px;
+      background-size: cover;
+      background-position: center;
+    }
+    
+    .background-name {
+      font-size: 12px;
+    }
+    
+    /* 底部控制欄 */
+    .bottom-controls {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      right: 20px;
+      height: 80px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .action-buttons {
+      display: flex;
+      gap: 10px;
+    }
+    
+    .btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 25px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: all 0.3s ease;
+      text-decoration: none;
+      display: inline-block;
+      text-align: center;
+    }
+    
+    .btn-primary {
+      background: linear-gradient(45deg, #4a90e2, #357abd);
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      background: linear-gradient(45deg, #357abd, #2c5aa0);
+      transform: translateY(-2px);
+    }
+    
+    .btn-premium {
+      background: linear-gradient(45deg, #ffd700, #ffed4e);
+      color: #000;
+    }
+    
+    .btn-premium:hover {
+      background: linear-gradient(45deg, #ffed4e, #ffd700);
+      transform: translateY(-2px);
+    }
+    
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+      border: 1px solid rgba(74, 144, 226, 0.5);
+    }
+    
+    .btn-secondary:hover {
+      background: rgba(74, 144, 226, 0.2);
+    }
+    
+    .level-progress {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .progress-bar {
+      width: 200px;
+      height: 20px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      overflow: hidden;
+      position: relative;
+    }
+    
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(45deg, #4a90e2, #357abd);
+      border-radius: 10px;
+      transition: width 0.3s ease;
+    }
+    
+    .progress-text {
+      font-size: 12px;
+      color: #888;
+    }
+    
+    /* 載入畫面 */
+    .loading-screen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    
+    .loading-spinner {
+      width: 50px;
+      height: 50px;
+      border: 3px solid rgba(74, 144, 226, 0.3);
+      border-top: 3px solid #4a90e2;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 20px;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    .loading-text {
+      font-size: 18px;
+      color: #4a90e2;
+      text-align: center;
+    }
+    
+    /* 響應式設計 */
+    @media (max-width: 1200px) {
+      .inventory-panel,
+      .control-panel {
+        width: 250px;
+      }
+    }
+    
+    @media (max-width: 768px) {
+      .inventory-panel,
+      .control-panel {
+        width: 200px;
+      }
+      
+      .items-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .background-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- 載入畫面 -->
+  <div class="loading-screen" id="loadingScreen">
+    <div class="loading-spinner"></div>
+    <div class="loading-text">載入3D虛擬空間中...</div>
+  </div>
+
+  <!-- 3D場景容器 -->
+  <div class="scene-container">
+    <div id="threejs-container"></div>
+  </div>
+
+  <!-- UI覆蓋層 -->
+  <div class="ui-overlay">
+    <!-- 頂部狀態欄 -->
+    <div class="status-bar ui-panel">
+      <div class="user-info">
+        <div class="character-name" id="characterName">@username</div>
+        <div class="level-info">
+          <div class="level-badge" id="levelBadge">Lv.1</div>
+          <div class="power-level" id="powerLevel">戰力: 0</div>
+        </div>
+      </div>
+      <div class="currency-display">
+        <div class="currency-item">
+          <span>💎</span>
+          <span id="diamonds">0</span>
+        </div>
+        <div class="currency-item">
+          <span>⭐</span>
+          <span id="stars">951</span>
+        </div>
+        <div class="currency-item">
+          <span>💰</span>
+          <span id="coins">21.82萬</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 左側道具欄 -->
+    <div class="inventory-panel ui-panel">
+      <div class="panel-title">道具欄</div>
+      <div class="category-tabs">
+        <div class="category-tab active" data-category="all">全部</div>
+        <div class="category-tab" data-category="weapon">武器</div>
+        <div class="category-tab" data-category="armor">護甲</div>
+        <div class="category-tab" data-category="accessory">飾品</div>
+        <div class="category-tab" data-category="special">特殊</div>
+      </div>
+      <div class="items-grid" id="itemsGrid">
+        <!-- 道具項目將由JavaScript動態生成 -->
+      </div>
+    </div>
+
+    <!-- 右側控制面板 -->
+    <div class="control-panel ui-panel">
+      <div class="camera-controls">
+        <div class="panel-title">相機控制</div>
+        <div class="control-group">
+          <label class="control-label">旋轉角度</label>
+          <input type="range" class="control-slider" id="rotationSlider" min="0" max="360" value="0">
+        </div>
+        <div class="control-group">
+          <label class="control-label">縮放</label>
+          <input type="range" class="control-slider" id="scaleSlider" min="0.5" max="3" step="0.1" value="1">
+        </div>
+        <div class="control-group">
+          <label class="control-label">高度</label>
+          <input type="range" class="control-slider" id="heightSlider" min="-2" max="2" step="0.1" value="0">
+        </div>
+      </div>
+      
+      <div class="background-section">
+        <div class="panel-title">環境設定</div>
+        <div class="background-grid" id="backgroundGrid">
+          <!-- 背景選項將由JavaScript動態生成 -->
+        </div>
+      </div>
+    </div>
+
+    <!-- 底部控制欄 -->
+    <div class="bottom-controls ui-panel">
+      <div class="level-progress">
+        <div class="progress-text">下一等級</div>
+        <div class="progress-bar">
+          <div class="progress-fill" id="levelProgress" style="width: 0%"></div>
+        </div>
+        <div class="progress-text" id="levelProgressText">0/1000</div>
+      </div>
+      
+      <div class="action-buttons">
+        <button class="btn btn-primary" onclick="saveCharacter()">儲存角色</button>
+        <button class="btn btn-premium" onclick="openShop()">商店</button>
+        <button class="btn btn-secondary" onclick="goBackToResult()">返回結果</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Three.js CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+  <script>
+    // 遊戲數據
+    let gameData = {
+      character: {
+        mbti: '',
+        gender: '',
+        username: '',
+        followers: 0,
+        level: 1,
+        experience: 0,
+        power: 0
+      },
+      equipment: {
+        weapon: null,
+        armor: null,
+        accessory: null,
+        special: null
+      },
+      inventory: [],
+      background: 'default',
+      currency: {
+        diamonds: 0,
+        stars: 951,
+        coins: 218200
+      }
+    };
+
+    // Three.js 場景變數
+    let scene, camera, renderer, controls;
+    let characterModel, characterGroup;
+    let currentEnvironment = 'default';
+    let isLoaded = false;
+
+    // 道具數據庫
+    const itemDatabase = {
+      weapon: [
+        { id: 'sword_basic', name: '基礎劍', icon: '⚔️', power: 100, type: 'weapon', premium: false, price: 0, model: 'sword' },
+        { id: 'sword_fire', name: '火焰劍', icon: '🔥', power: 500, type: 'weapon', premium: true, price: 100, model: 'fire_sword' },
+        { id: 'sword_ice', name: '冰霜劍', icon: '❄️', power: 500, type: 'weapon', premium: true, price: 100, model: 'ice_sword' },
+        { id: 'staff_lightning', name: '雷電法杖', icon: '⚡', power: 800, type: 'weapon', premium: true, price: 200, model: 'lightning_staff' }
+      ],
+      armor: [
+        { id: 'armor_basic', name: '基礎護甲', icon: '🛡️', power: 50, type: 'armor', premium: false, price: 0, model: 'basic_armor' },
+        { id: 'armor_plate', name: '板甲', icon: '🛡️', power: 300, type: 'armor', premium: true, price: 150, model: 'plate_armor' },
+        { id: 'robe_magic', name: '魔法袍', icon: '🧙', power: 400, type: 'armor', premium: true, price: 200, model: 'magic_robe' }
+      ],
+      accessory: [
+        { id: 'ring_power', name: '力量戒指', icon: '💍', power: 200, type: 'accessory', premium: true, price: 100, model: 'power_ring' },
+        { id: 'amulet_wisdom', name: '智慧護符', icon: '🔮', power: 300, type: 'accessory', premium: true, price: 150, model: 'wisdom_amulet' },
+        { id: 'crown_royal', name: '皇家王冠', icon: '👑', power: 500, type: 'accessory', premium: true, price: 300, model: 'royal_crown' }
+      ],
+      special: [
+        { id: 'wings_angel', name: '天使之翼', icon: '👼', power: 1000, type: 'special', premium: true, price: 500, model: 'angel_wings' },
+        { id: 'halo_divine', name: '神聖光環', icon: '😇', power: 800, type: 'special', premium: true, price: 400, model: 'divine_halo' },
+        { id: 'aura_dragon', name: '龍之氣息', icon: '🐉', power: 1200, type: 'special', premium: true, price: 600, model: 'dragon_aura' }
+      ]
+    };
+
+    // 環境選項
+    const environmentOptions = [
+      { id: 'default', name: '默認', skybox: 'default', premium: false },
+      { id: 'forest', name: '森林', skybox: 'forest', premium: false },
+      { id: 'ocean', name: '海洋', skybox: 'ocean', premium: false },
+      { id: 'space', name: '太空', skybox: 'space', premium: true },
+      { id: 'crystal', name: '水晶', skybox: 'crystal', premium: true },
+      { id: 'golden', name: '黃金', skybox: 'golden', premium: true }
+    ];
+
+    // 初始化3D場景
+    function initThreeJS() {
+      // 創建場景
+      scene = new THREE.Scene();
+      
+      // 創建相機
+      camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+      camera.position.set(0, 2, 5);
+      
+      // 創建渲染器
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      renderer.setClearColor(0x000000, 0);
+      
+      document.getElementById('threejs-container').appendChild(renderer.domElement);
+      
+      // 創建控制器
+      controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.05;
+      controls.enableZoom = true;
+      controls.enablePan = false;
+      controls.maxPolarAngle = Math.PI / 2;
+      controls.minDistance = 2;
+      controls.maxDistance = 10;
+      
+      // 創建角色群組
+      characterGroup = new THREE.Group();
+      scene.add(characterGroup);
+      
+      // 添加燈光
+      setupLighting();
+      
+      // 創建環境
+      createEnvironment('default');
+      
+      // 載入角色模型
+      loadCharacterModel();
+      
+      // 開始渲染循環
+      animate();
+      
+      // 隱藏載入畫面
+      setTimeout(() => {
+        document.getElementById('loadingScreen').style.display = 'none';
+        isLoaded = true;
+      }, 2000);
+    }
+
+    // 設置燈光
+    function setupLighting() {
+      // 環境光
+      const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+      scene.add(ambientLight);
+      
+      // 主光源
+      const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+      directionalLight.position.set(5, 10, 5);
+      directionalLight.castShadow = true;
+      directionalLight.shadow.mapSize.width = 2048;
+      directionalLight.shadow.mapSize.height = 2048;
+      scene.add(directionalLight);
+      
+      // 點光源
+      const pointLight = new THREE.PointLight(0x4a90e2, 0.5, 100);
+      pointLight.position.set(0, 5, 0);
+      scene.add(pointLight);
+    }
+
+    // 創建環境
+    function createEnvironment(envType) {
+      // 清除現有環境
+      const existingEnv = scene.getObjectByName('environment');
+      if (existingEnv) {
+        scene.remove(existingEnv);
+      }
+      
+      const environment = new THREE.Group();
+      environment.name = 'environment';
+      
+      // 根據環境類型創建不同的場景
+      switch (envType) {
+        case 'default':
+          createDefaultEnvironment(environment);
+          break;
+        case 'forest':
+          createForestEnvironment(environment);
+          break;
+        case 'ocean':
+          createOceanEnvironment(environment);
+          break;
+        case 'space':
+          createSpaceEnvironment(environment);
+          break;
+        case 'crystal':
+          createCrystalEnvironment(environment);
+          break;
+        case 'golden':
+          createGoldenEnvironment(environment);
+          break;
+      }
+      
+      scene.add(environment);
+      currentEnvironment = envType;
+    }
+
+    // 默認環境
+    function createDefaultEnvironment(env) {
+      // 地面
+      const groundGeometry = new THREE.PlaneGeometry(20, 20);
+      const groundMaterial = new THREE.MeshLambertMaterial({ color: 0x333333 });
+      const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+      ground.rotation.x = -Math.PI / 2;
+      ground.receiveShadow = true;
+      env.add(ground);
+      
+      // 天空盒
+      const skyGeometry = new THREE.SphereGeometry(50, 32, 32);
+      const skyMaterial = new THREE.MeshBasicMaterial({ 
+        color: 0x1a1a2e, 
+        side: THREE.BackSide 
+      });
+      const sky = new THREE.Mesh(skyGeometry, skyMaterial);
+      env.add(sky);
+    }
+
+    // 森林環境
+    function createForestEnvironment(env) {
+      // 地面
+      const groundGeometry = new THREE.PlaneGeometry(20, 20);
+      const groundMaterial = new THREE.MeshLambertMaterial({ color: 0x2d5016 });
+      const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+      ground.rotation.x = -Math.PI / 2;
+      ground.receiveShadow = true;
+      env.add(ground);
+      
+      // 樹木
+      for (let i = 0; i < 20; i++) {
+        const tree = createTree();
+        tree.position.set(
+          (Math.random() - 0.5) * 40,
+          0,
+          (Math.random() - 0.5) * 40
+        );
+        env.add(tree);
+      }
+      
+      // 天空盒
+      const skyGeometry = new THREE.SphereGeometry(50, 32, 32);
+      const skyMaterial = new THREE.MeshBasicMaterial({ 
+        color: 0x0d4f3c, 
+        side: THREE.BackSide 
+      });
+      const sky = new THREE.Mesh(skyGeometry, skyMaterial);
+      env.add(sky);
+    }
+
+    // 創建樹木
+    function createTree() {
+      const tree = new THREE.Group();
+      
+      // 樹幹
+      const trunkGeometry = new THREE.CylinderGeometry(0.2, 0.3, 3);
+      const trunkMaterial = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
+      const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
+      trunk.position.y = 1.5;
+      trunk.castShadow = true;
+      tree.add(trunk);
+      
+      // 樹葉
+      const leavesGeometry = new THREE.SphereGeometry(1.5, 8, 6);
+      const leavesMaterial = new THREE.MeshLambertMaterial({ color: 0x228B22 });
+      const leaves = new THREE.Mesh(leavesGeometry, leavesMaterial);
+      leaves.position.y = 3.5;
+      leaves.castShadow = true;
+      tree.add(leaves);
+      
+      return tree;
+    }
+
+    // 海洋環境
+    function createOceanEnvironment(env) {
+      // 水面
+      const waterGeometry = new THREE.PlaneGeometry(20, 20);
+      const waterMaterial = new THREE.MeshLambertMaterial({ 
+        color: 0x006994,
+        transparent: true,
+        opacity: 0.8
+      });
+      const water = new THREE.Mesh(waterGeometry, waterMaterial);
+      water.rotation.x = -Math.PI / 2;
+      water.receiveShadow = true;
+      env.add(water);
+      
+      // 天空盒
+      const skyGeometry = new THREE.SphereGeometry(50, 32, 32);
+      const skyMaterial = new THREE.MeshBasicMaterial({ 
+        color: 0x0c4a6e, 
+        side: THREE.BackSide 
+      });
+      const sky = new THREE.Mesh(skyGeometry, skyMaterial);
+      env.add(sky);
+    }
+
+    // 太空環境
+    function createSpaceEnvironment(env) {
+      // 星空背景
+      const starGeometry = new THREE.BufferGeometry();
+      const starCount = 1000;
+      const starPositions = new Float32Array(starCount * 3);
+      
+      for (let i = 0; i < starCount * 3; i++) {
+        starPositions[i] = (Math.random() - 0.5) * 100;
+      }
+      
+      starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+      
+      const starMaterial = new THREE.PointsMaterial({ 
+        color: 0xffffff, 
+        size: 0.1 
+      });
+      const stars = new THREE.Points(starGeometry, starMaterial);
+      env.add(stars);
+    }
+
+    // 水晶環境
+    function createCrystalEnvironment(env) {
+      // 水晶地面
+      const groundGeometry = new THREE.PlaneGeometry(20, 20);
+      const groundMaterial = new THREE.MeshLambertMaterial({ 
+        color: 0x4a148c,
+        transparent: true,
+        opacity: 0.8
+      });
+      const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+      ground.rotation.x = -Math.PI / 2;
+      ground.receiveShadow = true;
+      env.add(ground);
+      
+      // 水晶柱
+      for (let i = 0; i < 10; i++) {
+        const crystal = createCrystal();
+        crystal.position.set(
+          (Math.random() - 0.5) * 30,
+          0,
+          (Math.random() - 0.5) * 30
+        );
+        env.add(crystal);
+      }
+    }
+
+    // 創建水晶
+    function createCrystal() {
+      const crystal = new THREE.Group();
+      
+      const crystalGeometry = new THREE.ConeGeometry(0.5, 3, 6);
+      const crystalMaterial = new THREE.MeshLambertMaterial({ 
+        color: 0xab47bc,
+        transparent: true,
+        opacity: 0.7
+      });
+      const crystalMesh = new THREE.Mesh(crystalGeometry, crystalMaterial);
+      crystalMesh.castShadow = true;
+      crystal.add(crystalMesh);
+      
+      return crystal;
+    }
+
+    // 黃金環境
+    function createGoldenEnvironment(env) {
+      // 黃金地面
+      const groundGeometry = new THREE.PlaneGeometry(20, 20);
+      const groundMaterial = new THREE.MeshLambertMaterial({ color: 0xffd700 });
+      const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+      ground.rotation.x = -Math.PI / 2;
+      ground.receiveShadow = true;
+      env.add(ground);
+    }
+
+    // 載入角色模型
+    function loadCharacterModel() {
+      // 創建基礎角色模型（簡化版）
+      characterModel = createBasicCharacter();
+      characterGroup.add(characterModel);
+    }
+
+    // 創建基礎角色
+    function createBasicCharacter() {
+      const character = new THREE.Group();
+      
+      // 身體
+      const bodyGeometry = new THREE.CylinderGeometry(0.5, 0.6, 1.5);
+      const bodyMaterial = new THREE.MeshLambertMaterial({ color: 0xffdbac });
+      const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+      body.position.y = 0.75;
+      body.castShadow = true;
+      character.add(body);
+      
+      // 頭部
+      const headGeometry = new THREE.SphereGeometry(0.4);
+      const headMaterial = new THREE.MeshLambertMaterial({ color: 0xffdbac });
+      const head = new THREE.Mesh(headGeometry, headMaterial);
+      head.position.y = 1.8;
+      head.castShadow = true;
+      character.add(head);
+      
+      // 手臂
+      const armGeometry = new THREE.CylinderGeometry(0.1, 0.1, 1);
+      const armMaterial = new THREE.MeshLambertMaterial({ color: 0xffdbac });
+      
+      const leftArm = new THREE.Mesh(armGeometry, armMaterial);
+      leftArm.position.set(-0.8, 1.2, 0);
+      leftArm.rotation.z = Math.PI / 4;
+      leftArm.castShadow = true;
+      character.add(leftArm);
+      
+      const rightArm = new THREE.Mesh(armGeometry, armMaterial);
+      rightArm.position.set(0.8, 1.2, 0);
+      rightArm.rotation.z = -Math.PI / 4;
+      rightArm.castShadow = true;
+      character.add(rightArm);
+      
+      // 腿部
+      const legGeometry = new THREE.CylinderGeometry(0.15, 0.15, 1.2);
+      const legMaterial = new THREE.MeshLambertMaterial({ color: 0x4169e1 });
+      
+      const leftLeg = new THREE.Mesh(legGeometry, legMaterial);
+      leftLeg.position.set(-0.3, -0.6, 0);
+      leftLeg.castShadow = true;
+      character.add(leftLeg);
+      
+      const rightLeg = new THREE.Mesh(legGeometry, legMaterial);
+      rightLeg.position.set(0.3, -0.6, 0);
+      rightLeg.castShadow = true;
+      character.add(rightLeg);
+      
+      return character;
+    }
+
+    // 裝備道具到角色
+    function equipItemToCharacter(item) {
+      const slotType = item.type;
+      
+      // 移除現有裝備
+      const existingEquipment = characterGroup.getObjectByName(`${slotType}_equipment`);
+      if (existingEquipment) {
+        characterGroup.remove(existingEquipment);
+      }
+      
+      // 創建新裝備
+      const equipment = createEquipmentModel(item);
+      if (equipment) {
+        equipment.name = `${slotType}_equipment`;
+        characterGroup.add(equipment);
+      }
+    }
+
+    // 創建裝備模型
+    function createEquipmentModel(item) {
+      const equipment = new THREE.Group();
+      
+      switch (item.type) {
+        case 'weapon':
+          return createWeaponModel(item, equipment);
+        case 'armor':
+          return createArmorModel(item, equipment);
+        case 'accessory':
+          return createAccessoryModel(item, equipment);
+        case 'special':
+          return createSpecialModel(item, equipment);
+        default:
+          return null;
+      }
+    }
+
+    // 創建武器模型
+    function createWeaponModel(item, equipment) {
+      let weaponGeometry, weaponMaterial;
+      
+      switch (item.model) {
+        case 'sword':
+          weaponGeometry = new THREE.BoxGeometry(0.1, 1.5, 0.05);
+          weaponMaterial = new THREE.MeshLambertMaterial({ color: 0x888888 });
+          break;
+        case 'fire_sword':
+          weaponGeometry = new THREE.BoxGeometry(0.1, 1.5, 0.05);
+          weaponMaterial = new THREE.MeshLambertMaterial({ color: 0xff4500 });
+          break;
+        case 'ice_sword':
+          weaponGeometry = new THREE.BoxGeometry(0.1, 1.5, 0.05);
+          weaponMaterial = new THREE.MeshLambertMaterial({ color: 0x00bfff });
+          break;
+        case 'lightning_staff':
+          weaponGeometry = new THREE.CylinderGeometry(0.05, 0.05, 2);
+          weaponMaterial = new THREE.MeshLambertMaterial({ color: 0xffff00 });
+          break;
+      }
+      
+      const weapon = new THREE.Mesh(weaponGeometry, weaponMaterial);
+      weapon.position.set(1.2, 1.5, 0);
+      weapon.rotation.z = -Math.PI / 4;
+      weapon.castShadow = true;
+      equipment.add(weapon);
+      
+      return equipment;
+    }
+
+    // 創建護甲模型
+    function createArmorModel(item, equipment) {
+      let armorGeometry, armorMaterial;
+      
+      switch (item.model) {
+        case 'basic_armor':
+          armorGeometry = new THREE.CylinderGeometry(0.6, 0.7, 1.6);
+          armorMaterial = new THREE.MeshLambertMaterial({ color: 0x666666 });
+          break;
+        case 'plate_armor':
+          armorGeometry = new THREE.CylinderGeometry(0.65, 0.75, 1.7);
+          armorMaterial = new THREE.MeshLambertMaterial({ color: 0xcccccc });
+          break;
+        case 'magic_robe':
+          armorGeometry = new THREE.CylinderGeometry(0.7, 0.8, 1.8);
+          armorMaterial = new THREE.MeshLambertMaterial({ 
+            color: 0x4b0082,
+            transparent: true,
+            opacity: 0.8
+          });
+          break;
+      }
+      
+      const armor = new THREE.Mesh(armorGeometry, armorMaterial);
+      armor.position.y = 0.8;
+      armor.castShadow = true;
+      equipment.add(armor);
+      
+      return equipment;
+    }
+
+    // 創建飾品模型
+    function createAccessoryModel(item, equipment) {
+      let accessoryGeometry, accessoryMaterial;
+      
+      switch (item.model) {
+        case 'power_ring':
+          accessoryGeometry = new THREE.TorusGeometry(0.3, 0.05, 8, 16);
+          accessoryMaterial = new THREE.MeshLambertMaterial({ color: 0xffd700 });
+          break;
+        case 'wisdom_amulet':
+          accessoryGeometry = new THREE.SphereGeometry(0.2);
+          accessoryMaterial = new THREE.MeshLambertMaterial({ color: 0x00ff00 });
+          break;
+        case 'royal_crown':
+          accessoryGeometry = new THREE.ConeGeometry(0.5, 0.3, 8);
+          accessoryMaterial = new THREE.MeshLambertMaterial({ color: 0xffd700 });
+          break;
+      }
+      
+      const accessory = new THREE.Mesh(accessoryGeometry, accessoryMaterial);
+      
+      switch (item.model) {
+        case 'power_ring':
+          accessory.position.set(0, 1.2, 0);
+          accessory.rotation.x = Math.PI / 2;
+          break;
+        case 'wisdom_amulet':
+          accessory.position.set(0, 1.5, 0.3);
+          break;
+        case 'royal_crown':
+          accessory.position.set(0, 2.2, 0);
+          break;
+      }
+      
+      accessory.castShadow = true;
+      equipment.add(accessory);
+      
+      return equipment;
+    }
+
+    // 創建特殊道具模型
+    function createSpecialModel(item, equipment) {
+      let specialGeometry, specialMaterial;
+      
+      switch (item.model) {
+        case 'angel_wings':
+          // 左翼
+          const leftWingGeometry = new THREE.ConeGeometry(0.3, 1, 4);
+          const wingMaterial = new THREE.MeshLambertMaterial({ 
+            color: 0xffffff,
+            transparent: true,
+            opacity: 0.8
+          });
+          const leftWing = new THREE.Mesh(leftWingGeometry, wingMaterial);
+          leftWing.position.set(-0.8, 1.5, 0);
+          leftWing.rotation.z = Math.PI / 4;
+          leftWing.castShadow = true;
+          equipment.add(leftWing);
+          
+          // 右翼
+          const rightWing = new THREE.Mesh(leftWingGeometry, wingMaterial);
+          rightWing.position.set(0.8, 1.5, 0);
+          rightWing.rotation.z = -Math.PI / 4;
+          rightWing.castShadow = true;
+          equipment.add(rightWing);
+          break;
+          
+        case 'divine_halo':
+          const haloGeometry = new THREE.TorusGeometry(0.8, 0.1, 8, 16);
+          const haloMaterial = new THREE.MeshLambertMaterial({ 
+            color: 0xffd700,
+            transparent: true,
+            opacity: 0.8
+          });
+          const halo = new THREE.Mesh(haloGeometry, haloMaterial);
+          halo.position.set(0, 2.5, 0);
+          halo.rotation.x = Math.PI / 2;
+          halo.castShadow = true;
+          equipment.add(halo);
+          break;
+          
+        case 'dragon_aura':
+          // 創建環繞效果
+          for (let i = 0; i < 8; i++) {
+            const particleGeometry = new THREE.SphereGeometry(0.1);
+            const particleMaterial = new THREE.MeshLambertMaterial({ 
+              color: 0xff4500,
+              transparent: true,
+              opacity: 0.6
+            });
+            const particle = new THREE.Mesh(particleGeometry, particleMaterial);
+            
+            const angle = (i / 8) * Math.PI * 2;
+            particle.position.set(
+              Math.cos(angle) * 1.5,
+              1.5 + Math.sin(angle * 2) * 0.5,
+              Math.sin(angle) * 1.5
+            );
+            
+            equipment.add(particle);
+          }
+          break;
+      }
+      
+      return equipment;
+    }
+
+    // 動畫循環
+    function animate() {
+      requestAnimationFrame(animate);
+      
+      // 更新控制器
+      controls.update();
+      
+      // 角色動畫
+      if (characterGroup) {
+        characterGroup.rotation.y += 0.005;
+      }
+      
+      // 渲染場景
+      renderer.render(scene, camera);
+    }
+
+    // 初始化遊戲
+    function initGame() {
+      loadCharacterData();
+      initThreeJS();
+      initializeInventory();
+      initializeBackgrounds();
+      setupControls();
+      updateUI();
+    }
+
+    // 載入角色數據
+    function loadCharacterData() {
+      const saved = sessionStorage.getItem('sa_result');
+      if (saved) {
+        try {
+          const data = JSON.parse(saved);
+          if (data && data.ok === true) {
+            gameData.character.mbti = data.mbti || '';
+            gameData.character.gender = data.gender || '';
+            gameData.character.username = data.username || '';
+            gameData.character.followers = data.followers || 0;
+            
+            calculateLevel();
+            initializePlayerInventory();
+          }
+        } catch (e) {
+          console.error('Failed to parse character data:', e);
+        }
+      }
+    }
+
+    // 計算等級
+    function calculateLevel() {
+      const followers = gameData.character.followers;
+      const baseLevel = Math.floor(followers / 1000) + 1;
+      const experience = followers % 1000;
+      
+      gameData.character.level = Math.max(1, baseLevel);
+      gameData.character.experience = experience;
+      gameData.character.power = calculateTotalPower();
+    }
+
+    // 計算總戰力
+    function calculateTotalPower() {
+      let totalPower = 1000;
+      totalPower += Math.floor(gameData.character.followers / 100);
+      
+      const mbtiPowers = {
+        'INTJ': 200, 'INTP': 180, 'ENTJ': 190, 'ENTP': 170,
+        'INFJ': 160, 'INFP': 140, 'ENFJ': 150, 'ENFP': 130,
+        'ISTJ': 120, 'ISFJ': 100, 'ESTJ': 110, 'ESFJ': 90,
+        'ISTP': 80, 'ISFP': 60, 'ESTP': 70, 'ESFP': 50
+      };
+      totalPower += mbtiPowers[gameData.character.mbti] || 0;
+      
+      Object.values(gameData.equipment).forEach(item => {
+        if (item) totalPower += item.power;
+      });
+      
+      return totalPower;
+    }
+
+    // 初始化道具欄
+    function initializeInventory() {
+      const itemsGrid = document.getElementById('itemsGrid');
+      itemsGrid.innerHTML = '';
+      
+      const allItems = [
+        ...itemDatabase.weapon,
+        ...itemDatabase.armor,
+        ...itemDatabase.accessory,
+        ...itemDatabase.special
+      ];
+      
+      allItems.forEach(item => {
+        const itemEl = createItemCard(item);
+        itemsGrid.appendChild(itemEl);
+      });
+      
+      document.querySelectorAll('.category-tab').forEach(tab => {
+        tab.addEventListener('click', () => filterItems(tab.dataset.category));
+      });
+    }
+
+    // 創建道具卡片
+    function createItemCard(item) {
+      const itemEl = document.createElement('div');
+      itemEl.className = `item-card ${item.premium ? 'premium' : ''}`;
+      itemEl.dataset.itemId = item.id;
+      itemEl.dataset.itemType = item.type;
+      
+      itemEl.innerHTML = `
+        <div class="item-icon">${item.icon}</div>
+        <div class="item-name">${item.name}</div>
+        <div class="item-power">+${item.power}</div>
+        ${item.premium ? `<div class="item-price">${item.price}💎</div>` : ''}
+      `;
+      
+      itemEl.addEventListener('click', () => equipItem(item));
+      return itemEl;
+    }
+
+    // 篩選道具
+    function filterItems(category) {
+      document.querySelectorAll('.category-tab').forEach(tab => {
+        tab.classList.remove('active');
+      });
+      document.querySelector(`[data-category="${category}"]`).classList.add('active');
+      
+      document.querySelectorAll('.item-card').forEach(card => {
+        if (category === 'all' || card.dataset.itemType === category) {
+          card.style.display = 'block';
+        } else {
+          card.style.display = 'none';
+        }
+      });
+    }
+
+    // 裝備道具
+    function equipItem(item) {
+      const slotType = item.type;
+      
+      if (gameData.equipment[slotType]) {
+        unequipItem(slotType);
+      }
+      
+      gameData.equipment[slotType] = item;
+      equipItemToCharacter(item);
+      updateEquipmentDisplay();
+      updateUI();
+    }
+
+    // 卸下道具
+    function unequipItem(slotType) {
+      gameData.equipment[slotType] = null;
+      const existingEquipment = characterGroup.getObjectByName(`${slotType}_equipment`);
+      if (existingEquipment) {
+        characterGroup.remove(existingEquipment);
+      }
+      updateEquipmentDisplay();
+      updateUI();
+    }
+
+    // 更新裝備顯示
+    function updateEquipmentDisplay() {
+      document.querySelectorAll('.item-card').forEach(card => {
+        const itemId = card.dataset.itemId;
+        const isEquipped = Object.values(gameData.equipment).some(item => item && item.id === itemId);
+        card.classList.toggle('equipped', isEquipped);
+      });
+    }
+
+    // 初始化背景選項
+    function initializeBackgrounds() {
+      const backgroundGrid = document.getElementById('backgroundGrid');
+      backgroundGrid.innerHTML = '';
+      
+      environmentOptions.forEach(env => {
+        const envEl = document.createElement('div');
+        envEl.className = `background-option ${env.premium ? 'premium' : ''} ${env.id === gameData.background ? 'selected' : ''}`;
+        envEl.innerHTML = `
+          <div class="background-preview" style="background: linear-gradient(135deg, #1a1a2e, #16213e)"></div>
+          <div class="background-name">${env.name}</div>
+        `;
+        
+        envEl.addEventListener('click', () => selectEnvironment(env));
+        backgroundGrid.appendChild(envEl);
+      });
+    }
+
+    // 選擇環境
+    function selectEnvironment(env) {
+      gameData.background = env.id;
+      createEnvironment(env.id);
+      
+      document.querySelectorAll('.background-option').forEach(el => el.classList.remove('selected'));
+      event.target.closest('.background-option').classList.add('selected');
+    }
+
+    // 設置控制
+    function setupControls() {
+      const rotationSlider = document.getElementById('rotationSlider');
+      const scaleSlider = document.getElementById('scaleSlider');
+      const heightSlider = document.getElementById('heightSlider');
+      
+      rotationSlider.addEventListener('input', (e) => {
+        if (characterGroup) {
+          characterGroup.rotation.y = (e.target.value * Math.PI) / 180;
+        }
+      });
+      
+      scaleSlider.addEventListener('input', (e) => {
+        if (characterGroup) {
+          characterGroup.scale.setScalar(parseFloat(e.target.value));
+        }
+      });
+      
+      heightSlider.addEventListener('input', (e) => {
+        if (characterGroup) {
+          characterGroup.position.y = parseFloat(e.target.value);
+        }
+      });
+    }
+
+    // 更新UI
+    function updateUI() {
+      document.getElementById('characterName').textContent = gameData.character.username ? `@${gameData.character.username}` : '匿名用戶';
+      document.getElementById('levelBadge').textContent = `Lv.${gameData.character.level}`;
+      document.getElementById('powerLevel').textContent = `戰力: ${gameData.character.power.toLocaleString()}`;
+      
+      document.getElementById('diamonds').textContent = gameData.currency.diamonds;
+      document.getElementById('stars').textContent = gameData.currency.stars;
+      document.getElementById('coins').textContent = (gameData.currency.coins / 10000).toFixed(2) + '萬';
+      
+      updateLevelProgress();
+    }
+
+    // 更新等級進度
+    function updateLevelProgress() {
+      const nextLevelExp = 1000;
+      const progress = (gameData.character.experience / nextLevelExp) * 100;
+      
+      document.getElementById('levelProgress').style.width = progress + '%';
+      document.getElementById('levelProgressText').textContent = `${gameData.character.experience}/${nextLevelExp}`;
+    }
+
+    // 初始化玩家道具欄
+    function initializePlayerInventory() {
+      gameData.inventory = [
+        itemDatabase.weapon[0],
+        itemDatabase.armor[0]
+      ];
+    }
+
+    // 儲存角色
+    function saveCharacter() {
+      sessionStorage.setItem('sa_character', JSON.stringify(gameData));
+      alert('角色已儲存！');
+    }
+
+    // 打開商店
+    function openShop() {
+      alert('商店功能開發中...');
+    }
+
+    // 返回結果頁面
+    function goBackToResult() {
+      window.location.href = '/static/result.html';
+    }
+
+    // 窗口大小調整
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // 初始化遊戲
+    window.addEventListener('DOMContentLoaded', initGame);
+  </script>
+</body>
+</html>
