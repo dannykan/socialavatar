@@ -241,9 +241,24 @@
         appId: "1:280598358339:web:214a0d4ca53793163367f6"
       };
 
-      const app = window.initializeApp(firebaseConfig);
-      const auth = window.getAuth(app);
-      const db = window.getFirestore(app);
+      logMobileDebug('Initializing Firebase with config', firebaseConfig);
+      
+      let app, auth, db;
+      try {
+        app = window.initializeApp(firebaseConfig);
+        logMobileDebug('Firebase app initialized successfully');
+        
+        auth = window.getAuth(app);
+        logMobileDebug('Firebase auth initialized successfully');
+        
+        db = window.getFirestore(app);
+        logMobileDebug('Firebase Firestore initialized successfully');
+      } catch (error) {
+        console.error('[ERROR] Firebase initialization failed:', error);
+        logMobileDebug('Firebase initialization failed', { error: error.message });
+        showError('Firebase 初始化失敗，請重新整理頁面後重試。');
+        return;
+      }
 
       // 偵測是否為移動設備
       function isMobileDevice() {
@@ -723,16 +738,16 @@
 
     // Facebook 登入：手機用 redirect，電腦用 popup
     window.loginWithFacebook = async function(pendingCredential = null) {
-      const provider = new window.FacebookAuthProvider();
-      const isMobile = isMobileDevice();
-      
-      logMobileDebug('Starting Facebook login', { pendingCredential: !!pendingCredential });
-      
-      if (!pendingCredential) {
-        setButtonLoading('fbLoginBtn', true);
-      }
-      
       try {
+        const provider = new window.FacebookAuthProvider();
+        const isMobile = isMobileDevice();
+        
+        logMobileDebug('Starting Facebook login', { pendingCredential: !!pendingCredential });
+        
+        if (!pendingCredential) {
+          setButtonLoading('fbLoginBtn', true);
+        }
+        
         if (isMobile) {
           // 手機端使用 redirect
           logMobileDebug('Using redirect mode for Facebook login');
@@ -748,10 +763,10 @@
           document.getElementById('loadingOverlay').style.display = 'flex';
           await handleSuccessfulLogin(result.user, pendingCredential);
         }
-        
       } catch (error) {
         console.error('[ERROR] Facebook login failed:', error);
         console.error('[ERROR] Error code:', error.code);
+        logMobileDebug('Facebook login failed', { error: error.message, code: error.code });
         
         if (error.code === 'auth/account-exists-with-different-credential') {
           await handleAccountLinking(error);
@@ -813,16 +828,16 @@
 
     // Google 登入：手機用 redirect，電腦用 popup
     window.loginWithGoogle = async function(pendingCredential = null) {
-      const provider = new window.GoogleAuthProvider();
-      const isMobile = isMobileDevice();
-      
-      logMobileDebug('Starting Google login', { pendingCredential: !!pendingCredential });
-      
-      if (!pendingCredential) {
-        setButtonLoading('googleLoginBtn', true);
-      }
-      
       try {
+        const provider = new window.GoogleAuthProvider();
+        const isMobile = isMobileDevice();
+        
+        logMobileDebug('Starting Google login', { pendingCredential: !!pendingCredential });
+        
+        if (!pendingCredential) {
+          setButtonLoading('googleLoginBtn', true);
+        }
+        
         if (isMobile) {
           // 手機端使用 redirect
           logMobileDebug('Using redirect mode for Google login');
@@ -838,10 +853,10 @@
           document.getElementById('loadingOverlay').style.display = 'flex';
           await handleSuccessfulLogin(result.user, pendingCredential);
         }
-        
       } catch (error) {
         console.error('[ERROR] Google login failed:', error);
         console.error('[ERROR] Error code:', error.code);
+        logMobileDebug('Google login failed', { error: error.message, code: error.code });
         
         if (error.code === 'auth/account-exists-with-different-credential') {
           await handleAccountLinking(error);
