@@ -401,22 +401,83 @@ body {
 
 @media (max-width: 768px) {
   .btn, button {
-    padding: 10px 16px;
-    font-size: var(--font-size-xs);
+    padding: 14px 20px;
+    font-size: var(--font-size);
+    min-height: 48px;
   }
   
   .card {
     padding: var(--spacing);
+    margin-bottom: var(--spacing);
+  }
+  
+  .file-upload {
+    padding: 24px 16px;
+  }
+  
+  .form-input {
+    padding: 14px 16px;
+    font-size: var(--font-size);
+  }
+}
+
+@media (max-width: 640px) {
+  .btn, button {
+    padding: 16px 24px;
+    font-size: var(--font-size-lg);
+    min-height: 56px;
+  }
+  
+  .card {
+    padding: var(--spacing-md);
+    border-radius: var(--radius-md);
+  }
+  
+  .file-upload {
+    padding: 20px 12px;
+    border-width: 2px;
+  }
+  
+  .form-input {
+    padding: 16px 18px;
+    font-size: var(--font-size-lg);
+  }
+  
+  .status-success,
+  .status-error,
+  .status-warning,
+  .status-info {
+    padding: var(--spacing-md);
+    font-size: var(--font-size);
   }
 }
 
 @media (max-width: 480px) {
   .btn, button {
-    padding: 8px 12px;
-    min-height: 40px;
+    padding: 14px 20px;
+    font-size: var(--font-size);
+    min-height: 52px;
   }
   
   .card {
-    padding: var(--spacing-sm);
+    padding: var(--spacing);
+    margin-bottom: var(--spacing-sm);
+  }
+  
+  .file-upload {
+    padding: 16px 10px;
+  }
+  
+  .form-input {
+    padding: 14px 16px;
+    font-size: var(--font-size);
+  }
+  
+  .status-success,
+  .status-error,
+  .status-warning,
+  .status-info {
+    padding: var(--spacing);
+    font-size: var(--font-size-sm);
   }
 }
