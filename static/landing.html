@@ -186,63 +186,69 @@
   </div>
 
   <script type="module">
-    // 添加 Firebase 加載錯誤處理
-    let firebaseLoaded = false;
-    let firebaseError = null;
-    
-    try {
-      const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js');
-      const { getAuth, signInWithPopup, signInWithRedirect, getRedirectResult, FacebookAuthProvider, GoogleAuthProvider, onAuthStateChanged, signOut, fetchSignInMethodsForEmail, linkWithCredential } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js');
-      const { getFirestore, doc, getDoc, setDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+    // 立即執行的異步函數
+    (async function() {
+      // 添加 Firebase 加載錯誤處理
+      let firebaseLoaded = false;
+      let firebaseError = null;
       
-      firebaseLoaded = true;
+      try {
+        const { initializeApp: firebaseInit } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js');
+        const { getAuth, signInWithPopup, signInWithRedirect, getRedirectResult, FacebookAuthProvider, GoogleAuthProvider, onAuthStateChanged, signOut, fetchSignInMethodsForEmail, linkWithCredential } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js');
+        const { getFirestore, doc, getDoc, setDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        
+        firebaseLoaded = true;
+        
+        // 將 Firebase 函數設為全域變數
+        window.initializeApp = firebaseInit;
+        window.getAuth = getAuth;
+        window.signInWithPopup = signInWithPopup;
+        window.signInWithRedirect = signInWithRedirect;
+        window.getRedirectResult = getRedirectResult;
+        window.FacebookAuthProvider = FacebookAuthProvider;
+        window.GoogleAuthProvider = GoogleAuthProvider;
+        window.onAuthStateChanged = onAuthStateChanged;
+        window.signOut = signOut;
+        window.fetchSignInMethodsForEmail = fetchSignInMethodsForEmail;
+        window.linkWithCredential = linkWithCredential;
+        window.getFirestore = getFirestore;
+        window.doc = doc;
+        window.getDoc = getDoc;
+        window.setDoc = setDoc;
+        window.serverTimestamp = serverTimestamp;
+        
+      } catch (error) {
+        console.error('[ERROR] Firebase failed to load:', error);
+        firebaseError = error;
+        showError('Firebase 服務載入失敗，請重新整理頁面後重試。');
+      }
       
-      // 將 Firebase 函數設為全域變數
-      window.initializeApp = initializeApp;
-      window.getAuth = getAuth;
-      window.signInWithPopup = signInWithPopup;
-      window.signInWithRedirect = signInWithRedirect;
-      window.getRedirectResult = getRedirectResult;
-      window.FacebookAuthProvider = FacebookAuthProvider;
-      window.GoogleAuthProvider = GoogleAuthProvider;
-      window.onAuthStateChanged = onAuthStateChanged;
-      window.signOut = signOut;
-      window.fetchSignInMethodsForEmail = fetchSignInMethodsForEmail;
-      window.linkWithCredential = linkWithCredential;
-      window.getFirestore = getFirestore;
-      window.doc = doc;
-      window.getDoc = getDoc;
-      window.setDoc = setDoc;
-      window.serverTimestamp = serverTimestamp;
-      
-    } catch (error) {
-      console.error('[ERROR] Firebase failed to load:', error);
-      firebaseError = error;
-      showError('Firebase 服務載入失敗，請重新整理頁面後重試。');
-    }
-    
-    if (!firebaseLoaded) {
-      console.error('[ERROR] Firebase not loaded, stopping execution');
-      return;
-    }
+      if (!firebaseLoaded) {
+        console.error('[ERROR] Firebase not loaded, stopping execution');
+        // 顯示錯誤信息並禁用登入按鈕
+        document.getElementById('fbLoginBtn').disabled = true;
+        document.getElementById('googleLoginBtn').disabled = true;
+        showError('Firebase 服務載入失敗，請重新整理頁面後重試。');
+        return;
+      }
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyBI2-4yEwzxvYOvui9FZiGAzCE22OhKmU8",
-      authDomain: "social-avatar-d13c8.firebaseapp.com",
-      projectId: "social-avatar-d13c8",
-      storageBucket: "social-avatar-d13c8.appspot.com",
-      messagingSenderId: "280598358339",
-      appId: "1:280598358339:web:214a0d4ca53793163367f6"
-    };
+      const firebaseConfig = {
+        apiKey: "AIzaSyBI2-4yEwzxvYOvui9FZiGAzCE22OhKmU8",
+        authDomain: "social-avatar-d13c8.firebaseapp.com",
+        projectId: "social-avatar-d13c8",
+        storageBucket: "social-avatar-d13c8.appspot.com",
+        messagingSenderId: "280598358339",
+        appId: "1:280598358339:web:214a0d4ca53793163367f6"
+      };
 
-    const app = window.initializeApp(firebaseConfig);
-    const auth = window.getAuth(app);
-    const db = window.getFirestore(app);
+      const app = window.initializeApp(firebaseConfig);
+      const auth = window.getAuth(app);
+      const db = window.getFirestore(app);
 
-    // 偵測是否為移動設備
-    function isMobileDevice() {
-      return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
-    }
+      // 偵測是否為移動設備
+      function isMobileDevice() {
+        return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
+      }
 
     // 添加更詳細的調試信息
     function logMobileDebug(message, data = null) {
@@ -922,7 +928,10 @@
       }
     };
 
-    window.firestoreDB = db;
+      window.firestoreDB = db;
+    })().catch(error => {
+      console.error('[ERROR] Failed to initialize app:', error);
+    });
   </script>
 </body>
 </html>
