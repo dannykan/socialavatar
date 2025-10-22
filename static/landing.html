@@ -241,6 +241,9 @@
             provider: result.providerId 
           });
           
+          // 設置 redirect 已處理標記
+          sessionStorage.setItem('redirectProcessed', 'true');
+          
           // 檢查是否有待連結的憑證
           const pendingLink = sessionStorage.getItem('pendingLink');
           let pendingCred = null;
@@ -500,10 +503,29 @@
       loadingOverlay.style.display = 'flex';
 
       if (user) {
-        console.log('[DEBUG] onAuthStateChanged: User logged in:', user.uid);
+        logMobileDebug('onAuthStateChanged: User logged in', { userId: user.uid, email: user.email });
+        
+        // 檢查是否已經處理過 redirect 結果
+        const redirectProcessed = sessionStorage.getItem('redirectProcessed');
+        if (!redirectProcessed) {
+          logMobileDebug('Redirect not processed yet, checking redirect result...');
+          try {
+            const result = await getRedirectResult(auth);
+            if (result && result.user) {
+              logMobileDebug('Found redirect result, processing...');
+              await handleSuccessfulLogin(result.user);
+              sessionStorage.setItem('redirectProcessed', 'true');
+              return;
+            }
+          } catch (error) {
+            logMobileDebug('Redirect check failed, continuing with normal flow', { error: error.message });
+          }
+        }
+        
+        // 如果沒有 redirect 結果或已經處理過，使用正常流程
         await checkUserAnalysis(user);
       } else {
-        console.log('[DEBUG] onAuthStateChanged: No user');
+        logMobileDebug('onAuthStateChanged: No user');
         showLoggedOutState();
       }
       
@@ -528,6 +550,9 @@
     }
 
     function showLoggedInStateNewUser(user) {
+      const isMobile = isMobileDevice();
+      logMobileDebug('Showing logged in state for new user', { isMobile });
+      
       document.getElementById('loginSection').style.display = 'none';
       document.getElementById('loggedInSection').style.display = 'block';
       
@@ -552,9 +577,21 @@
       document.getElementById('hintText').innerHTML = '<small>💡 上傳截圖後，你的分析結果會永久保存。</small>';
       
       storeUserSession(user);
+      
+      // 手機端自動跳轉到 upload 頁面
+      if (isMobile) {
+        logMobileDebug('Mobile device detected, auto-redirecting to upload page');
+        showInfo('正在跳轉到上傳頁面...');
+        setTimeout(() => {
+          window.location.href = '/static/upload.html';
+        }, 1000);
+      }
     }
 
     function showLoggedInStateWithResult(user, analysisData) {
+      const isMobile = isMobileDevice();
+      logMobileDebug('Showing logged in state with result', { isMobile, hasAnalysis: !!analysisData });
+      
       document.getElementById('loginSection').style.display = 'none';
       document.getElementById('loggedInSection').style.display = 'block';
       
@@ -581,6 +618,15 @@
       
       sessionStorage.setItem('sa_result', JSON.stringify(analysisData));
       storeUserSession(user);
+      
+      // 手機端自動跳轉到結果頁面
+      if (isMobile) {
+        logMobileDebug('Mobile device detected, auto-redirecting to result page');
+        showInfo('正在跳轉到結果頁面...');
+        setTimeout(() => {
+          window.location.href = '/static/result.html';
+        }, 1000);
+      }
     }
 
     function showLoggedOutState() {
