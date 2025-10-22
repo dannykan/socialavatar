@@ -211,6 +211,104 @@
         justify-content: center;
       }
     }
+    
+    /* Loading Overlay Styles */
+    .loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(11, 18, 32, 0.95);
+      backdrop-filter: blur(8px);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+      flex-direction: column;
+      color: #e5e7eb;
+      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+    
+    .loading-overlay.show {
+      display: flex;
+    }
+    
+    .loading-spinner {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      border: 6px solid #334155;
+      border-top-color: #22d3ee;
+      animation: spin 1s linear infinite;
+      margin-bottom: 24px;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    .loading-content {
+      text-align: center;
+      max-width: 400px;
+      padding: 0 20px;
+    }
+    
+    .loading-title {
+      font-size: 24px;
+      font-weight: 600;
+      margin: 0 0 12px 0;
+      color: #f8fafc;
+    }
+    
+    .loading-description {
+      font-size: 16px;
+      opacity: 0.8;
+      margin: 0 0 20px 0;
+      line-height: 1.5;
+    }
+    
+    .loading-progress {
+      background: rgba(34, 211, 238, 0.1);
+      border: 1px solid rgba(34, 211, 238, 0.3);
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 14px;
+      color: #22d3ee;
+    }
+    
+    .loading-step {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    
+    .loading-step:last-child {
+      margin-bottom: 0;
+    }
+    
+    .loading-step-icon {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #334155;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      color: #94a3b8;
+    }
+    
+    .loading-step.active .loading-step-icon {
+      background: #22d3ee;
+      color: #0b1220;
+    }
+    
+    .loading-step.completed .loading-step-icon {
+      background: #10b981;
+      color: white;
+    }
   </style>
 </head>
 <body>
@@ -290,6 +388,33 @@
     <div id="err" class="status-error hidden"></div>
     <div id="ok" class="status-success hidden"></div>
   </main>
+
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="loading-overlay">
+    <div class="loading-spinner"></div>
+    <div class="loading-content">
+      <h2 class="loading-title">AI 分析中，請稍候…</h2>
+      <p class="loading-description">我們正在閱讀你的截圖資訊，產出社群 MBTI 與 200 字說明。</p>
+      <div class="loading-progress">
+        <div class="loading-step" id="step1">
+          <div class="loading-step-icon">1</div>
+          <span>檢查上傳資料</span>
+        </div>
+        <div class="loading-step" id="step2">
+          <div class="loading-step-icon">2</div>
+          <span>上傳圖片到伺服器</span>
+        </div>
+        <div class="loading-step" id="step3">
+          <div class="loading-step-icon">3</div>
+          <span>AI 分析截圖內容</span>
+        </div>
+        <div class="loading-step" id="step4">
+          <div class="loading-step-icon">4</div>
+          <span>生成分析結果</span>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
@@ -459,6 +584,35 @@
       }
     });
 
+    // Loading overlay control functions
+    function showLoadingOverlay() {
+      const overlay = document.getElementById('loadingOverlay');
+      if (overlay) {
+        overlay.classList.add('show');
+        // Reset all steps
+        document.querySelectorAll('.loading-step').forEach(step => {
+          step.classList.remove('active', 'completed');
+        });
+        // Start with step 1
+        document.getElementById('step1').classList.add('active');
+      }
+    }
+
+    function hideLoadingOverlay() {
+      const overlay = document.getElementById('loadingOverlay');
+      if (overlay) {
+        overlay.classList.remove('show');
+      }
+    }
+
+    function updateLoadingStep(stepNumber, status = 'active') {
+      const step = document.getElementById(`step${stepNumber}`);
+      if (step) {
+        step.classList.remove('active', 'completed');
+        step.classList.add(status);
+      }
+    }
+
     window.startAnalyze = async function() {
       const errBox = document.getElementById('err');
       const okBox = document.getElementById('ok');
@@ -473,27 +627,16 @@
         return;
       }
 
-      const form = new FormData();
       const profile = document.querySelector('#profile').files[0];
-      const primaryBtn = document.querySelector('button.btn-primary');
-      const originalBtnHTML = primaryBtn?.innerHTML;
-
-      if (primaryBtn) {
-        primaryBtn.disabled = true;
-        primaryBtn.innerHTML = '⏳ 檢查中…';
-      }
-
       if (!profile) {
         alert('請先上傳 IG 個人頁截圖');
-        if (primaryBtn) {
-          primaryBtn.disabled = false;
-          primaryBtn.innerHTML = originalBtnHTML;
-        }
         return;
       }
 
-      if (primaryBtn) primaryBtn.innerHTML = '⏳ 上傳中…';
+      // Show loading overlay immediately
+      showLoadingOverlay();
 
+      const form = new FormData();
       form.append('gender', selectedGender.value);
       form.append('profile', profile);
 
@@ -502,14 +645,17 @@
         form.append('posts', posts[i]);
       }
 
-      okBox.textContent = '上傳中，請稍候...';
-      okBox.style.display = 'block';
       let succeeded = false;
 
       try {
+        // Step 1: Check authentication
+        updateLoadingStep(1, 'active');
         await authReady;
         if (!currentAuthUser) throw new Error('未登入，請先回首頁登入帳號');
+        updateLoadingStep(1, 'completed');
 
+        // Step 2: Upload to server
+        updateLoadingStep(2, 'active');
         console.log('[DEBUG] Sending analysis request with gender:', selectedGender.value);
 
         const res = await fetch('/bd/analyze', { method: 'POST', body: form });
@@ -517,7 +663,10 @@
           const errorText = await res.text();
           throw new Error(`伺服器錯誤（${res.status}）：${errorText.slice(0, 200)}`);
         }
+        updateLoadingStep(2, 'completed');
 
+        // Step 3: AI Analysis
+        updateLoadingStep(3, 'active');
         let data;
         try {
           data = await res.json();
@@ -526,11 +675,15 @@
         }
 
         if (!data.ok) {
+          hideLoadingOverlay();
           errBox.textContent = '分析失敗：' + (data.error || 'server error');
           errBox.style.display = 'block';
-          okBox.style.display = 'none';
           return;
         }
+        updateLoadingStep(3, 'completed');
+
+        // Step 4: Generate results
+        updateLoadingStep(4, 'active');
 
         data.gender = selectedGender.value;
 
@@ -541,12 +694,14 @@
         const hasPosts = data.posts && data.posts > 0;
         
         if (!hasUsername && !hasDisplayName) {
+          hideLoadingOverlay();
           alert('❌ 無法從截圖中提取用戶名或顯示名稱\n\n請確保上傳的是完整的 IG 個人頁截圖。');
           window.location.href = '/static/upload.html';
           return;
         }
         
         if (!hasFollowers || !hasFollowing || !hasPosts) {
+          hideLoadingOverlay();
           alert('❌ 無法完整提取個人頁面統計資料\n\n截圖可能不完整，請重新截圖。');
           window.location.href = '/static/upload.html';
           return;
@@ -600,24 +755,20 @@
         sessionStorage.setItem('sa_result', JSON.stringify(data));
         sessionStorage.setItem('analysis_submitted', 'true'); // 標記已提交
         
-        okBox.textContent = '已送出，前往分析中畫面…';
+        updateLoadingStep(4, 'completed');
         succeeded = true;
         
+        // Keep loading overlay visible for a moment before redirecting
         setTimeout(() => {
           window.location.replace('/static/loading.html'); // 使用 replace 防止返回
-        }, 400);
+        }, 800);
 
       } catch (e) {
         console.error('[ERROR] Network error:', e);
+        hideLoadingOverlay();
         const message = e?.message || e || '未知錯誤';
         errBox.textContent = String(message).includes('未登入') ? message : '網路錯誤：' + message;
         errBox.style.display = 'block';
-        okBox.style.display = 'none';
-      } finally {
-        if (!succeeded && primaryBtn) {
-          primaryBtn.disabled = false;
-          primaryBtn.innerHTML = originalBtnHTML;
-        }
       }
     };
   </script>
