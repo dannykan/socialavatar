@@ -315,6 +315,11 @@
       // 跳轉到角色裝備頁面
       window.location.href = '/static/character.html';
     }
+    
+    function goToGame() {
+      // 跳轉到遊戲頁面
+      window.location.href = '/static/game.html';
+    }
 
     async function loadResult() {
       if (hasRedirected) return;
@@ -549,6 +554,12 @@
             <h3 class="premium-title">✨ 你的專屬3D動態角色</h3>
             <p class="premium-description">解鎖你的個人化3D動態角色圖，包含多種動畫效果和互動功能</p>
             <div class="premium-buttons">
+              <button class="btn btn-premium" onclick="goToGame()">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                </svg>
+                進入遊戲
+              </button>
               <button class="btn btn-premium" onclick="goToAvatar3D()">
                 <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
