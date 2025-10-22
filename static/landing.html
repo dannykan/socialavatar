@@ -229,7 +229,7 @@
         document.getElementById('fbLoginBtn').disabled = true;
         document.getElementById('googleLoginBtn').disabled = true;
         showError('Firebase 服務載入失敗，請重新整理頁面後重試。');
-        return; // 這個 return 是合法的，因為在異步函數內部
+        return;
       }
 
       const firebaseConfig = {
@@ -250,6 +250,74 @@
         return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
       }
 
+      // 立即檢查 redirect 結果（在頁面加載時）
+      (async function checkRedirectResultImmediately() {
+        try {
+          logMobileDebug('Checking redirect result immediately...');
+          const result = await window.getRedirectResult(auth);
+          
+          if (result && result.user) {
+            logMobileDebug('Redirect login successful', { 
+              userId: result.user.uid, 
+              email: result.user.email,
+              provider: result.providerId 
+            });
+            
+            // 設置 redirect 已處理標記
+            sessionStorage.setItem('redirectProcessed', 'true');
+            
+            // 檢查是否有待連結的憑證
+            const pendingLink = sessionStorage.getItem('pendingLink');
+            let pendingCred = null;
+            
+            if (pendingLink) {
+              try {
+                const linkData = JSON.parse(pendingLink);
+                logMobileDebug('Found pending link data', linkData);
+                
+                // 從錯誤中獲取憑證
+                const fbCred = window.FacebookAuthProvider.credentialFromResult(result);
+                const gCred = window.GoogleAuthProvider.credentialFromResult(result);
+                
+                if (linkData.newProvider === 'Facebook' && fbCred) {
+                  pendingCred = fbCred;
+                  logMobileDebug('Using Facebook credential for linking');
+                } else if (linkData.newProvider === 'Google' && gCred) {
+                  pendingCred = gCred;
+                  logMobileDebug('Using Google credential for linking');
+                }
+                
+                // 清除待連結資料
+                sessionStorage.removeItem('pendingLink');
+              } catch (e) {
+                console.warn('[WARN] Failed to parse pending link data:', e);
+              }
+            }
+            
+            await handleSuccessfulLogin(result.user, pendingCred);
+            return; // 如果成功處理 redirect，就不需要繼續執行後面的代碼
+          } else {
+            logMobileDebug('No redirect result found');
+          }
+        } catch (error) {
+          console.error('[ERROR] Redirect result error:', error);
+          
+          if (error.code === 'auth/account-exists-with-different-credential') {
+            await handleAccountLinking(error);
+          } else if (error.code !== 'auth/popup-closed-by-user') {
+            let errorMessage = '登入失敗';
+            
+            if (error.code === 'auth/network-request-failed') {
+              errorMessage = '網路連線失敗，請檢查網路後重試。';
+            } else {
+              errorMessage = `登入失敗：${error.message}`;
+            }
+            
+            showError(errorMessage);
+          }
+        }
+      })();
+
     // 添加更詳細的調試信息
     function logMobileDebug(message, data = null) {
       const isMobile = isMobileDevice();
@@ -267,77 +335,6 @@
     console.log('[DEBUG] Page loaded, isMobile:', isMobileDevice());
     logMobileDebug('Landing page initialized');
 
-    // 檢查是否從 redirect 返回
-    (async function checkRedirectResult() {
-      try {
-        const loadingOverlay = document.getElementById('loadingOverlay');
-        loadingOverlay.style.display = 'flex';
-        
-        logMobileDebug('Checking redirect result...');
-        const result = await window.getRedirectResult(auth);
-        
-        if (result && result.user) {
-          logMobileDebug('Redirect login successful', { 
-            userId: result.user.uid, 
-            email: result.user.email,
-            provider: result.providerId 
-          });
-          
-          // 設置 redirect 已處理標記
-          sessionStorage.setItem('redirectProcessed', 'true');
-          
-          // 檢查是否有待連結的憑證
-          const pendingLink = sessionStorage.getItem('pendingLink');
-          let pendingCred = null;
-          
-          if (pendingLink) {
-            try {
-              const linkData = JSON.parse(pendingLink);
-              logMobileDebug('Found pending link data', linkData);
-              
-              // 從錯誤中獲取憑證
-              const fbCred = window.FacebookAuthProvider.credentialFromResult(result);
-              const gCred = window.GoogleAuthProvider.credentialFromResult(result);
-              
-              if (linkData.newProvider === 'Facebook' && fbCred) {
-                pendingCred = fbCred;
-                logMobileDebug('Using Facebook credential for linking');
-              } else if (linkData.newProvider === 'Google' && gCred) {
-                pendingCred = gCred;
-                logMobileDebug('Using Google credential for linking');
-              }
-              
-              // 清除待連結資料
-              sessionStorage.removeItem('pendingLink');
-            } catch (e) {
-              console.warn('[WARN] Failed to parse pending link data:', e);
-            }
-          }
-          
-          await handleSuccessfulLogin(result.user, pendingCred);
-        } else {
-          logMobileDebug('No redirect result found');
-        }
-      } catch (error) {
-        console.error('[ERROR] Redirect result error:', error);
-        
-        if (error.code === 'auth/account-exists-with-different-credential') {
-          await handleAccountLinking(error);
-        } else if (error.code !== 'auth/popup-closed-by-user') {
-          let errorMessage = '登入失敗';
-          
-          if (error.code === 'auth/network-request-failed') {
-            errorMessage = '網路連線失敗，請檢查網路後重試。';
-          } else {
-            errorMessage = `登入失敗：${error.message}`;
-          }
-          
-          showError(errorMessage);
-        }
-      } finally {
-        document.getElementById('loadingOverlay').style.display = 'none';
-      }
-    })();
 
     // 處理帳號連結
     async function handleAccountLinking(error) {
