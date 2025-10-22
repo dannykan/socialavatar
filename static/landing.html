@@ -159,9 +159,7 @@
 
     <div id="loggedInSection" class="hidden">
       <div class="user-info" id="userInfo"></div>
-      <div class="grid grid-cols-1 gap-3" id="actionButtons">
-        <!-- Buttons will be dynamically inserted here -->
-      </div>
+      <div class="grid grid-cols-1 gap-3" id="actionButtons"></div>
     </div>
 
     <div class="error" id="errorMsg"></div>
@@ -169,13 +167,11 @@
     <p class="hint-text" id="hintText">💡 提示：登入後即可開始分析你的 IG 社群人格。</p>
   </div>
 
-  <!-- Firebase SDK -->
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-    import { getAuth, signInWithPopup, FacebookAuthProvider, GoogleAuthProvider, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+    import { getAuth, signInWithPopup, signInWithRedirect, getRedirectResult, FacebookAuthProvider, GoogleAuthProvider, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
     import { getFirestore, doc, getDoc, setDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
-    // Firebase configuration
     const firebaseConfig = {
       apiKey: "AIzaSyBI2-4yEwzxvYOvui9FZiGAzCE22OhKmU8",
       authDomain: "social-avatar-d13c8.firebaseapp.com",
@@ -185,21 +181,87 @@
       appId: "1:280598358339:web:214a0d4ca53793163367f6"
     };
 
-    // Initialize Firebase
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
 
-    // Check authentication state
+    // 頁面載入時檢查 redirect 結果
+    (async function checkRedirectResult() {
+      try {
+        console.log('[DEBUG] Checking redirect result...');
+        const result = await getRedirectResult(auth);
+        
+        if (result && result.user) {
+          console.log('[DEBUG] ✅ Redirect login successful:', result.user.uid);
+          const loginMethod = sessionStorage.getItem('loginMethod');
+          console.log('[DEBUG] Login method was:', loginMethod);
+          
+          sessionStorage.removeItem('loginMethod');
+          document.getElementById('loadingOverlay').style.display = 'flex';
+          
+          await handleSuccessfulLogin(result.user);
+        } else {
+          console.log('[DEBUG] No redirect result found');
+        }
+      } catch (error) {
+        console.error('[ERROR] Redirect result error:', error);
+        console.error('[ERROR] Error code:', error.code);
+        console.error('[ERROR] Error message:', error.message);
+        showError('登入處理失敗：' + error.message);
+      }
+    })();
+
+    async function handleSuccessfulLogin(user) {
+      console.log('[DEBUG] handleSuccessfulLogin called for:', user.uid);
+      console.log('[DEBUG] User email:', user.email);
+      console.log('[DEBUG] User displayName:', user.displayName);
+      
+      storeUserSession(user);
+      
+      try {
+        const userDocRef = doc(db, 'users', user.uid);
+        console.log('[DEBUG] Checking Firestore for existing analysis...');
+        const userDoc = await getDoc(userDocRef);
+        
+        if (userDoc.exists() && userDoc.data().hasAnalysis) {
+          console.log('[DEBUG] ✅ User has previous analysis, going to result page');
+          const analysisData = userDoc.data().latestAnalysis;
+          sessionStorage.setItem('sa_result', JSON.stringify(analysisData));
+          
+          setTimeout(() => {
+            window.location.href = '/static/result.html';
+          }, 500);
+        } else {
+          console.log('[DEBUG] ✅ New user or no analysis, going to upload page');
+          
+          setTimeout(() => {
+            window.location.href = '/static/upload.html';
+          }, 500);
+        }
+      } catch (error) {
+        console.error('[ERROR] Failed to check user analysis:', error);
+        
+        setTimeout(() => {
+          window.location.href = '/static/upload.html';
+        }, 500);
+      }
+    }
+
     onAuthStateChanged(auth, async (user) => {
       const loadingOverlay = document.getElementById('loadingOverlay');
+      
+      if (sessionStorage.getItem('loginMethod')) {
+        console.log('[DEBUG] Waiting for redirect result, skipping onAuthStateChanged');
+        return;
+      }
+      
       loadingOverlay.style.display = 'flex';
 
       if (user) {
-        // User is signed in - check if they have previous analysis
+        console.log('[DEBUG] onAuthStateChanged: User logged in:', user.uid);
         await checkUserAnalysis(user);
       } else {
-        // User is signed out
+        console.log('[DEBUG] onAuthStateChanged: No user');
         showLoggedOutState();
       }
       
@@ -208,16 +270,13 @@
 
     async function checkUserAnalysis(user) {
       try {
-        // Check Firestore for existing analysis
         const userDocRef = doc(db, 'users', user.uid);
         const userDoc = await getDoc(userDocRef);
         
         if (userDoc.exists() && userDoc.data().hasAnalysis) {
-          // User has previous analysis
           const analysisData = userDoc.data().latestAnalysis;
           showLoggedInStateWithResult(user, analysisData);
         } else {
-          // First time user or no previous analysis
           showLoggedInStateNewUser(user);
         }
       } catch (error) {
@@ -278,7 +337,6 @@
       
       document.getElementById('hintText').innerHTML = `<small>📅 最後分析時間：${formatDate(analysisData.timestamp)}</small>`;
       
-      // Store analysis in session for result page
       sessionStorage.setItem('sa_result', JSON.stringify(analysisData));
       storeUserSession(user);
     }
@@ -317,48 +375,119 @@
       errorMsg.style.display = 'block';
       setTimeout(() => {
         errorMsg.style.display = 'none';
-      }, 5000);
+      }, 8000);
     }
 
     function setButtonLoading(buttonId, isLoading) {
       const btn = document.getElementById(buttonId);
-      if (isLoading) {
+      if (btn && isLoading) {
         btn.disabled = true;
         btn.innerHTML = '<div class="spinner"></div> 登入中...';
       }
     }
 
-    // Facebook Login
     window.loginWithFacebook = async function() {
       const provider = new FacebookAuthProvider();
       setButtonLoading('fbLoginBtn', true);
       
       try {
-        const result = await signInWithPopup(auth, provider);
-        console.log('Facebook login successful:', result.user);
+        console.log('[DEBUG] Starting Facebook login with popup...');
+        
+        try {
+          const result = await signInWithPopup(auth, provider);
+          console.log('[DEBUG] ✅ Facebook popup login successful:', result.user.uid);
+          
+          document.getElementById('loadingOverlay').style.display = 'flex';
+          await handleSuccessfulLogin(result.user);
+          
+        } catch (popupError) {
+          console.warn('[WARN] Popup method failed:', popupError.code);
+          
+          if (popupError.code === 'auth/popup-blocked' || 
+              popupError.code === 'auth/popup-closed-by-user' ||
+              popupError.code === 'auth/cancelled-popup-request') {
+            
+            console.log('[DEBUG] Switching to redirect method...');
+            sessionStorage.setItem('loginMethod', 'facebook');
+            await signInWithRedirect(auth, provider);
+            return;
+          }
+          
+          throw popupError;
+        }
+        
       } catch (error) {
-        console.error('Facebook login error:', error);
-        showError('Facebook 登入失敗：' + error.message);
-        location.reload();
+        console.error('[ERROR] Facebook login failed:', error);
+        console.error('[ERROR] Error code:', error.code);
+        
+        let errorMessage = 'Facebook 登入失敗';
+        
+        if (error.code === 'auth/account-exists-with-different-credential') {
+          errorMessage = '此 Email 已使用其他方式註冊（如 Google），請使用相同方式登入。';
+        } else if (error.code === 'auth/popup-blocked') {
+          errorMessage = '彈出視窗被阻擋，請允許彈出視窗或重新整理頁面再試。';
+        } else if (error.code === 'auth/network-request-failed') {
+          errorMessage = '網路連線失敗，請檢查網路後重試。';
+        } else {
+          errorMessage = `Facebook 登入失敗：${error.message}`;
+        }
+        
+        showError(errorMessage);
+        setTimeout(() => location.reload(), 3000);
       }
     };
 
-    // Google Login
     window.loginWithGoogle = async function() {
       const provider = new GoogleAuthProvider();
       setButtonLoading('googleLoginBtn', true);
       
       try {
-        const result = await signInWithPopup(auth, provider);
-        console.log('Google login successful:', result.user);
+        console.log('[DEBUG] Starting Google login with popup...');
+        
+        try {
+          const result = await signInWithPopup(auth, provider);
+          console.log('[DEBUG] ✅ Google popup login successful:', result.user.uid);
+          
+          document.getElementById('loadingOverlay').style.display = 'flex';
+          await handleSuccessfulLogin(result.user);
+          
+        } catch (popupError) {
+          console.warn('[WARN] Popup method failed:', popupError.code);
+          
+          if (popupError.code === 'auth/popup-blocked' || 
+              popupError.code === 'auth/popup-closed-by-user' ||
+              popupError.code === 'auth/cancelled-popup-request') {
+            
+            console.log('[DEBUG] Switching to redirect method...');
+            sessionStorage.setItem('loginMethod', 'google');
+            await signInWithRedirect(auth, provider);
+            return;
+          }
+          
+          throw popupError;
+        }
+        
       } catch (error) {
-        console.error('Google login error:', error);
-        showError('Google 登入失敗：' + error.message);
-        location.reload();
+        console.error('[ERROR] Google login failed:', error);
+        console.error('[ERROR] Error code:', error.code);
+        
+        let errorMessage = 'Google 登入失敗';
+        
+        if (error.code === 'auth/account-exists-with-different-credential') {
+          errorMessage = '此 Email 已使用其他方式註冊（如 Facebook），請使用相同方式登入。';
+        } else if (error.code === 'auth/popup-blocked') {
+          errorMessage = '彈出視窗被阻擋，請允許彈出視窗或重新整理頁面再試。';
+        } else if (error.code === 'auth/network-request-failed') {
+          errorMessage = '網路連線失敗，請檢查網路後重試。';
+        } else {
+          errorMessage = `Google 登入失敗：${error.message}`;
+        }
+        
+        showError(errorMessage);
+        setTimeout(() => location.reload(), 3000);
       }
     };
 
-    // Logout
     window.logout = async function() {
       try {
         await signOut(auth);
@@ -370,7 +499,6 @@
       }
     };
 
-    // Reanalyze - clear previous data and go to upload
     window.reanalyze = function() {
       if (confirm('確定要重新分析？這將覆蓋你目前的分析結果。')) {
         sessionStorage.removeItem('sa_result');
@@ -378,7 +506,6 @@
       }
     };
 
-    // Export db for use in other pages
     window.firestoreDB = db;
   </script>
 </body>
