@@ -235,101 +235,125 @@
     // 處理帳號連結
     async function handleAccountLinking(error) {
       console.log('[DEBUG] Handling account linking...');
+      console.log('[DEBUG] Error details:', error);
       
       try {
         const email = error.customData?.email;
         
         if (!email) {
           console.error('[ERROR] No email found in error');
-          throw new Error('無法取得帳號資訊');
+          showError('無法取得帳號資訊，請重新登入。');
+          setTimeout(() => location.reload(), 2000);
+          return;
         }
         
         console.log('[DEBUG] Email:', email);
         
         // 取得待連結的憑證
         let pendingCred = null;
+        let newProvider = '';
+        
         if (error.credential) {
           pendingCred = error.credential;
-        } else {
-          // 嘗試從錯誤中提取憑證
-          pendingCred = FacebookAuthProvider.credentialFromError(error) || 
-                       GoogleAuthProvider.credentialFromError(error);
-        }
-        
-        console.log('[DEBUG] Pending credential:', pendingCred ? 'exists' : 'null');
-        
-        // 取得已存在的登入方式
-        const methods = await fetchSignInMethodsForEmail(auth, email);
-        console.log('[DEBUG] Existing sign-in methods:', methods);
-        
-        if (methods.length === 0) {
-          // 沒有現有帳號，直接顯示錯誤
-          console.log('[DEBUG] No existing account, showing error');
-          showError('找不到此 Email 的現有帳號。請先用 Google 或 Facebook 註冊。');
-          setTimeout(() => location.reload(), 3000);
-          return;
-        }
-        
-        // 判斷現有和新的登入方式
-        const existingMethod = methods[0];
-        const existingProvider = existingMethod.includes('google') ? 'Google' : 'Facebook';
-        
-        // 判斷新的登入方式
-        let newProvider = 'Facebook';
-        if (pendingCred && pendingCred.providerId) {
           newProvider = pendingCred.providerId.includes('google') ? 'Google' : 'Facebook';
-        } else if (error.code && error.code.includes('facebook')) {
-          newProvider = 'Facebook';
-        } else if (error.code && error.code.includes('google')) {
-          newProvider = 'Google';
+        } else {
+          // 從錯誤碼判斷是哪個 provider
+          const fbCred = FacebookAuthProvider.credentialFromError(error);
+          const gCred = GoogleAuthProvider.credentialFromError(error);
+          
+          if (fbCred) {
+            pendingCred = fbCred;
+            newProvider = 'Facebook';
+          } else if (gCred) {
+            pendingCred = gCred;
+            newProvider = 'Google';
+          }
         }
         
-        console.log('[DEBUG] Existing provider:', existingProvider);
         console.log('[DEBUG] New provider:', newProvider);
+        console.log('[DEBUG] Pending credential exists:', !!pendingCred);
         
-        // 如果是同一個 provider，不需要連結
+        // 嘗試取得已存在的登入方式
+        let existingProvider = '';
+        
+        try {
+          const methods = await fetchSignInMethodsForEmail(auth, email);
+          console.log('[DEBUG] Existing sign-in methods:', methods);
+          
+          if (methods.length > 0) {
+            existingProvider = methods[0].includes('google') ? 'Google' : 'Facebook';
+          }
+        } catch (fetchError) {
+          console.warn('[WARN] fetchSignInMethodsForEmail failed:', fetchError);
+        }
+        
+        // 如果 fetchSignInMethodsForEmail 失敗，用另一種判斷方式
+        if (!existingProvider) {
+          // 根據新的 provider 推測現有的 provider
+          existingProvider = newProvider === 'Facebook' ? 'Google' : 'Facebook';
+          console.log('[DEBUG] Inferred existing provider:', existingProvider);
+        }
+        
+        // 如果是同一個 provider，直接登入
         if (existingProvider === newProvider) {
-          console.log('[DEBUG] Same provider, no linking needed');
-          showError('此帳號已存在，請直接登入。');
-          setTimeout(() => location.reload(), 2000);
+          console.log('[DEBUG] Same provider, attempting direct login');
+          showInfo('正在為你登入...');
+          
+          if (newProvider === 'Facebook') {
+            await loginWithFacebook();
+          } else {
+            await loginWithGoogle();
+          }
           return;
         }
         
         // 顯示友善提示
         showInfo(
-          `✨ 太好了！<br><br>` +
+          `✨ 偵測到帳號整合機會！<br><br>` +
           `此 Email (<strong>${email}</strong>) 已使用 <strong>${existingProvider}</strong> 註冊。<br><br>` +
-          `我們會自動為你連結 <strong>${newProvider}</strong> 帳號，下次可以用兩種方式登入！<br><br>` +
-          `請稍候，正在為你準備登入...`
+          `我們會為你連結 <strong>${newProvider}</strong> 帳號。<br><br>` +
+          `請稍候，正在處理...`
         );
         
-        // 儲存待連結的憑證（如果有）
+        // 等待 1.5 秒後自動觸發正確的登入方式
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        
+        // 儲存待連結資訊
         if (pendingCred) {
           try {
-            sessionStorage.setItem('pendingCredential', JSON.stringify({
-              providerId: pendingCred.providerId,
-              signInMethod: pendingCred.signInMethod
+            sessionStorage.setItem('pendingLink', JSON.stringify({
+              email: email,
+              newProvider: newProvider,
+              existingProvider: existingProvider
             }));
           } catch (e) {
-            console.warn('[WARN] Cannot store pending credential:', e);
+            console.warn('[WARN] Cannot store pending link:', e);
           }
         }
         
-        // 等待 2 秒後自動觸發正確的登入方式
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        
+        // 觸發現有 provider 的登入
         if (existingProvider === 'Google') {
-          console.log('[DEBUG] Auto-triggering Google login for linking...');
+          console.log('[DEBUG] Triggering Google login for linking...');
           await loginWithGoogle(pendingCred);
         } else {
-          console.log('[DEBUG] Auto-triggering Facebook login for linking...');
+          console.log('[DEBUG] Triggering Facebook login for linking...');
           await loginWithFacebook(pendingCred);
         }
         
       } catch (linkError) {
-        console.error('[ERROR] Account linking failed:', linkError);
-        showError('帳號連結失敗：' + linkError.message + '<br><br>請手動選擇正確的登入方式。');
-        setTimeout(() => location.reload(), 3000);
+        console.error('[ERROR] Account linking process failed:', linkError);
+        showError(
+          '帳號整合遇到問題。<br><br>' +
+          '請手動選擇你之前使用的登入方式：<br>' +
+          '• 如果之前用 <strong>Google</strong>，請點 Google 登入<br>' +
+          '• 如果之前用 <strong>Facebook</strong>，請點 Facebook 登入'
+        );
+        
+        setTimeout(() => {
+          // 清除錯誤訊息，讓使用者可以重新選擇
+          document.getElementById('infoMsg').style.display = 'none';
+          document.getElementById('errorMsg').style.display = 'none';
+        }, 5000);
       }
     }
 
