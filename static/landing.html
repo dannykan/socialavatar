@@ -266,12 +266,20 @@
       }
 
       // 檢查是否從 redirect 返回（使用更簡單的方法）
-      (async function checkRedirectResult() {
+      let redirectChecked = false;
+      
+      async function checkRedirectResult() {
+        if (redirectChecked) {
+          logMobileDebug('Redirect already checked, skipping');
+          return;
+        }
+        
         try {
           logMobileDebug('Checking redirect result...');
+          redirectChecked = true;
           
-          // 添加延遲確保 Firebase 完全初始化
-          await new Promise(resolve => setTimeout(resolve, 100));
+          // 添加更長的延遲確保 Firebase 完全初始化
+          await new Promise(resolve => setTimeout(resolve, 500));
           
           const result = await window.getRedirectResult(auth);
           
@@ -345,7 +353,10 @@
             showError(errorMessage);
           }
         }
-      })();
+      }
+      
+      // 立即檢查 redirect 結果
+      checkRedirectResult();
 
     // 添加更詳細的調試信息
     function logMobileDebug(message, data = null) {
@@ -572,6 +583,12 @@
 
       if (user) {
         logMobileDebug('onAuthStateChanged: User logged in', { userId: user.uid, email: user.email });
+        
+        // 如果還沒有檢查過 redirect 結果，先檢查
+        if (!redirectChecked) {
+          logMobileDebug('User logged in but redirect not checked - checking redirect result');
+          await checkRedirectResult();
+        }
         
         // 檢查是否已經處理過 redirect 結果
         const redirectProcessed = sessionStorage.getItem('redirectProcessed');
