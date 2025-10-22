@@ -56,7 +56,7 @@
       border-color: var(--border-light);
     }
     
-    .mbti-image-container {
+    .video-container {
       text-align: center;
       margin-bottom: var(--spacing-lg);
       padding: var(--spacing);
@@ -67,27 +67,60 @@
       overflow: hidden;
     }
     
-    .mbti-image {
+    .video-wrapper {
+      position: relative;
+      display: inline-block;
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      box-shadow: var(--shadow-md);
+    }
+    
+    .avatar-video {
       max-width: 100%;
       height: auto;
+      display: block;
       border-radius: var(--radius-md);
-      box-shadow: var(--shadow-md);
-      transition: var(--transition);
-      animation: float 3s ease-in-out infinite;
     }
     
-    @keyframes float {
-      0%, 100% { transform: translateY(0px) scale(1); }
-      50% { transform: translateY(-10px) scale(1.02); }
+    .video-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 10;
     }
     
-    .mbti-image:hover {
-      transform: scale(1.05);
-      box-shadow: var(--shadow-lg);
-      animation-play-state: paused;
+    .username-overlay {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-weight: 700;
+      font-size: 18px;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      animation: usernameGlow 2s ease-in-out infinite alternate;
     }
     
-    .mbti-image-placeholder {
+    @keyframes usernameGlow {
+      0% { 
+        box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+        transform: translateX(-50%) scale(1);
+      }
+      100% { 
+        box-shadow: 0 0 20px rgba(255, 255, 255, 0.6);
+        transform: translateX(-50%) scale(1.02);
+      }
+    }
+    
+    .video-placeholder {
       width: 100%;
       height: 400px;
       display: flex;
@@ -97,6 +130,40 @@
       border-radius: var(--radius-md);
       color: var(--muted);
       font-size: var(--font-size-sm);
+    }
+    
+    .video-controls {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      right: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 8px 12px;
+      border-radius: 20px;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    
+    .video-wrapper:hover .video-controls {
+      opacity: 1;
+    }
+    
+    .video-controls button {
+      background: rgba(255, 255, 255, 0.2);
+      border: none;
+      color: white;
+      padding: 6px 12px;
+      border-radius: 15px;
+      cursor: pointer;
+      font-size: 12px;
+      transition: background 0.3s ease;
+    }
+    
+    .video-controls button:hover {
+      background: rgba(255, 255, 255, 0.3);
     }
     
     .avatar-info {
@@ -307,7 +374,7 @@
       const genderText = genderMap[data.gender] || '—';
       di('#gender', genderText);
 
-      loadMBTIImage(data.mbti, data.gender);
+      loadAvatarVideo(data.mbti, data.gender, data.username);
 
       const mbti = data.mbti || '';
       const badge = document.querySelector('.mbti-badge');
@@ -319,71 +386,102 @@
       }
     }
 
-    function loadMBTIImage(mbti, gender) {
-      const imageEl = document.getElementById('mbtiImage');
-      const placeholderEl = document.getElementById('mbtiImagePlaceholder');
+    function loadAvatarVideo(mbti, gender, username) {
+      const videoEl = document.getElementById('avatarVideo');
+      const placeholderEl = document.getElementById('videoPlaceholder');
+      const usernameOverlay = document.getElementById('usernameOverlay');
       
       if (!mbti || !gender) {
-        placeholderEl.textContent = '無法載入圖片：缺少 MBTI 或性別資訊';
+        placeholderEl.textContent = '無法載入視頻：缺少 MBTI 或性別資訊';
         return;
       }
 
       const mbtiType = String(mbti).toUpperCase().trim();
-      const imagePath = `/static/images/mbti/${mbtiType}_${gender}.png`;
+      const videoPath = `/static/videos/mbti/${mbtiType}_${gender}.mp4`;
       
-      console.log('[DEBUG] Loading MBTI image:', imagePath);
+      console.log('[DEBUG] Loading avatar video:', videoPath);
       
-      const img = new Image();
+      // 設置視頻源
+      videoEl.src = videoPath;
       
-      img.onload = function() {
-        console.log('[DEBUG] ✅ MBTI image loaded successfully');
-        const genderMap = { 'male': '男性', 'female': '女性' };
-        imageEl.src = imagePath;
-        imageEl.alt = `${mbtiType} ${genderMap[gender] || ''}角色圖`;
-        imageEl.style.display = 'block';
+      // 設置用戶名疊加
+      if (username) {
+        const displayUsername = username.startsWith('@') ? username : `@${username}`;
+        usernameOverlay.textContent = displayUsername;
+        usernameOverlay.style.display = 'block';
+      }
+      
+      videoEl.addEventListener('loadeddata', function() {
+        console.log('[DEBUG] ✅ Avatar video loaded successfully');
+        videoEl.style.display = 'block';
         placeholderEl.style.display = 'none';
         
-        // 開始動畫
-        startAnimation();
-      };
+        // 設置視頻控制
+        setupVideoControls();
+      });
       
-      img.onerror = function() {
-        console.error('[ERROR] ❌ Failed to load MBTI image:', imagePath);
-        placeholderEl.textContent = `無法載入 ${mbtiType} 圖片`;
+      videoEl.addEventListener('error', function() {
+        console.error('[ERROR] ❌ Failed to load avatar video:', videoPath);
+        placeholderEl.textContent = `無法載入 ${mbtiType} 動態圖`;
         placeholderEl.style.color = 'var(--error)';
-      };
+      });
+    }
+    
+    function setupVideoControls() {
+      const video = document.getElementById('avatarVideo');
+      const playPauseBtn = document.getElementById('playPauseBtn');
+      const muteBtn = document.getElementById('muteBtn');
+      const fullscreenBtn = document.getElementById('fullscreenBtn');
       
-      img.src = imagePath;
+      // 播放/暫停控制
+      playPauseBtn.addEventListener('click', function() {
+        if (video.paused) {
+          video.play();
+          playPauseBtn.textContent = '⏸️';
+        } else {
+          video.pause();
+          playPauseBtn.textContent = '▶️';
+        }
+      });
+      
+      // 靜音控制
+      muteBtn.addEventListener('click', function() {
+        if (video.muted) {
+          video.muted = false;
+          muteBtn.textContent = '🔊';
+        } else {
+          video.muted = true;
+          muteBtn.textContent = '🔇';
+        }
+      });
+      
+      // 全螢幕控制
+      fullscreenBtn.addEventListener('click', function() {
+        if (video.requestFullscreen) {
+          video.requestFullscreen();
+        } else if (video.webkitRequestFullscreen) {
+          video.webkitRequestFullscreen();
+        } else if (video.msRequestFullscreen) {
+          video.msRequestFullscreen();
+        }
+      });
     }
 
-    function startAnimation() {
-      const imageEl = document.getElementById('mbtiImage');
-      if (!imageEl) return;
-      
-      imageEl.style.animation = `${currentAnimation} 3s ease-in-out infinite`;
+    function changeVideoSpeed(speed) {
+      const video = document.getElementById('avatarVideo');
+      if (video) {
+        video.playbackRate = speed;
+      }
     }
 
-    function changeAnimation(animationType) {
-      currentAnimation = animationType;
-      const imageEl = document.getElementById('mbtiImage');
-      if (!imageEl) return;
-      
-      imageEl.style.animation = `${animationType} 3s ease-in-out infinite`;
-    }
-
-    function toggleAnimation() {
-      const imageEl = document.getElementById('mbtiImage');
-      if (!imageEl) return;
-      
-      isAnimating = !isAnimating;
-      const button = document.getElementById('toggleAnimationBtn');
-      
-      if (isAnimating) {
-        imageEl.style.animation = `${currentAnimation} 3s ease-in-out infinite`;
-        button.textContent = '暫停動畫';
-      } else {
-        imageEl.style.animation = 'none';
-        button.textContent = '開始動畫';
+    function toggleVideoLoop() {
+      const video = document.getElementById('avatarVideo');
+      if (video) {
+        video.loop = !video.loop;
+        const button = document.getElementById('toggleLoopBtn');
+        if (button) {
+          button.textContent = video.loop ? '關閉循環' : '開啟循環';
+        }
       }
     }
 
@@ -482,19 +580,35 @@
     
     <div class="avatar-section">
       <div class="avatar-card">
-        <div class="mbti-image-container" id="mbtiImageContainer">
-          <img id="mbtiImage" class="mbti-image" src="" alt="MBTI 3D動態角色圖" style="display: none;">
-          <div id="mbtiImagePlaceholder" class="mbti-image-placeholder">
-            載入中...
+        <div class="video-container" id="videoContainer">
+          <div class="video-wrapper">
+            <video id="avatarVideo" class="avatar-video" autoplay muted loop style="display: none;">
+              <source src="" type="video/mp4">
+              您的瀏覽器不支援視頻播放。
+            </video>
+            <div class="video-overlay">
+              <div class="username-overlay" id="usernameOverlay" style="display: none;">
+                @username
+              </div>
+            </div>
+            <div class="video-controls">
+              <button id="playPauseBtn">⏸️</button>
+              <button id="muteBtn">🔇</button>
+              <button id="fullscreenBtn">⛶</button>
+            </div>
+            <div id="videoPlaceholder" class="video-placeholder">
+              載入中...
+            </div>
           </div>
         </div>
         
         <div class="animation-controls">
-          <h4 style="margin: 0 0 var(--spacing) 0; color: var(--text);">動畫控制</h4>
-          <button class="control-button" onclick="changeAnimation('float')">漂浮動畫</button>
-          <button class="control-button" onclick="changeAnimation('pulse')">脈衝動畫</button>
-          <button class="control-button" onclick="changeAnimation('bounce')">彈跳動畫</button>
-          <button class="control-button" id="toggleAnimationBtn" onclick="toggleAnimation()">暫停動畫</button>
+          <h4 style="margin: 0 0 var(--spacing) 0; color: var(--text);">視頻控制</h4>
+          <button class="control-button" onclick="changeVideoSpeed(0.5)">0.5x 慢速</button>
+          <button class="control-button" onclick="changeVideoSpeed(1)">1x 正常</button>
+          <button class="control-button" onclick="changeVideoSpeed(1.5)">1.5x 快速</button>
+          <button class="control-button" onclick="changeVideoSpeed(2)">2x 超快</button>
+          <button class="control-button" id="toggleLoopBtn" onclick="toggleVideoLoop()">關閉循環</button>
         </div>
       </div>
       
@@ -540,16 +654,5 @@
 
   </main>
 
-  <style>
-    @keyframes pulse {
-      0%, 100% { transform: scale(1); }
-      50% { transform: scale(1.05); }
-    }
-    
-    @keyframes bounce {
-      0%, 100% { transform: translateY(0); }
-      50% { transform: translateY(-20px); }
-    }
-  </style>
 </body>
 </html>
