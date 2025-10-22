@@ -181,7 +181,7 @@
     <div class="warning" id="warningMsg"></div>
     <div class="info" id="infoMsg"></div>
     
-    <p class="hint-text" id="hintText">💡 提示：同一個 Email 可使用 Google 或 Facebook 登入。</p>
+    <p class="hint-text" id="hintText">💡 提示：可使用 Google 或 Facebook 登入，同一個 Email 會自動整合。</p>
   </div>
 
   <script type="module">
@@ -238,40 +238,85 @@
       
       try {
         const email = error.customData?.email;
-        const pendingCred = FacebookAuthProvider.credentialFromError(error) || 
-                           GoogleAuthProvider.credentialFromError(error);
         
-        if (!email || !pendingCred) {
+        if (!email) {
+          console.error('[ERROR] No email found in error');
           throw new Error('無法取得帳號資訊');
         }
         
         console.log('[DEBUG] Email:', email);
+        
+        // 取得待連結的憑證
+        let pendingCred = null;
+        if (error.credential) {
+          pendingCred = error.credential;
+        } else {
+          // 嘗試從錯誤中提取憑證
+          pendingCred = FacebookAuthProvider.credentialFromError(error) || 
+                       GoogleAuthProvider.credentialFromError(error);
+        }
+        
+        console.log('[DEBUG] Pending credential:', pendingCred ? 'exists' : 'null');
         
         // 取得已存在的登入方式
         const methods = await fetchSignInMethodsForEmail(auth, email);
         console.log('[DEBUG] Existing sign-in methods:', methods);
         
         if (methods.length === 0) {
-          throw new Error('找不到現有帳號');
+          // 沒有現有帳號，直接顯示錯誤
+          console.log('[DEBUG] No existing account, showing error');
+          showError('找不到此 Email 的現有帳號。請先用 Google 或 Facebook 註冊。');
+          setTimeout(() => location.reload(), 3000);
+          return;
         }
         
-        // 判斷現有登入方式
-        const existingProvider = methods[0].includes('google') ? 'Google' : 'Facebook';
-        const newProvider = pendingCred.providerId.includes('google') ? 'Google' : 'Facebook';
+        // 判斷現有和新的登入方式
+        const existingMethod = methods[0];
+        const existingProvider = existingMethod.includes('google') ? 'Google' : 'Facebook';
+        
+        // 判斷新的登入方式
+        let newProvider = 'Facebook';
+        if (pendingCred && pendingCred.providerId) {
+          newProvider = pendingCred.providerId.includes('google') ? 'Google' : 'Facebook';
+        } else if (error.code && error.code.includes('facebook')) {
+          newProvider = 'Facebook';
+        } else if (error.code && error.code.includes('google')) {
+          newProvider = 'Google';
+        }
         
         console.log('[DEBUG] Existing provider:', existingProvider);
         console.log('[DEBUG] New provider:', newProvider);
+        
+        // 如果是同一個 provider，不需要連結
+        if (existingProvider === newProvider) {
+          console.log('[DEBUG] Same provider, no linking needed');
+          showError('此帳號已存在，請直接登入。');
+          setTimeout(() => location.reload(), 2000);
+          return;
+        }
         
         // 顯示友善提示
         showInfo(
           `✨ 太好了！<br><br>` +
           `此 Email (<strong>${email}</strong>) 已使用 <strong>${existingProvider}</strong> 註冊。<br><br>` +
-          `我們會自動為你連結 ${newProvider} 帳號，下次可以用兩種方式登入！<br><br>` +
-          `請先用 <strong>${existingProvider}</strong> 登入以完成連結...`
+          `我們會自動為你連結 <strong>${newProvider}</strong> 帳號，下次可以用兩種方式登入！<br><br>` +
+          `請稍候，正在為你準備登入...`
         );
         
-        // 等待 3 秒後自動觸發正確的登入方式
-        await new Promise(resolve => setTimeout(resolve, 3000));
+        // 儲存待連結的憑證（如果有）
+        if (pendingCred) {
+          try {
+            sessionStorage.setItem('pendingCredential', JSON.stringify({
+              providerId: pendingCred.providerId,
+              signInMethod: pendingCred.signInMethod
+            }));
+          } catch (e) {
+            console.warn('[WARN] Cannot store pending credential:', e);
+          }
+        }
+        
+        // 等待 2 秒後自動觸發正確的登入方式
+        await new Promise(resolve => setTimeout(resolve, 2000));
         
         if (existingProvider === 'Google') {
           console.log('[DEBUG] Auto-triggering Google login for linking...');
@@ -283,25 +328,43 @@
         
       } catch (linkError) {
         console.error('[ERROR] Account linking failed:', linkError);
-        showError('帳號連結失敗：' + linkError.message);
+        showError('帳號連結失敗：' + linkError.message + '<br><br>請手動選擇正確的登入方式。');
+        setTimeout(() => location.reload(), 3000);
       }
     }
 
     async function handleSuccessfulLogin(user, pendingCred = null) {
       console.log('[DEBUG] handleSuccessfulLogin called for:', user.uid);
+      console.log('[DEBUG] User email:', user.email);
+      console.log('[DEBUG] Pending credential:', pendingCred ? 'exists' : 'null');
       
       // 如果有待連結的憑證，進行連結
       if (pendingCred) {
         try {
-          console.log('[DEBUG] Linking credential...');
-          await linkWithCredential(user, pendingCred);
-          console.log('[DEBUG] ✅ Account linked successfully!');
+          console.log('[DEBUG] Attempting to link credential...');
+          console.log('[DEBUG] Credential provider:', pendingCred.providerId);
           
-          showInfo('🎉 帳號連結成功！下次可以用 Google 或 Facebook 登入。');
+          const result = await linkWithCredential(user, pendingCred);
+          console.log('[DEBUG] ✅ Account linked successfully!');
+          console.log('[DEBUG] Linked user:', result.user.uid);
+          
+          showInfo('🎉 帳號連結成功！<br><br>下次可以用 Google 或 Facebook 登入。');
           await new Promise(resolve => setTimeout(resolve, 2000));
+          
         } catch (linkError) {
           console.error('[ERROR] Link credential failed:', linkError);
-          // 連結失敗也沒關係，繼續正常流程
+          console.error('[ERROR] Link error code:', linkError.code);
+          
+          // 如果已經連結過，不算錯誤
+          if (linkError.code === 'auth/credential-already-in-use' || 
+              linkError.code === 'auth/email-already-in-use') {
+            console.log('[DEBUG] Credential already linked, continuing...');
+            showInfo('✓ 此帳號已整合完成。');
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          } else {
+            // 其他錯誤也繼續，不影響登入
+            console.warn('[WARN] Link failed but continuing login:', linkError.message);
+          }
         }
       }
       
