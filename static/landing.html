@@ -269,7 +269,17 @@
       (async function checkRedirectResult() {
         try {
           logMobileDebug('Checking redirect result...');
+          
+          // 添加延遲確保 Firebase 完全初始化
+          await new Promise(resolve => setTimeout(resolve, 100));
+          
           const result = await window.getRedirectResult(auth);
+          logMobileDebug('getRedirectResult returned:', { 
+            hasResult: !!result, 
+            hasUser: !!(result && result.user),
+            providerId: result?.providerId,
+            resultType: typeof result
+          });
           
           if (result && result.user) {
             logMobileDebug('Redirect login successful', { 
