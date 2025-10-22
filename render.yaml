@@ -27,5 +27,8 @@ services:
         value: "120"
     routes:
       - type: rewrite
-        source: /               # 直接導 landing（也可不設，因 app.py 已 redirect）
+        source: /               # 直接導 landing
+        destination: /static/landing.html
+      - type: rewrite
+        source: /index.html     # 確保 index.html 也重定向到 landing
         destination: /static/landing.html
