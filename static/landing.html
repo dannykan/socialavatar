@@ -274,6 +274,13 @@
           await new Promise(resolve => setTimeout(resolve, 100));
           
           const result = await window.getRedirectResult(auth);
+          
+          // 使用 console.log 確保調試信息顯示
+          console.log('[DEBUG] getRedirectResult result:', result);
+          console.log('[DEBUG] getRedirectResult type:', typeof result);
+          console.log('[DEBUG] getRedirectResult hasResult:', !!result);
+          console.log('[DEBUG] getRedirectResult hasUser:', !!(result && result.user));
+          
           logMobileDebug('getRedirectResult returned:', { 
             hasResult: !!result, 
             hasUser: !!(result && result.user),
