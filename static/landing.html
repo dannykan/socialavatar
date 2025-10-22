@@ -186,9 +186,45 @@
   </div>
 
   <script type="module">
-    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-    import { getAuth, signInWithPopup, signInWithRedirect, getRedirectResult, FacebookAuthProvider, GoogleAuthProvider, onAuthStateChanged, signOut, fetchSignInMethodsForEmail, linkWithCredential } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
-    import { getFirestore, doc, getDoc, setDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+    // 添加 Firebase 加載錯誤處理
+    let firebaseLoaded = false;
+    let firebaseError = null;
+    
+    try {
+      const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js');
+      const { getAuth, signInWithPopup, signInWithRedirect, getRedirectResult, FacebookAuthProvider, GoogleAuthProvider, onAuthStateChanged, signOut, fetchSignInMethodsForEmail, linkWithCredential } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js');
+      const { getFirestore, doc, getDoc, setDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+      
+      firebaseLoaded = true;
+      
+      // 將 Firebase 函數設為全域變數
+      window.initializeApp = initializeApp;
+      window.getAuth = getAuth;
+      window.signInWithPopup = signInWithPopup;
+      window.signInWithRedirect = signInWithRedirect;
+      window.getRedirectResult = getRedirectResult;
+      window.FacebookAuthProvider = FacebookAuthProvider;
+      window.GoogleAuthProvider = GoogleAuthProvider;
+      window.onAuthStateChanged = onAuthStateChanged;
+      window.signOut = signOut;
+      window.fetchSignInMethodsForEmail = fetchSignInMethodsForEmail;
+      window.linkWithCredential = linkWithCredential;
+      window.getFirestore = getFirestore;
+      window.doc = doc;
+      window.getDoc = getDoc;
+      window.setDoc = setDoc;
+      window.serverTimestamp = serverTimestamp;
+      
+    } catch (error) {
+      console.error('[ERROR] Firebase failed to load:', error);
+      firebaseError = error;
+      showError('Firebase 服務載入失敗，請重新整理頁面後重試。');
+    }
+    
+    if (!firebaseLoaded) {
+      console.error('[ERROR] Firebase not loaded, stopping execution');
+      return;
+    }
 
     const firebaseConfig = {
       apiKey: "AIzaSyBI2-4yEwzxvYOvui9FZiGAzCE22OhKmU8",
@@ -199,9 +235,9 @@
       appId: "1:280598358339:web:214a0d4ca53793163367f6"
     };
 
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
+    const app = window.initializeApp(firebaseConfig);
+    const auth = window.getAuth(app);
+    const db = window.getFirestore(app);
 
     // 偵測是否為移動設備
     function isMobileDevice() {
@@ -232,7 +268,7 @@
         loadingOverlay.style.display = 'flex';
         
         logMobileDebug('Checking redirect result...');
-        const result = await getRedirectResult(auth);
+        const result = await window.getRedirectResult(auth);
         
         if (result && result.user) {
           logMobileDebug('Redirect login successful', { 
@@ -254,8 +290,8 @@
               logMobileDebug('Found pending link data', linkData);
               
               // 從錯誤中獲取憑證
-              const fbCred = FacebookAuthProvider.credentialFromResult(result);
-              const gCred = GoogleAuthProvider.credentialFromResult(result);
+              const fbCred = window.FacebookAuthProvider.credentialFromResult(result);
+              const gCred = window.GoogleAuthProvider.credentialFromResult(result);
               
               if (linkData.newProvider === 'Facebook' && fbCred) {
                 pendingCred = fbCred;
@@ -442,7 +478,7 @@
           console.log('[DEBUG] Attempting to link credential...');
           console.log('[DEBUG] Credential provider:', pendingCred.providerId);
           
-          const result = await linkWithCredential(user, pendingCred);
+          const result = await window.linkWithCredential(user, pendingCred);
           console.log('[DEBUG] ✅ Account linked successfully!');
           console.log('[DEBUG] Linked user:', result.user.uid);
           
@@ -470,9 +506,9 @@
       storeUserSession(user);
       
       try {
-        const userDocRef = doc(db, 'users', user.uid);
+        const userDocRef = window.doc(db, 'users', user.uid);
         console.log('[DEBUG] Checking Firestore for existing analysis...');
-        const userDoc = await getDoc(userDocRef);
+        const userDoc = await window.getDoc(userDocRef);
         
         if (userDoc.exists() && userDoc.data().hasAnalysis) {
           console.log('[DEBUG] ✅ User has previous analysis, going to result page');
@@ -509,17 +545,17 @@
         const redirectProcessed = sessionStorage.getItem('redirectProcessed');
         if (!redirectProcessed) {
           logMobileDebug('Redirect not processed yet, checking redirect result...');
-          try {
-            const result = await getRedirectResult(auth);
-            if (result && result.user) {
-              logMobileDebug('Found redirect result, processing...');
-              await handleSuccessfulLogin(result.user);
-              sessionStorage.setItem('redirectProcessed', 'true');
-              return;
-            }
-          } catch (error) {
-            logMobileDebug('Redirect check failed, continuing with normal flow', { error: error.message });
+        try {
+          const result = await window.getRedirectResult(auth);
+          if (result && result.user) {
+            logMobileDebug('Found redirect result, processing...');
+            await handleSuccessfulLogin(result.user);
+            sessionStorage.setItem('redirectProcessed', 'true');
+            return;
           }
+        } catch (error) {
+          logMobileDebug('Redirect check failed, continuing with normal flow', { error: error.message });
+        }
         }
         
         // 如果沒有 redirect 結果或已經處理過，使用正常流程
@@ -534,8 +570,8 @@
 
     async function checkUserAnalysis(user) {
       try {
-        const userDocRef = doc(db, 'users', user.uid);
-        const userDoc = await getDoc(userDocRef);
+        const userDocRef = window.doc(db, 'users', user.uid);
+        const userDoc = await window.getDoc(userDocRef);
         
         if (userDoc.exists() && userDoc.data().hasAnalysis) {
           const analysisData = userDoc.data().latestAnalysis;
@@ -694,7 +730,7 @@
 
     // Facebook 登入：手機用 redirect，電腦用 popup
     window.loginWithFacebook = async function(pendingCredential = null) {
-      const provider = new FacebookAuthProvider();
+      const provider = new window.FacebookAuthProvider();
       const isMobile = isMobileDevice();
       
       logMobileDebug('Starting Facebook login', { pendingCredential: !!pendingCredential });
@@ -708,12 +744,12 @@
           // 手機端使用 redirect
           logMobileDebug('Using redirect mode for Facebook login');
           showInfo('正在跳轉到 Facebook 登入頁面...');
-          await signInWithRedirect(auth, provider);
+          await window.signInWithRedirect(auth, provider);
           // redirect 會離開頁面，不會執行到這裡
         } else {
           // 電腦端使用 popup
           logMobileDebug('Using popup mode for Facebook login');
-          const result = await signInWithPopup(auth, provider);
+          const result = await window.signInWithPopup(auth, provider);
           logMobileDebug('Facebook login successful', { userId: result.user.uid });
           
           document.getElementById('loadingOverlay').style.display = 'flex';
@@ -784,7 +820,7 @@
 
     // Google 登入：手機用 redirect，電腦用 popup
     window.loginWithGoogle = async function(pendingCredential = null) {
-      const provider = new GoogleAuthProvider();
+      const provider = new window.GoogleAuthProvider();
       const isMobile = isMobileDevice();
       
       logMobileDebug('Starting Google login', { pendingCredential: !!pendingCredential });
@@ -798,12 +834,12 @@
           // 手機端使用 redirect
           logMobileDebug('Using redirect mode for Google login');
           showInfo('正在跳轉到 Google 登入頁面...');
-          await signInWithRedirect(auth, provider);
+          await window.signInWithRedirect(auth, provider);
           // redirect 會離開頁面，不會執行到這裡
         } else {
           // 電腦端使用 popup
           logMobileDebug('Using popup mode for Google login');
-          const result = await signInWithPopup(auth, provider);
+          const result = await window.signInWithPopup(auth, provider);
           logMobileDebug('Google login successful', { userId: result.user.uid });
           
           document.getElementById('loadingOverlay').style.display = 'flex';
@@ -877,7 +913,7 @@
 
     window.logout = async function() {
       try {
-        await signOut(auth);
+        await window.signOut(auth);
         sessionStorage.clear();
         location.reload();
       } catch (error) {
