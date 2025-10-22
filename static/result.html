@@ -186,6 +186,18 @@
       transform: translateY(0);
     }
     
+    .premium-buttons {
+      display: flex;
+      gap: var(--spacing);
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    
+    .premium-buttons .btn {
+      flex: 1;
+      min-width: 150px;
+    }
+    
     .action-buttons {
       display: flex;
       gap: var(--spacing);
@@ -297,6 +309,11 @@
     function goToAvatar3D() {
       // 跳轉到3D動態圖頁面
       window.location.href = '/static/avatar3d.html';
+    }
+    
+    function goToCharacter() {
+      // 跳轉到角色裝備頁面
+      window.location.href = '/static/character.html';
     }
 
     async function loadResult() {
@@ -531,12 +548,21 @@
           <div class="premium-card">
             <h3 class="premium-title">✨ 你的專屬3D動態角色</h3>
             <p class="premium-description">解鎖你的個人化3D動態角色圖，包含多種動畫效果和互動功能</p>
-            <button class="btn btn-premium" onclick="goToAvatar3D()">
-              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-              </svg>
-              查看3D動態圖
-            </button>
+            <div class="premium-buttons">
+              <button class="btn btn-premium" onclick="goToAvatar3D()">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                </svg>
+                查看3D動態圖
+              </button>
+              <button class="btn btn-premium" onclick="goToCharacter()">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                  <circle cx="12" cy="7" r="4"/>
+                </svg>
+                角色裝備
+              </button>
+            </div>
           </div>
         </div>
         
