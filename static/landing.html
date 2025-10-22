@@ -251,6 +251,7 @@
       }
 
       // 立即檢查 redirect 結果（在頁面加載時）
+      let redirectProcessed = false;
       (async function checkRedirectResultImmediately() {
         try {
           logMobileDebug('Checking redirect result immediately...');
@@ -264,6 +265,7 @@
             });
             
             // 設置 redirect 已處理標記
+            redirectProcessed = true;
             sessionStorage.setItem('redirectProcessed', 'true');
             
             // 檢查是否有待連結的憑證
@@ -545,23 +547,11 @@
         logMobileDebug('onAuthStateChanged: User logged in', { userId: user.uid, email: user.email });
         
         // 檢查是否已經處理過 redirect 結果
-        const redirectProcessed = sessionStorage.getItem('redirectProcessed');
         if (!redirectProcessed) {
-          logMobileDebug('Redirect not processed yet, checking redirect result...');
-        try {
-          const result = await window.getRedirectResult(auth);
-          if (result && result.user) {
-            logMobileDebug('Found redirect result, processing...');
-            await handleSuccessfulLogin(result.user);
-            sessionStorage.setItem('redirectProcessed', 'true');
-            return;
-          }
-        } catch (error) {
-          logMobileDebug('Redirect check failed, continuing with normal flow', { error: error.message });
-        }
+          logMobileDebug('Redirect not processed yet, but user is logged in - using normal flow');
         }
         
-        // 如果沒有 redirect 結果或已經處理過，使用正常流程
+        // 使用正常流程處理已登入的用戶
         await checkUserAnalysis(user);
       } else {
         logMobileDebug('onAuthStateChanged: No user');
