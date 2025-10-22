@@ -1,0 +1,555 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>3D 人物動態圖｜Social Avatar</title>
+  <link rel="stylesheet" href="/static/app.css">
+  <style>
+    body {
+      background: radial-gradient(1000px 600px at -10% -10%, var(--primary-dark) 0, transparent 60%),
+                  radial-gradient(1200px 600px at 110% 0%, var(--secondary) 0, transparent 60%),
+                  var(--bg);
+      min-height: 100vh;
+    }
+    
+    .header {
+      padding: var(--spacing) var(--spacing-md);
+      border-bottom: 1px solid var(--border);
+      background: rgba(11, 18, 32, 0.8);
+      backdrop-filter: blur(8px);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: var(--spacing-lg);
+    }
+    
+    .avatar-section {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--spacing-lg);
+      margin-bottom: var(--spacing-lg);
+    }
+    
+    @media (max-width: 860px) {
+      .avatar-section {
+        grid-template-columns: 1fr;
+      }
+    }
+    
+    .avatar-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: var(--spacing-lg);
+      box-shadow: var(--shadow-md);
+      transition: var(--transition);
+    }
+    
+    .avatar-card:hover {
+      box-shadow: var(--shadow-lg);
+      border-color: var(--border-light);
+    }
+    
+    .mbti-image-container {
+      text-align: center;
+      margin-bottom: var(--spacing-lg);
+      padding: var(--spacing);
+      background: var(--bg-secondary);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .mbti-image {
+      max-width: 100%;
+      height: auto;
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-md);
+      transition: var(--transition);
+      animation: float 3s ease-in-out infinite;
+    }
+    
+    @keyframes float {
+      0%, 100% { transform: translateY(0px) scale(1); }
+      50% { transform: translateY(-10px) scale(1.02); }
+    }
+    
+    .mbti-image:hover {
+      transform: scale(1.05);
+      box-shadow: var(--shadow-lg);
+      animation-play-state: paused;
+    }
+    
+    .mbti-image-placeholder {
+      width: 100%;
+      height: 400px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg);
+      border-radius: var(--radius-md);
+      color: var(--muted);
+      font-size: var(--font-size-sm);
+    }
+    
+    .avatar-info {
+      text-align: center;
+    }
+    
+    .result-header {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--spacing);
+      margin-bottom: var(--spacing);
+      flex-wrap: wrap;
+    }
+    
+    .mbti-badge {
+      padding: var(--spacing-sm) var(--spacing);
+      border-radius: 999px;
+      font-weight: 700;
+      background: var(--bg-secondary);
+      color: var(--text);
+      border: 1px solid var(--border-light);
+      font-size: var(--font-size-sm);
+    }
+    
+    .user-name {
+      margin: 0;
+      font-size: var(--font-size-xl);
+      font-weight: 700;
+      color: var(--text);
+    }
+    
+    .user-handle {
+      color: var(--muted);
+      font-size: var(--font-size-sm);
+    }
+    
+    .stats {
+      color: var(--muted);
+      margin-bottom: var(--spacing);
+      font-size: var(--font-size-sm);
+    }
+    
+    .stats strong {
+      color: var(--text);
+      font-weight: 600;
+    }
+    
+    .vehicle-card {
+      background: rgba(5, 46, 26, 0.2);
+      border: 1px solid rgba(20, 83, 45, 0.3);
+      border-radius: var(--radius-md);
+      padding: var(--spacing);
+      margin-bottom: var(--spacing);
+    }
+    
+    .vehicle-name {
+      font-weight: 700;
+      color: #bbf7d0;
+      font-size: var(--font-size-lg);
+      margin: 0 0 var(--spacing-sm);
+    }
+    
+    .vehicle-hint {
+      color: var(--muted);
+      font-size: var(--font-size-sm);
+      margin: 0;
+    }
+    
+    .action-buttons {
+      display: flex;
+      gap: var(--spacing);
+      flex-wrap: wrap;
+      margin-top: var(--spacing);
+      justify-content: center;
+    }
+    
+    .premium-badge {
+      background: linear-gradient(135deg, #ffd700, #ffed4e);
+      color: #000;
+      padding: var(--spacing-sm) var(--spacing);
+      border-radius: var(--radius-md);
+      font-weight: 700;
+      font-size: var(--font-size-sm);
+      margin-bottom: var(--spacing);
+      text-align: center;
+      box-shadow: 0 4px 15px rgba(255, 215, 0, 0.3);
+    }
+    
+    .animation-controls {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: var(--spacing);
+      margin-top: var(--spacing);
+    }
+    
+    .control-button {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: var(--spacing-sm) var(--spacing);
+      border-radius: var(--radius);
+      cursor: pointer;
+      font-size: var(--font-size-sm);
+      margin: 0 var(--spacing-sm) var(--spacing-sm) 0;
+      transition: var(--transition);
+    }
+    
+    .control-button:hover {
+      background: var(--primary-dark);
+      transform: translateY(-1px);
+    }
+    
+    .control-button:active {
+      transform: translateY(0);
+    }
+    
+    @media (max-width: 768px) {
+      .action-buttons {
+        flex-direction: column;
+      }
+      
+      .action-buttons .btn {
+        width: 100%;
+      }
+      
+      .mbti-image-container {
+        padding: var(--spacing-sm);
+      }
+      
+      .animation-controls {
+        text-align: center;
+      }
+    }
+  </style>
+  <script>
+    // ==========================================
+    // 防止使用者返回上一頁
+    // ==========================================
+    (function() {
+      if (window.history && window.history.pushState) {
+        window.history.pushState(null, null, window.location.href);
+        
+        window.addEventListener('popstate', function(event) {
+          window.history.pushState(null, null, window.location.href);
+          
+          const shouldClear = confirm(
+            '⚠️ 無法返回上一頁\n\n' +
+            '若要重新分析，請點擊「返回結果頁面」按鈕。\n\n' +
+            '是否現在返回結果頁面？'
+          );
+          
+          if (shouldClear) {
+            goBackToResult();
+          }
+        });
+      }
+      
+      window.addEventListener('beforeunload', function(e) {
+        const message = '確定要離開此頁面嗎？你的3D動態圖可能會遺失。';
+        e.returnValue = message;
+        return message;
+      });
+    })();
+
+    let hasRedirected = false;
+    let currentAnimation = 'float';
+    let isAnimating = true;
+
+    function safeParseJson(mixed) {
+      if (!mixed) return null;
+      if (typeof mixed === 'object') return mixed;
+      const text = String(mixed).trim();
+      try { return JSON.parse(text); } catch {}
+      const fence = text.match(/```json\s*([\s\S]*?)```/i);
+      if (fence) {
+        try { return JSON.parse(fence[1]); } catch {}
+      }
+      const firstBrace = text.indexOf('{');
+      const lastBrace = text.lastIndexOf('}');
+      if (firstBrace >= 0 && lastBrace > firstBrace) {
+        const body = text.slice(firstBrace, lastBrace + 1);
+        try { return JSON.parse(body); } catch {}
+      }
+      return null;
+    }
+
+    function fillUI(data) {
+      const dn = (v) => (v ?? '').toString();
+      const di = (sel, v) => {
+        const el = document.querySelector(sel);
+        if (el) el.textContent = v;
+      };
+
+      di('#display_name', dn(data.display_name || '使用者'));
+      di('#username', data.username ? '@' + data.username : '—');
+      di('#followers', (data.followers ?? 0).toLocaleString());
+      di('#following', (data.following ?? 0).toLocaleString());
+      di('#posts', (data.posts ?? 0).toLocaleString());
+      di('#mbti', (data.mbti || '—').toUpperCase());
+      di('#vehicle', data.vehicle || '—');
+      
+      const genderMap = {
+        'male': '👨 男性',
+        'female': '👩 女性'
+      };
+      const genderText = genderMap[data.gender] || '—';
+      di('#gender', genderText);
+
+      loadMBTIImage(data.mbti, data.gender);
+
+      const mbti = data.mbti || '';
+      const badge = document.querySelector('.mbti-badge');
+      if (badge && mbti) {
+        const colorMap = { E: '#22d3ee', I: '#a78bfa' };
+        const color = colorMap[mbti[0]] || '#22c55e';
+        badge.style.background = color + '33';
+        badge.style.borderColor = color + '88';
+      }
+    }
+
+    function loadMBTIImage(mbti, gender) {
+      const imageEl = document.getElementById('mbtiImage');
+      const placeholderEl = document.getElementById('mbtiImagePlaceholder');
+      
+      if (!mbti || !gender) {
+        placeholderEl.textContent = '無法載入圖片：缺少 MBTI 或性別資訊';
+        return;
+      }
+
+      const mbtiType = String(mbti).toUpperCase().trim();
+      const imagePath = `/static/images/mbti/${mbtiType}_${gender}.png`;
+      
+      console.log('[DEBUG] Loading MBTI image:', imagePath);
+      
+      const img = new Image();
+      
+      img.onload = function() {
+        console.log('[DEBUG] ✅ MBTI image loaded successfully');
+        const genderMap = { 'male': '男性', 'female': '女性' };
+        imageEl.src = imagePath;
+        imageEl.alt = `${mbtiType} ${genderMap[gender] || ''}角色圖`;
+        imageEl.style.display = 'block';
+        placeholderEl.style.display = 'none';
+        
+        // 開始動畫
+        startAnimation();
+      };
+      
+      img.onerror = function() {
+        console.error('[ERROR] ❌ Failed to load MBTI image:', imagePath);
+        placeholderEl.textContent = `無法載入 ${mbtiType} 圖片`;
+        placeholderEl.style.color = 'var(--error)';
+      };
+      
+      img.src = imagePath;
+    }
+
+    function startAnimation() {
+      const imageEl = document.getElementById('mbtiImage');
+      if (!imageEl) return;
+      
+      imageEl.style.animation = `${currentAnimation} 3s ease-in-out infinite`;
+    }
+
+    function changeAnimation(animationType) {
+      currentAnimation = animationType;
+      const imageEl = document.getElementById('mbtiImage');
+      if (!imageEl) return;
+      
+      imageEl.style.animation = `${animationType} 3s ease-in-out infinite`;
+    }
+
+    function toggleAnimation() {
+      const imageEl = document.getElementById('mbtiImage');
+      if (!imageEl) return;
+      
+      isAnimating = !isAnimating;
+      const button = document.getElementById('toggleAnimationBtn');
+      
+      if (isAnimating) {
+        imageEl.style.animation = `${currentAnimation} 3s ease-in-out infinite`;
+        button.textContent = '暫停動畫';
+      } else {
+        imageEl.style.animation = 'none';
+        button.textContent = '開始動畫';
+      }
+    }
+
+    async function loadResult() {
+      if (hasRedirected) return;
+
+      const saved = sessionStorage.getItem('sa_result');
+      if (saved) {
+        try {
+          const data = JSON.parse(saved);
+          if (data && data.ok === true && (data.mbti || data.display_name)) {
+            fillUI(data);
+            return;
+          } else {
+            console.warn('Invalid data in sessionStorage:', data);
+            sessionStorage.removeItem('sa_result');
+          }
+        } catch (e) {
+          console.error('Failed to parse sessionStorage:', e);
+          sessionStorage.removeItem('sa_result');
+        }
+      }
+
+      try {
+        const r = await fetch(`/debug/last_ai?ts=${Date.now()}`, { cache: 'no-store' });
+        if (r.ok) {
+          const j = await r.json();
+          const parsed = safeParseJson(j.text || j.raw || '');
+          if (parsed && (parsed.mbti || parsed.display_name)) {
+            const fallbackData = {
+              display_name: parsed.display_name || '使用者',
+              username: (parsed.username || '').trim(),
+              followers: Number(parsed.followers || 0),
+              following: Number(parsed.following || 0),
+              posts: Number(parsed.posts || 0),
+              mbti: String(parsed.mbti || '').toUpperCase(),
+              vehicle: parsed.vehicle || '—',
+              gender: parsed.gender || '',
+              diagnose: { ai_on: true, model: 'from-last_ai', source: 'debug/last_ai' }
+            };
+            fillUI(fallbackData);
+            return;
+          }
+        }
+      } catch (e) {
+        console.error('load from /debug/last_ai failed:', e);
+      }
+
+      if (!hasRedirected) {
+        hasRedirected = true;
+        const errBox = document.getElementById('err');
+        if (errBox) {
+          errBox.textContent = '找不到分析結果，3 秒後將返回結果頁面...';
+          errBox.style.display = 'block';
+        }
+        setTimeout(() => {
+          goBackToResult();
+        }, 3000);
+      }
+    }
+
+    function goBackToResult() {
+      window.location.href = '/static/result.html';
+    }
+
+    function goToPayment() {
+      // 這裡可以添加付費邏輯
+      alert('🚀 即將推出付費功能！\n\n解鎖更多3D動畫效果和個性化選項。');
+    }
+
+    window.addEventListener('DOMContentLoaded', loadResult);
+  </script>
+</head>
+<body>
+  <header class="header">
+    <div class="flex justify-between items-center">
+      <div><strong>Social Avatar - 3D 動態圖</strong></div>
+      <nav class="action-buttons">
+        <button class="btn btn-ghost" onclick="goBackToResult()">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M19 12H5M12 19l-7-7 7-7"/>
+          </svg>
+          返回結果頁面
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <h1 class="page-title">3D 人物動態圖</h1>
+    <div id="err" class="status-error hidden"></div>
+    
+    <div class="premium-badge">
+      ✨ 這是你的專屬3D動態角色圖 ✨
+    </div>
+    
+    <div class="avatar-section">
+      <div class="avatar-card">
+        <div class="mbti-image-container" id="mbtiImageContainer">
+          <img id="mbtiImage" class="mbti-image" src="" alt="MBTI 3D動態角色圖" style="display: none;">
+          <div id="mbtiImagePlaceholder" class="mbti-image-placeholder">
+            載入中...
+          </div>
+        </div>
+        
+        <div class="animation-controls">
+          <h4 style="margin: 0 0 var(--spacing) 0; color: var(--text);">動畫控制</h4>
+          <button class="control-button" onclick="changeAnimation('float')">漂浮動畫</button>
+          <button class="control-button" onclick="changeAnimation('pulse')">脈衝動畫</button>
+          <button class="control-button" onclick="changeAnimation('bounce')">彈跳動畫</button>
+          <button class="control-button" id="toggleAnimationBtn" onclick="toggleAnimation()">暫停動畫</button>
+        </div>
+      </div>
+      
+      <div class="avatar-card">
+        <div class="avatar-info">
+          <div class="result-header">
+            <span class="mbti-badge" id="mbti">—</span>
+            <h2 class="user-name" id="display_name">使用者</h2>
+            <span class="user-handle" id="username">—</span>
+          </div>
+          <p class="stats">
+            Followers / Following / Posts ： 
+            <strong id="followers">—</strong> / 
+            <strong id="following">—</strong> / 
+            <strong id="posts">—</strong>
+          </p>
+          <p class="stats">
+            性別：<strong id="gender">—</strong>
+          </p>
+          
+          <div class="vehicle-card">
+            <div class="vehicle-name" id="vehicle">—</div>
+            <p class="vehicle-hint">（之後可解鎖更多造型與動畫）</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="action-buttons">
+      <button class="btn btn-primary" onclick="goToPayment()">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+        </svg>
+        解鎖更多動畫效果
+      </button>
+      <button class="btn btn-secondary" onclick="goBackToResult()">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M19 12H5M12 19l-7-7 7-7"/>
+        </svg>
+        返回結果頁面
+      </button>
+    </div>
+
+  </main>
+
+  <style>
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+    
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-20px); }
+    }
+  </style>
+</body>
+</html>
