@@ -936,25 +936,39 @@
       const fbBtn = document.getElementById('fbLoginBtn');
       const googleBtn = document.getElementById('googleLoginBtn');
       
-      if (fbBtn) {
-        logMobileDebug('Adding Facebook button event listener');
-        fbBtn.addEventListener('click', () => {
-          logMobileDebug('Facebook button clicked');
-          window.loginWithFacebook();
-        });
-      } else {
-        logMobileDebug('Facebook button not found');
-      }
+        if (fbBtn) {
+          logMobileDebug('Adding Facebook button event listener');
+          fbBtn.addEventListener('click', (event) => {
+            event.preventDefault();
+            logMobileDebug('Facebook button clicked - event triggered');
+            console.log('Facebook button clicked - calling loginWithFacebook');
+            try {
+              window.loginWithFacebook();
+            } catch (error) {
+              console.error('Error calling loginWithFacebook:', error);
+              logMobileDebug('Error calling loginWithFacebook', { error: error.message });
+            }
+          });
+        } else {
+          logMobileDebug('Facebook button not found');
+        }
 
-      if (googleBtn) {
-        logMobileDebug('Adding Google button event listener');
-        googleBtn.addEventListener('click', () => {
-          logMobileDebug('Google button clicked');
-          window.loginWithGoogle();
-        });
-      } else {
-        logMobileDebug('Google button not found');
-      }
+        if (googleBtn) {
+          logMobileDebug('Adding Google button event listener');
+          googleBtn.addEventListener('click', (event) => {
+            event.preventDefault();
+            logMobileDebug('Google button clicked - event triggered');
+            console.log('Google button clicked - calling loginWithGoogle');
+            try {
+              window.loginWithGoogle();
+            } catch (error) {
+              console.error('Error calling loginWithGoogle:', error);
+              logMobileDebug('Error calling loginWithGoogle', { error: error.message });
+            }
+          });
+        } else {
+          logMobileDebug('Google button not found');
+        }
 
     })().catch(error => {
       console.error('[ERROR] Failed to initialize app:', error);
