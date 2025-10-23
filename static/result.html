@@ -1039,57 +1039,56 @@
             });
             
             // 直接使用前端計算的報價系統
-                const followers = data.followers || 0;
-                const multipliers = value.multipliers || {};
-                
-                // 基礎報價計算（每千粉價值）
-                let basePricePerK;
-                if (followers < 1000) {
-                    basePricePerK = 300;
-                } else if (followers < 5000) {
-                    basePricePerK = 500;
-                } else if (followers < 10000) {
-                    basePricePerK = 600;
-                } else if (followers < 50000) {
-                    basePricePerK = 700;
-                } else if (followers < 100000) {
-                    basePricePerK = 800;
-                } else if (followers < 300000) {
-                    basePricePerK = 700;
-                } else {
-                    basePricePerK = 600;
-                }
-                
-                // 計算品質係數
-                const visual = multipliers.visual || 1.0;
-                const content = multipliers.content || 1.0;
-                const professional = multipliers.professional || 1.0;
-                const follower = multipliers.follower || 1.0;
-                const unique = multipliers.unique || 1.0;
-                const engagement = multipliers.engagement || 1.0;
-                const niche = multipliers.niche || 1.0;
-                const audience = multipliers.audience || 1.0;
-                const crossPlatform = multipliers.cross_platform || 1.0;
-                
-                const qualityScore = (
-                    visual * 0.15 +
-                    content * 0.15 +
-                    engagement * 0.20 +
-                    niche * 0.15 +
-                    audience * 0.15 +
-                    professional * 0.10 +
-                    unique * 0.05 +
-                    follower * 0.03 +
-                    crossPlatform * 0.02
-                );
-                
-                const qualityMultiplier = Math.max(0.6, Math.min(qualityScore, 2.0));
-                
-                const basePostPrice = (followers / 1000) * basePricePerK * qualityMultiplier;
-                postPrice = Math.floor(basePostPrice);
-                storyPrice = Math.floor(postPrice * 0.4);
-                reelsPrice = Math.floor(postPrice * 1.5);
+            const followers = data.followers || 0;
+            const multipliers = value.multipliers || {};
+            
+            // 基礎報價計算（每千粉價值）
+            let basePricePerK;
+            if (followers < 1000) {
+                basePricePerK = 300;
+            } else if (followers < 5000) {
+                basePricePerK = 500;
+            } else if (followers < 10000) {
+                basePricePerK = 600;
+            } else if (followers < 50000) {
+                basePricePerK = 700;
+            } else if (followers < 100000) {
+                basePricePerK = 800;
+            } else if (followers < 300000) {
+                basePricePerK = 700;
+            } else {
+                basePricePerK = 600;
             }
+            
+            // 計算品質係數
+            const visual = multipliers.visual || 1.0;
+            const content = multipliers.content || 1.0;
+            const professional = multipliers.professional || 1.0;
+            const follower = multipliers.follower || 1.0;
+            const unique = multipliers.unique || 1.0;
+            const engagement = multipliers.engagement || 1.0;
+            const niche = multipliers.niche || 1.0;
+            const audience = multipliers.audience || 1.0;
+            const crossPlatform = multipliers.cross_platform || 1.0;
+            
+            const qualityScore = (
+                visual * 0.15 +
+                content * 0.15 +
+                engagement * 0.20 +
+                niche * 0.15 +
+                audience * 0.15 +
+                professional * 0.10 +
+                unique * 0.05 +
+                follower * 0.03 +
+                crossPlatform * 0.02
+            );
+            
+            const qualityMultiplier = Math.max(0.6, Math.min(qualityScore, 2.0));
+            
+            const basePostPrice = (followers / 1000) * basePricePerK * qualityMultiplier;
+            postPrice = Math.floor(basePostPrice);
+            storyPrice = Math.floor(postPrice * 0.4);
+            reelsPrice = Math.floor(postPrice * 1.5);
             
             // 顯示報價
             const postValueEl = document.getElementById('post-value');
