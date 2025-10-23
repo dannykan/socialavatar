@@ -1165,48 +1165,55 @@
         
         console.log('檢查用戶狀態...');
         
-        // 等待 Firebase Auth 初始化
-        await new Promise((resolve) => {
-          const unsubscribe = auth.onAuthStateChanged((user) => {
-            unsubscribe();
-            resolve(user);
-          });
-        });
+        let uidToDelete = null;
         
-        const user = auth.currentUser;
-        console.log('當前用戶:', user ? user.uid : '未登入');
-        
-        if (user) {
-          console.log('用戶已登入，刪除 Firestore 資料...');
+        // 首先嘗試從 sessionStorage 獲取 UID（最可靠的方式）
+        const savedResult = sessionStorage.getItem('sa_result');
+        if (savedResult) {
           try {
-            await deleteDoc(doc(db, 'users', user.uid));
+            const parsed = JSON.parse(savedResult);
+            uidToDelete = parsed.user?.uid;
+            if (uidToDelete) {
+              console.log('從 sessionStorage 找到 UID:', uidToDelete);
+            }
+          } catch (error) {
+            console.log('解析 sessionStorage 資料時出錯:', error);
+          }
+        }
+        
+        // 如果沒有從 sessionStorage 獲取到，嘗試從 Firebase Auth
+        if (!uidToDelete) {
+          console.log('從 sessionStorage 未找到 UID，嘗試從 Firebase Auth 獲取...');
+          
+          // 等待 Firebase Auth 初始化
+          await new Promise((resolve) => {
+            const unsubscribe = auth.onAuthStateChanged((user) => {
+              unsubscribe();
+              resolve(user);
+            });
+          });
+          
+          const user = auth.currentUser;
+          if (user) {
+            uidToDelete = user.uid;
+            console.log('從 Firebase Auth 找到 UID:', uidToDelete);
+          } else {
+            console.log('Firebase Auth 中也沒有找到用戶');
+          }
+        }
+        
+        // 執行 Firestore 刪除
+        if (uidToDelete) {
+          console.log('準備刪除 Firestore 資料，UID:', uidToDelete);
+          try {
+            await deleteDoc(doc(db, 'users', uidToDelete));
             console.log('Firestore 資料已刪除');
           } catch (error) {
             console.log('刪除 Firestore 資料時出錯:', error);
             // 即使刪除失敗也繼續執行其他清理操作
           }
         } else {
-          console.log('用戶未登入，嘗試從 sessionStorage 獲取 UID...');
-          
-          // 嘗試從 sessionStorage 或其他地方獲取 UID
-          const savedResult = sessionStorage.getItem('sa_result');
-          if (savedResult) {
-            try {
-              const parsed = JSON.parse(savedResult);
-              const uid = parsed.user?.uid;
-              if (uid) {
-                console.log('從 sessionStorage 找到 UID，嘗試刪除 Firestore 資料...');
-                try {
-                  await deleteDoc(doc(db, 'users', uid));
-                  console.log('Firestore 資料已刪除');
-                } catch (error) {
-                  console.log('刪除 Firestore 資料時出錯:', error);
-                }
-              }
-            } catch (error) {
-              console.log('解析 sessionStorage 資料時出錯:', error);
-            }
-          }
+          console.log('無法獲取 UID，跳過 Firestore 刪除');
         }
         
         console.log('清除本地儲存...');
