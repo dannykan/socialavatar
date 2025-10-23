@@ -183,9 +183,9 @@
     
     .action-buttons .btn {
       width: 100%;
-      font-size: var(--font-size-sm);
-      padding: 14px 20px;
-      min-height: 48px;
+      font-size: var(--font-size);
+      padding: 16px 24px;
+      min-height: 56px;
       font-weight: 600;
       border-radius: var(--radius-md);
     }
@@ -255,6 +255,31 @@
 
     .hidden {
       display: none;
+    }
+
+    /* 警示訊息樣式 */
+    .alert-message {
+      background: linear-gradient(135deg, rgba(34, 211, 238, 0.1) 0%, rgba(168, 85, 247, 0.1) 100%);
+      border: 2px solid rgba(34, 211, 238, 0.3);
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 4px 12px rgba(34, 211, 238, 0.1);
+    }
+
+    .alert-icon {
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+
+    .alert-text {
+      color: var(--text);
+      font-size: 14px;
+      font-weight: 500;
+      line-height: 1.5;
     }
     
     .loading-spinner {
@@ -353,9 +378,9 @@
     
     @media (max-width: 768px) {
       .action-buttons .btn {
-        padding: 16px 20px;
-        font-size: var(--font-size);
-        min-height: 52px;
+        padding: 16px 24px;
+        font-size: var(--font-size-lg);
+        min-height: 56px;
       }
     }
     
@@ -395,6 +420,12 @@
   </header>
 
   <main class="container">
+    <!-- 警示訊息移到最上方 -->
+    <div class="alert-message">
+      <div class="alert-icon">💡</div>
+      <div class="alert-text">上傳截圖後，你的帳號價值分析結果會永久保存。</div>
+    </div>
+
     <h1 class="page-title">📊 上傳你的 IG 截圖</h1>
     <p class="page-description">
       我們會透過 AI 深度分析你的 IG 帳號商業價值，提供專業的市場估值與人格類型分析。<br>
