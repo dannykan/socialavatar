@@ -1139,7 +1139,14 @@
     }
 
     window.clearAndRestart = async function() {
-      if (!confirm('確定要清除所有資料並重新開始？')) return;
+      console.log('clearAndRestart 函數被調用');
+      
+      if (!confirm('確定要清除所有資料並重新開始？')) {
+        console.log('用戶取消清除操作');
+        return;
+      }
+      
+      console.log('開始清除資料...');
       
       try {
         const config = {
@@ -1151,22 +1158,37 @@
           appId: "1:280598358339:web:214a0d4ca53793163367f6"
         };
 
+        console.log('初始化 Firebase...');
         const app = getApps().length ? getApps()[0] : initializeApp(config);
         const auth = getAuth(app);
         const db = getFirestore(app);
         
+        console.log('檢查用戶狀態...');
         const user = auth.currentUser;
         if (user) {
-          await deleteDoc(doc(db, 'users', user.uid)).catch(() => {});
+          console.log('用戶已登入，刪除 Firestore 資料...');
+          await deleteDoc(doc(db, 'users', user.uid)).catch((error) => {
+            console.log('刪除 Firestore 資料時出錯:', error);
+          });
+          console.log('Firestore 資料已刪除');
+        } else {
+          console.log('用戶未登入，跳過 Firestore 刪除');
         }
         
+        console.log('清除本地儲存...');
         sessionStorage.clear();
         localStorage.clear();
-        await signOut(auth).catch(() => {});
         
+        console.log('登出用戶...');
+        await signOut(auth).catch((error) => {
+          console.log('登出時出錯:', error);
+        });
+        
+        console.log('所有資料已清除');
         alert('✅ 已清除所有資料');
         location.replace('/static/landing.html');
       } catch (e) {
+        console.error('清除資料時發生錯誤:', e);
         alert('清除失敗：' + e.message);
       }
     };
