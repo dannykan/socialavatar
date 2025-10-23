@@ -322,15 +322,13 @@ def build_user_prompt(followers, following, posts):
 - 提供品牌合作建議和內容策略指導
 - 基於公開數據和市場行情進行專業分析
 
-**重要：請基於真實的亞洲市場行情進行分析，所有價格直接以新台幣(NT$)計算，不要使用美元或其他貨幣。**
+**重要：請基於亞洲市場行情進行開放式分析，所有價格直接以新台幣(NT$)計算，不要使用美元或其他貨幣。**
 
-**市場行情參考：**
-- 10萬粉絲帳號價值：NT$100,000-200,000
-- 20萬粉絲帳號價值：NT$200,000-400,000
-- 50萬粉絲帳號價值：NT$500,000-1,000,000
-- Post 報價通常為帳號價值的 5-10%
-- Story 報價通常為 Post 的 30-50%
-- Reels 報價通常為 Post 的 1.5-2倍
+**請提供專業的市場分析，包括：**
+- 基於粉絲數量和質量的估值分析
+- 考慮內容風格和商業潛力的評估
+- 提供合理的品牌合作報價建議
+- 分析帳號的優勢和改進空間
 
 **請提供以下詳細分析：**
 
@@ -369,35 +367,35 @@ def build_user_prompt(followers, following, posts):
 ```json
 {{
   "account_value": {{
-    "min": 200000,
-    "max": 400000,
-    "reasoning": "基於20萬粉絲的亞洲市場行情，每粉絲價值NT$1-2元"
+    "min": 請提供合理的估值範圍,
+    "max": 請提供合理的估值範圍,
+    "reasoning": "請說明估值邏輯"
   }},
   "pricing": {{
-    "post": 25000,
-    "story": 10000,
-    "reels": 40000
+    "post": 請提供合理的報價,
+    "story": 請提供合理的報價,
+    "reels": 請提供合理的報價
   }},
   "visual_quality": {{
-    "overall": 8.1
+    "overall": 請評估視覺品質分數
   }},
   "content_type": {{
-    "primary": "美食料理",
-    "commercial_potential": "high"
+    "primary": "請分析內容類型",
+    "commercial_potential": "請評估商業潛力"
   }},
   "professionalism": {{
-    "brand_identity": 8.0
+    "brand_identity": 請評估品牌識別度
   }},
   "uniqueness": {{
-    "creativity_score": 7.8
+    "creativity_score": 請評估創意分數
   }},
   "audience_value": {{
-    "audience_tier": "美食愛好者"
+    "audience_tier": "請分析目標族群"
   }},
   "improvement_tips": [
-    "增加與粉絲互動的 Story 內容",
-    "建立固定發文時段提升粉絲黏性",
-    "嘗試加入簡短的美食小知識"
+    "請提供具體的改進建議",
+    "請提供具體的改進建議",
+    "請提供具體的改進建議"
   ]
 }}
 ```
