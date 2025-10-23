@@ -554,7 +554,7 @@
       try {
         console.log('[CLEAR] Starting clear and restart process...');
         
-        const [{ initializeApp, getApps }, { getAuth, signOut }, { getFirestore, doc, deleteDoc }] = 
+        const [{ initializeApp, getApps }, { getAuth, signOut, onAuthStateChanged }, { getFirestore, doc, deleteDoc }] = 
           await Promise.all([
             import('https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js'),
             import('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js'),
@@ -574,8 +574,23 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
         
-        const user = auth.currentUser;
+        // 等待認證狀態確定
+        console.log('[CLEAR] Waiting for authentication state...');
+        const user = await new Promise((resolve) => {
+          const unsubscribe = onAuthStateChanged(auth, (user) => {
+            unsubscribe();
+            resolve(user);
+          });
+          
+          // 如果 3 秒內沒有回應，使用 currentUser
+          setTimeout(() => {
+            unsubscribe();
+            resolve(auth.currentUser);
+          }, 3000);
+        });
+        
         if (user) {
+          console.log('[CLEAR] Found authenticated user:', user.uid);
           console.log('[CLEAR] Deleting user data from Firestore for user:', user.uid);
           try {
             await deleteDoc(doc(db, 'users', user.uid));
@@ -586,7 +601,21 @@
             alert('⚠️ 清除 Firestore 資料時遇到問題，但會繼續清除其他資料。\n\n錯誤：' + deleteError.message);
           }
         } else {
-          console.log('[CLEAR] No authenticated user found');
+          console.log('[CLEAR] No authenticated user found, skipping Firestore deletion');
+          // 嘗試從 sessionStorage 獲取用戶信息進行刪除
+          const userData = sessionStorage.getItem('user');
+          if (userData) {
+            try {
+              const userInfo = JSON.parse(userData);
+              if (userInfo && userInfo.uid) {
+                console.log('[CLEAR] Attempting to delete using sessionStorage user info:', userInfo.uid);
+                await deleteDoc(doc(db, 'users', userInfo.uid));
+                console.log('[CLEAR] ✅ Successfully deleted user data using sessionStorage info');
+              }
+            } catch (sessionError) {
+              console.error('[CLEAR] ❌ Failed to delete using sessionStorage info:', sessionError);
+            }
+          }
         }
         
         // 清除本地存儲
