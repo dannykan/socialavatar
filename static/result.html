@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>分析結果｜Social Avatar</title>
+  <title>你的 IG 人格類型｜分析結果</title>
   <link rel="stylesheet" href="/static/app.css">
   <style>
     body {
@@ -21,6 +21,9 @@
       position: sticky;
       top: 0;
       z-index: 100;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
     
     .container {
@@ -31,54 +34,267 @@
     
     .result-grid {
       display: grid;
-      grid-template-columns: 1.1fr 0.9fr;
+      grid-template-columns: 1fr;
+      gap: var(--spacing-lg);
+    }
+    
+    .personality-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: var(--spacing-xl);
+      box-shadow: var(--shadow-lg);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .personality-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, var(--primary), var(--secondary));
+    }
+    
+    .type-header {
+      text-align: center;
+      margin-bottom: var(--spacing-xl);
+      padding-bottom: var(--spacing-lg);
+      border-bottom: 1px solid var(--border);
+    }
+    
+    .type-emoji {
+      font-size: 72px;
+      margin-bottom: var(--spacing);
+      animation: float 3s ease-in-out infinite;
+    }
+    
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+    
+    .type-name-zh {
+      font-size: var(--font-size-3xl);
+      font-weight: 700;
+      margin: 0 0 var(--spacing-sm);
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    .type-name-en {
+      font-size: var(--font-size-lg);
+      color: var(--muted);
+      margin: 0;
+      font-style: italic;
+    }
+    
+    .personality-statement-card {
+      background: linear-gradient(135deg, rgba(34, 211, 238, 0.1), rgba(147, 51, 234, 0.1));
+      border: 1px solid rgba(34, 211, 238, 0.3);
+      border-radius: var(--radius-md);
+      padding: var(--spacing-lg);
+      margin-bottom: var(--spacing-lg);
+      position: relative;
+    }
+    
+    .personality-statement-card::before {
+      content: '"';
+      position: absolute;
+      top: 8px;
+      left: 12px;
+      font-size: 48px;
+      color: var(--primary);
+      opacity: 0.3;
+      font-family: Georgia, serif;
+    }
+    
+    .personality-statement-card p {
+      margin: 0;
+      font-size: var(--font-size-lg);
+      line-height: 1.7;
+      color: var(--text);
+      font-style: italic;
+      padding-left: var(--spacing-lg);
+    }
+    
+    .analysis-section {
+      margin-bottom: var(--spacing-lg);
+    }
+    
+    .analysis-section h3 {
+      font-size: var(--font-size-lg);
+      font-weight: 600;
+      margin: 0 0 var(--spacing);
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+    }
+    
+    .analysis-section h3::before {
+      content: '';
+      width: 4px;
+      height: 20px;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      border-radius: 2px;
+    }
+    
+    .color-palette {
+      display: flex;
+      gap: var(--spacing);
+      flex-wrap: wrap;
+    }
+    
+    .color-block {
+      width: 80px;
+      height: 80px;
+      border-radius: var(--radius-md);
+      border: 2px solid var(--border-light);
+      cursor: pointer;
+      transition: var(--transition);
+      position: relative;
+      box-shadow: var(--shadow);
+    }
+    
+    .color-block:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-lg);
+    }
+    
+    .color-block::after {
+      content: attr(title);
+      position: absolute;
+      bottom: -28px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: var(--font-size-xs);
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    
+    .keyword-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--spacing-sm);
+    }
+    
+    .keyword-tag {
+      display: inline-block;
+      padding: var(--spacing-sm) var(--spacing);
+      background: rgba(34, 211, 238, 0.1);
+      border: 1px solid rgba(34, 211, 238, 0.3);
+      border-radius: var(--radius-md);
+      font-size: var(--font-size-sm);
+      color: var(--primary);
+      font-weight: 500;
+      transition: var(--transition);
+    }
+    
+    .keyword-tag:hover {
+      background: rgba(34, 211, 238, 0.2);
+      transform: translateY(-2px);
+    }
+    
+    .style-description {
+      background: var(--bg-secondary);
+      padding: var(--spacing);
+      border-radius: var(--radius-md);
+      border-left: 3px solid var(--primary);
+      margin-bottom: var(--spacing);
+    }
+    
+    .style-description p {
+      margin: 0;
+      color: var(--text);
+      line-height: 1.6;
+    }
+    
+    .style-label {
+      font-weight: 600;
+      color: var(--primary);
+      margin-right: var(--spacing-sm);
+    }
+    
+    .confidence-bar {
+      position: relative;
+      width: 100%;
+      height: 32px;
+      background: var(--bg-secondary);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      border: 1px solid var(--border-light);
+    }
+    
+    .confidence-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--primary), var(--secondary));
+      transition: width 1s ease;
+      border-radius: var(--radius-md);
+    }
+    
+    .confidence-text {
+      position: absolute;
+      right: var(--spacing);
+      top: 50%;
+      transform: translateY(-50%);
+      font-weight: 700;
+      color: var(--text);
+      font-size: var(--font-size-sm);
+      z-index: 1;
+    }
+    
+    .secondary-type {
+      background: linear-gradient(135deg, rgba(147, 51, 234, 0.1), rgba(124, 58, 237, 0.1));
+      border: 1px solid rgba(147, 51, 234, 0.3);
+      border-radius: var(--radius-md);
+      padding: var(--spacing);
+      display: flex;
+      align-items: center;
       gap: var(--spacing);
     }
     
-    @media (max-width: 860px) {
-      .result-grid {
-        grid-template-columns: 1fr;
-      }
+    .secondary-emoji {
+      font-size: 32px;
     }
     
-    .result-card {
+    .secondary-name {
+      flex: 1;
+      font-size: var(--font-size-lg);
+      font-weight: 600;
+    }
+    
+    .secondary-confidence {
+      font-size: var(--font-size-sm);
+      color: var(--muted);
+      padding: 4px 12px;
+      background: rgba(147, 51, 234, 0.2);
+      border-radius: var(--radius);
+      font-weight: 600;
+    }
+    
+    .user-info-card {
       background: var(--card);
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
       padding: var(--spacing-lg);
       box-shadow: var(--shadow-md);
-      transition: var(--transition);
     }
     
-    .result-card:hover {
-      box-shadow: var(--shadow-lg);
-      border-color: var(--border-light);
-    }
-    
-    
-    .result-header {
-      display: flex;
-      align-items: center;
-      gap: var(--spacing);
+    .user-header {
       margin-bottom: var(--spacing);
-      flex-wrap: wrap;
-    }
-    
-    .mbti-badge {
-      padding: var(--spacing-sm) var(--spacing);
-      border-radius: 999px;
-      font-weight: 700;
-      background: var(--bg-secondary);
-      color: var(--text);
-      border: 1px solid var(--border-light);
-      font-size: var(--font-size-sm);
+      padding-bottom: var(--spacing);
+      border-bottom: 1px solid var(--border);
     }
     
     .user-name {
-      margin: 0;
+      margin: 0 0 4px;
       font-size: var(--font-size-xl);
       font-weight: 700;
-      color: var(--text);
     }
     
     .user-handle {
@@ -86,332 +302,264 @@
       font-size: var(--font-size-sm);
     }
     
-    .stats {
-      color: var(--muted);
-      margin-bottom: var(--spacing);
-      font-size: var(--font-size-sm);
-    }
-    
-    .stats strong {
-      color: var(--text);
-      font-weight: 600;
-    }
-    
-    .summary {
-      line-height: 1.7;
-      margin-bottom: var(--spacing-lg);
-      font-size: var(--font-size);
-    }
-    
-    .vehicle-card {
-      background: rgba(5, 46, 26, 0.2);
-      border: 1px solid rgba(20, 83, 45, 0.3);
-      border-radius: var(--radius-md);
-      padding: var(--spacing);
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: var(--spacing);
       margin-bottom: var(--spacing);
     }
     
-    .vehicle-name {
-      font-weight: 700;
-      color: #bbf7d0;
-      font-size: var(--font-size-lg);
-      margin: 0 0 var(--spacing-sm);
-    }
-    
-    .vehicle-hint {
-      color: var(--muted);
-      font-size: var(--font-size-sm);
-      margin: 0;
-    }
-    
-    .premium-section {
-      margin: var(--spacing-lg) 0;
-    }
-    
-    .premium-card {
-      background: linear-gradient(135deg, rgba(255, 215, 0, 0.1), rgba(255, 193, 7, 0.1));
-      border: 2px solid rgba(255, 215, 0, 0.3);
-      border-radius: var(--radius-lg);
-      padding: var(--spacing-lg);
+    .stat-item {
       text-align: center;
-      position: relative;
-      overflow: hidden;
+      padding: var(--spacing);
+      background: var(--bg-secondary);
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border);
     }
     
-    .premium-card::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: -100%;
-      width: 100%;
-      height: 100%;
-      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
-      animation: shimmer 3s infinite;
-    }
-    
-    @keyframes shimmer {
-      0% { left: -100%; }
-      100% { left: 100%; }
-    }
-    
-    .premium-title {
-      color: #ffd700;
-      font-size: var(--font-size-lg);
+    .stat-value {
+      display: block;
+      font-size: var(--font-size-xl);
       font-weight: 700;
-      margin: 0 0 var(--spacing) 0;
-      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+      margin-bottom: 4px;
     }
     
-    .premium-description {
-      color: var(--text);
-      margin: 0 0 var(--spacing-lg) 0;
-      line-height: 1.6;
-    }
-    
-    .btn-premium {
-      background: linear-gradient(135deg, #ffd700, #ffed4e);
-      color: #000;
-      border: none;
-      font-weight: 700;
-      box-shadow: 0 4px 15px rgba(255, 215, 0, 0.4);
-      transition: all 0.3s ease;
-    }
-    
-    .btn-premium:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(255, 215, 0, 0.6);
-    }
-    
-    .btn-premium:active {
-      transform: translateY(0);
-    }
-    
-    .premium-buttons {
-      display: flex;
-      gap: var(--spacing);
-      flex-wrap: wrap;
-      justify-content: center;
-    }
-    
-    .premium-buttons .btn {
-      flex: 1;
-      min-width: 120px;
-    }
-    
-    .action-buttons {
-      display: flex;
-      gap: var(--spacing);
-      flex-wrap: wrap;
-      margin-top: var(--spacing);
+    .stat-label {
+      font-size: var(--font-size-xs);
+      color: var(--muted);
+      text-transform: uppercase;
     }
     
     @media (max-width: 768px) {
-      .action-buttons {
-        flex-direction: column;
+      .personality-card {
+        padding: var(--spacing-lg);
       }
       
-      .action-buttons .btn {
-        width: 100%;
+      .type-emoji {
+        font-size: 56px;
       }
       
+      .color-block {
+        width: 60px;
+        height: 60px;
+      }
+      
+      .stats-grid {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
+</head>
+<body>
+  <header class="header">
+    <div><strong>IG 人格分析</strong></div>
+    <button class="btn btn-ghost btn-sm" onclick="clearAndRestart(event)">清除重來</button>
+  </header>
+
+  <main class="container">
+    <div id="err" class="status-error hidden"></div>
+    
+    <div class="result-grid">
+      <div class="personality-card">
+        <div class="type-header">
+          <div class="type-emoji" id="typeEmoji">🎨</div>
+          <h2 class="type-name-zh" id="typeNameZh">創作者</h2>
+          <p class="type-name-en" id="typeNameEn">Creator</p>
+        </div>
+        
+        <div class="personality-statement-card">
+          <p id="personalityStatement">正在探索屬於自己的獨特風格...</p>
+        </div>
+        
+        <section class="analysis-section">
+          <h3>色彩基因</h3>
+          <div class="color-palette" id="colorPalette"></div>
+        </section>
+        
+        <section class="analysis-section">
+          <h3>風格特徵</h3>
+          <div class="style-description">
+            <p id="visualStyle"><span class="style-label">視覺風格：</span>載入中...</p>
+          </div>
+          <div class="style-description">
+            <p id="bioTone"><span class="style-label">Bio 語氣：</span>載入中...</p>
+          </div>
+          <div class="style-description">
+            <p id="contentTheme"><span class="style-label">內容主題：</span>載入中...</p>
+          </div>
+        </section>
+        
+        <section class="analysis-section">
+          <h3>風格關鍵詞</h3>
+          <div class="keyword-tags" id="keywordTags"></div>
+        </section>
+        
+        <section class="analysis-section">
+          <h3>類型信心度</h3>
+          <div class="confidence-bar">
+            <div class="confidence-fill" id="confidenceFill" style="width:0%"></div>
+            <span class="confidence-text" id="confidenceText">0%</span>
+          </div>
+        </section>
+        
+        <section class="analysis-section" id="secondarySection" style="display:none">
+          <h3>相似風格</h3>
+          <div class="secondary-type" id="secondaryType"></div>
+        </section>
+      </div>
+      
+      <div class="user-info-card">
+        <div class="user-header">
+          <h3 class="user-name" id="display_name">使用者</h3>
+          <p class="user-handle" id="username">@username</p>
+        </div>
+        
+        <div class="stats-grid">
+          <div class="stat-item">
+            <span class="stat-value" id="followers">0</span>
+            <span class="stat-label">Followers</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value" id="following">0</span>
+            <span class="stat-label">Following</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value" id="posts">0</span>
+            <span class="stat-label">Posts</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
   <script>
-    // ==========================================
-    // 防止使用者返回上一頁
-    // ==========================================
     (function() {
       if (window.history && window.history.pushState) {
         window.history.pushState(null, null, window.location.href);
-        
-        window.addEventListener('popstate', function(event) {
+        window.addEventListener('popstate', function() {
           window.history.pushState(null, null, window.location.href);
-          
-          const shouldClear = confirm(
-            '⚠️ 無法返回上一頁\n\n' +
-            '若要重新分析，請點擊「清除並重新開始」按鈕。\n\n' +
-            '是否現在清除資料並重新開始？'
-          );
-          
-          if (shouldClear) {
+          if (confirm('⚠️ 無法返回上一頁\n\n若要重新分析，請點擊「清除重來」。\n\n是否現在清除？')) {
             clearAndRestart();
           }
         });
       }
-      
-      window.addEventListener('beforeunload', function(e) {
-        const message = '確定要離開此頁面嗎？你的分析結果可能會遺失。';
-        e.returnValue = message;
-        return message;
-      });
-      
-      try {
-        sessionStorage.removeItem('uploadInProgress');
-        sessionStorage.removeItem('uploadData');
-      } catch (e) {
-        console.warn('Unable to clear session data:', e);
-      }
     })();
 
-    let hasRedirected = false;
-
-    function safeParseJson(mixed) {
-      if (!mixed) return null;
-      if (typeof mixed === 'object') return mixed;
-      const text = String(mixed).trim();
-      try { return JSON.parse(text); } catch {}
-      const fence = text.match(/```json\s*([\s\S]*?)```/i);
-      if (fence) {
-        try { return JSON.parse(fence[1]); } catch {}
-      }
-      const firstBrace = text.indexOf('{');
-      const lastBrace = text.lastIndexOf('}');
-      if (firstBrace >= 0 && lastBrace > firstBrace) {
-        const body = text.slice(firstBrace, lastBrace + 1);
-        try { return JSON.parse(body); } catch {}
-      }
-      return null;
-    }
-
     function fillUI(data) {
-      const dn = (v) => (v ?? '').toString();
-      const di = (sel, v) => {
-        const el = document.querySelector(sel);
-        if (el) el.textContent = v;
-      };
-
-      di('#display_name', dn(data.display_name || '使用者'));
-      di('#username', data.username ? '@' + data.username : '—');
-      di('#followers', (data.followers ?? 0).toLocaleString());
-      di('#following', (data.following ?? 0).toLocaleString());
-      di('#posts', (data.posts ?? 0).toLocaleString());
-      di('#mbti', (data.mbti || '—').toUpperCase());
-      di('#vehicle', data.vehicle || '—');
-      di('#summary', dn(data.summary || ''));
-      
-      const genderMap = {
-        'male': '👨 男性',
-        'female': '👩 女性'
-      };
-      const genderText = genderMap[data.gender] || '—';
-      di('#gender', genderText);
-
-      const mbti = data.mbti || '';
-      const badge = document.querySelector('.mbti-badge');
-      if (badge && mbti) {
-        const colorMap = { E: '#22d3ee', I: '#a78bfa' };
-        const color = colorMap[mbti[0]] || '#22c55e';
-        badge.style.background = color + '33';
-        badge.style.borderColor = color + '88';
+      if (data.primary_type) {
+        const p = data.primary_type;
+        document.getElementById('typeEmoji').textContent = p.emoji || '🎨';
+        document.getElementById('typeNameZh').textContent = p.name_zh || '創作者';
+        document.getElementById('typeNameEn').textContent = p.name_en || 'Creator';
+        
+        const conf = Math.max(0, Math.min(100, Math.round((p.confidence || 0.5) * 100)));
+        setTimeout(() => {
+          document.getElementById('confidenceFill').style.width = conf + '%';
+        }, 300);
+        document.getElementById('confidenceText').textContent = conf + '%';
       }
-    }
-
-    function goToAvatar3D() {
-      // 跳轉到3D動態圖頁面
-      window.location.href = '/static/avatar3d.html';
-    }
-    
-    function goToCharacter() {
-      // 跳轉到角色裝備頁面
-      window.location.href = '/static/character.html';
-    }
-    
-    function goToGame() {
-      // 跳轉到遊戲頁面
-      window.location.href = '/static/game.html';
-    }
-    
-    function goToVirtual3D() {
-      // 跳轉到3D虛擬空間頁面
-      window.location.href = '/static/virtual3d.html';
+      
+      document.getElementById('personalityStatement').textContent = 
+        data.personality_statement || '正在探索屬於自己的獨特風格...';
+      
+      if (data.analysis) {
+        const a = data.analysis;
+        
+        if (a.color_palette) {
+          const palette = document.getElementById('colorPalette');
+          palette.innerHTML = '';
+          a.color_palette.forEach(c => {
+            const block = document.createElement('div');
+            block.className = 'color-block';
+            block.style.background = c;
+            block.title = c;
+            palette.appendChild(block);
+          });
+        }
+        
+        if (a.visual_style) 
+          document.getElementById('visualStyle').innerHTML = 
+            `<span class="style-label">視覺風格：</span>${a.visual_style}`;
+        if (a.bio_tone) 
+          document.getElementById('bioTone').innerHTML = 
+            `<span class="style-label">Bio 語氣：</span>${a.bio_tone}`;
+        if (a.content_theme) 
+          document.getElementById('contentTheme').innerHTML = 
+            `<span class="style-label">內容主題：</span>${a.content_theme}`;
+        
+        if (a.unique_traits) {
+          const tags = document.getElementById('keywordTags');
+          tags.innerHTML = '';
+          a.unique_traits.forEach(t => {
+            const tag = document.createElement('span');
+            tag.className = 'keyword-tag';
+            tag.textContent = '#' + t;
+            tags.appendChild(tag);
+          });
+        }
+      }
+      
+      if (data.secondary_type) {
+        document.getElementById('secondarySection').style.display = 'block';
+        const s = data.secondary_type;
+        document.getElementById('secondaryType').innerHTML = `
+          <span class="secondary-emoji">${s.emoji}</span>
+          <span class="secondary-name">${s.name_zh}</span>
+          <span class="secondary-confidence">${Math.round((s.confidence||0)*100)}%</span>
+        `;
+      }
+      
+      document.getElementById('display_name').textContent = data.display_name || '使用者';
+      document.getElementById('username').textContent = data.username ? '@'+data.username : '—';
+      document.getElementById('followers').textContent = (data.followers||0).toLocaleString();
+      document.getElementById('following').textContent = (data.following||0).toLocaleString();
+      document.getElementById('posts').textContent = (data.posts||0).toLocaleString();
     }
 
     async function loadResult() {
-      if (hasRedirected) return;
-
       const saved = sessionStorage.getItem('sa_result');
       if (saved) {
         try {
           const data = JSON.parse(saved);
-          if (data && data.ok === true && (data.mbti || data.display_name)) {
+          if (data && data.ok) {
             fillUI(data);
             return;
-          } else {
-            console.warn('Invalid data in sessionStorage:', data);
-            sessionStorage.removeItem('sa_result');
           }
-        } catch (e) {
-          console.error('Failed to parse sessionStorage:', e);
-          sessionStorage.removeItem('sa_result');
-        }
+        } catch {}
       }
-
+      
       try {
-        const r = await fetch(`/debug/last_ai?ts=${Date.now()}`, { cache: 'no-store' });
+        const r = await fetch('/debug/last_ai?ts='+Date.now());
         if (r.ok) {
           const j = await r.json();
-          const parsed = safeParseJson(j.text || j.raw || '');
-          if (parsed && (parsed.mbti || parsed.display_name)) {
-            const fallbackData = {
-              display_name: parsed.display_name || '使用者',
-              username: (parsed.username || '').trim(),
-              followers: Number(parsed.followers || 0),
-              following: Number(parsed.following || 0),
-              posts: Number(parsed.posts || 0),
-              mbti: String(parsed.mbti || '').toUpperCase(),
-              summary: parsed.summary || '',
-              vehicle: parsed.vehicle || '—',
-              gender: parsed.gender || '',
-              diagnose: { ai_on: true, model: 'from-last_ai', source: 'debug/last_ai' }
-            };
-            fillUI(fallbackData);
+          let parsed = null;
+          try {
+            parsed = JSON.parse(j.text || j.raw || '{}');
+          } catch {}
+          if (parsed) {
+            fillUI(parsed);
             return;
           }
         }
-      } catch (e) {
-        console.error('load from /debug/last_ai failed:', e);
-      }
-
-      if (!hasRedirected) {
-        hasRedirected = true;
-        const errBox = document.getElementById('err');
-        if (errBox) {
-          errBox.textContent = '找不到分析結果，3 秒後將返回首頁...';
-          errBox.style.display = 'block';
-        }
-        setTimeout(() => {
-          window.location.href = '/static/upload.html';
-        }, 3000);
-      }
+      } catch {}
+      
+      document.getElementById('err').textContent = '找不到分析結果，3秒後返回首頁';
+      document.getElementById('err').style.display = 'block';
+      setTimeout(() => location.href = '/static/upload.html', 3000);
     }
 
     async function clearAndRestart(evt) {
-      const isFromPopstate = (evt === undefined || evt === null);
+      if (evt && !confirm('確定要清除所有資料？\n\n這將刪除分析結果並登出。')) return;
       
-      if (!isFromPopstate) {
-        if (!confirm('確定要清除所有資料並重新開始嗎？\n\n⚠️ 這將會：\n• 刪除你的分析結果\n• 登出你的帳號\n\n你需要重新登入才能再次使用。')) {
-          return;
-        }
-      }
-
-      const btn = evt?.target;
-      const originalLabel = btn?.textContent || '清除並重新開始';
-      if (btn) {
-        btn.disabled = true;
-        btn.textContent = '處理中...';
-      }
-
       try {
-        const [{ initializeApp, getApps }, authModule, firestoreModule] = await Promise.all([
-          import('https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js'),
-          import('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js'),
-          import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js')
-        ]);
+        const [{ initializeApp, getApps }, { getAuth, signOut }, { getFirestore, doc, deleteDoc }] = 
+          await Promise.all([
+            import('https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js'),
+            import('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js'),
+            import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js')
+          ]);
 
-        const { getAuth, signOut, onAuthStateChanged } = authModule;
-        const { getFirestore, doc, deleteDoc, setDoc, serverTimestamp, deleteField } = firestoreModule;
-
-        const firebaseConfig = {
+        const config = {
           apiKey: "AIzaSyBI2-4yEwzxvYOvui9FZiGAzCE22OhKmU8",
           authDomain: "social-avatar-d13c8.firebaseapp.com",
           projectId: "social-avatar-d13c8",
@@ -420,193 +568,27 @@
           appId: "1:280598358339:web:214a0d4ca53793163367f6"
         };
 
-        const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
+        const app = getApps().length ? getApps()[0] : initializeApp(config);
         const auth = getAuth(app);
         const db = getFirestore(app);
-
-        const authUser = await new Promise((resolve) => {
-          const immediate = auth.currentUser;
-          if (immediate) {
-            resolve(immediate);
-            return;
-          }
-
-          try {
-            const unsub = onAuthStateChanged(auth, (user) => {
-              unsub();
-              resolve(user);
-            }, (error) => {
-              console.error('[ERROR] onAuthStateChanged failed:', error);
-              resolve(null);
-            });
-          } catch (error) {
-            console.error('[ERROR] Unable to observe auth state:', error);
-            resolve(null);
-          }
-        });
-
-        let userId = authUser?.uid || null;
-        if (!userId) {
-          try {
-            const savedUser = sessionStorage.getItem('user');
-            if (savedUser) {
-              const parsed = JSON.parse(savedUser);
-              if (parsed?.uid) {
-                userId = parsed.uid;
-              }
-            }
-          } catch (parseError) {
-            console.warn('[WARN] Failed to parse session user:', parseError);
-          }
-        }
-
-        let clearedFirestore = false;
-
-        if (userId) {
-          const userDocRef = doc(db, 'users', userId);
-          try {
-            await deleteDoc(userDocRef);
-            clearedFirestore = true;
-          } catch (firestoreError) {
-            console.error('[ERROR] Failed to delete Firestore document:', firestoreError);
-            try {
-              await setDoc(userDocRef, {
-                hasAnalysis: false,
-                latestAnalysis: deleteField ? deleteField() : null,
-                clearedAt: serverTimestamp()
-              }, { merge: true });
-              clearedFirestore = true;
-            } catch (fallbackError) {
-              console.error('[ERROR] Failed to scrub Firestore data:', fallbackError);
-            }
-          }
-        }
-
-        if (!clearedFirestore) {
-          throw new Error('Firestore 資料清除失敗，請稍後再試。');
-        }
-
-        try {
-          sessionStorage.clear();
-          localStorage.clear();
-        } catch (storageError) {
-          console.error('[ERROR] Failed to clear storage:', storageError);
-        }
-
-        try {
-          await signOut(auth);
-        } catch (signOutError) {
-          console.error('[ERROR] Sign out error:', signOutError);
-        }
-
-        alert('✅ 已清除所有資料並登出\n\n請重新登入以開始新的分析。');
         
-        window.history.replaceState(null, null, '/static/landing.html');
-        window.location.replace('/static/landing.html');
-        
-      } catch (error) {
-        console.error('[ERROR] Clear and restart failed:', error);
-        alert('❌ 清除失敗：' + (error?.message || error) + '\n\n請手動登出後再試一次。');
-        if (btn) {
-          btn.disabled = false;
-          btn.textContent = originalLabel;
+        const user = auth.currentUser;
+        if (user) {
+          await deleteDoc(doc(db, 'users', user.uid)).catch(()=>{});
         }
+        
+        sessionStorage.clear();
+        localStorage.clear();
+        await signOut(auth).catch(()=>{});
+        
+        alert('✅ 已清除所有資料\n\n請重新登入');
+        location.replace('/static/landing.html');
+      } catch (e) {
+        alert('清除失敗：' + e.message);
       }
     }
 
     window.addEventListener('DOMContentLoaded', loadResult);
   </script>
-</head>
-<body>
-  <header class="header">
-    <div class="flex justify-between items-center">
-      <div><strong>Social Avatar</strong></div>
-      <nav class="action-buttons">
-        <button class="btn btn-ghost" onclick="clearAndRestart(event)">
-          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-          </svg>
-          清除並重新開始
-        </button>
-      </nav>
-    </div>
-  </header>
-
-  <main class="container">
-    <h1 class="page-title">分析結果</h1>
-    <div id="err" class="status-error hidden"></div>
-    
-    <div class="result-grid">
-      <div class="result-card">
-        <div class="result-header">
-          <span class="mbti-badge" id="mbti">—</span>
-          <h2 class="user-name" id="display_name">使用者</h2>
-          <span class="user-handle" id="username">—</span>
-        </div>
-        <p class="stats">
-          Followers / Following / Posts ： 
-          <strong id="followers">—</strong> / 
-          <strong id="following">—</strong> / 
-          <strong id="posts">—</strong>
-        </p>
-        <p class="stats">
-          性別：<strong id="gender">—</strong>
-        </p>
-        <p class="summary" id="summary">讀取中…</p>
-        
-        <div class="premium-section">
-          <div class="premium-card">
-            <h3 class="premium-title">✨ 你的專屬3D動態角色</h3>
-            <p class="premium-description">解鎖你的個人化3D動態角色圖，包含多種動畫效果和互動功能</p>
-            <div class="premium-buttons">
-              <button class="btn btn-premium" onclick="goToVirtual3D()">
-                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                </svg>
-                3D虛擬空間
-              </button>
-              <button class="btn btn-premium" onclick="goToGame()">
-                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                </svg>
-                進入遊戲
-              </button>
-              <button class="btn btn-premium" onclick="goToAvatar3D()">
-                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                </svg>
-                查看3D動態圖
-              </button>
-              <button class="btn btn-premium" onclick="goToCharacter()">
-                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                  <circle cx="12" cy="7" r="4"/>
-                </svg>
-                角色裝備
-              </button>
-            </div>
-          </div>
-        </div>
-        
-        <div class="action-buttons">
-          <button class="btn btn-primary" onclick="clearAndRestart(event)">
-            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-            </svg>
-            清除並重新開始
-          </button>
-        </div>
-      </div>
-      
-      <div class="result-card">
-        <h3 class="card-title">你的載具</h3>
-        <div class="vehicle-card">
-          <div class="vehicle-name" id="vehicle">—</div>
-          <p class="vehicle-hint">（之後可解鎖更多造型與動畫）</p>
-        </div>
-      </div>
-    </div>
-
-  </main>
 </body>
 </html>
