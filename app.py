@@ -298,7 +298,9 @@ def build_user_prompt(followers, following, posts):
    - 粉絲質量如何？內容風格如何？
    - 適合什麼品牌合作？
    - 有什麼特別的加分項？
-   - 基於真實市場行情，給出合理的估值範圍
+   - 基於真實市場行情，給出合理的估值範圍（請使用新台幣NT$）
+
+**重要：所有價格請以新台幣(NT$)為單位計算**
 
 2. **在分析文字後面，提供以下 JSON 數據：**
 
@@ -372,6 +374,8 @@ def build_user_prompt(followers, following, posts):
   ]
 }}
 ```
+
+**重要提醒：所有價格數值都必須是新台幣(NT$)，包括 account_value 和 pricing 中的所有數值**
 
 可用 IG 社群帳號定位類型：
 - type_1: 夢幻柔焦系 🌸
