@@ -891,7 +891,7 @@
         
             <!-- AI 專業分析（新增，僅當有 analysis_text 時顯示）-->
             <div class="analysis-section" id="analysis-section" style="display:none;">
-                <div class="analysis-title">💼 專業 IG 社群帳號價值分析</div>
+                <div class="analysis-title">💼 價值分析</div>
                 <div class="analysis-text" id="analysis-text"></div>
         </div>
 
@@ -1253,8 +1253,8 @@
                 tipsContainer.appendChild(tipItem);
             });
 
-            // 處理詳細分析區塊
-            renderDetailedAnalysis(data);
+            // 處理詳細分析區塊 - 暫時隱藏
+            // renderDetailedAnalysis(data);
 
             // 顯示結果，隱藏 loading
             document.getElementById('loading').classList.add('hidden');
