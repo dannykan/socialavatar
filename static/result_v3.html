@@ -1,0 +1,688 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>你的 IG 身價評估｜分析結果</title>
+  <link rel="stylesheet" href="/static/app.css">
+  <style>
+    body {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px 0;
+    }
+    
+    .header {
+      background: rgba(255,255,255,0.95);
+      backdrop-filter: blur(10px);
+      padding: 16px 24px;
+      border-radius: 12px;
+      margin: 0 auto 24px;
+      max-width: 900px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+    
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 0 16px;
+    }
+    
+    .card {
+      background: white;
+      border-radius: 16px;
+      padding: 32px;
+      margin-bottom: 24px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+    }
+    
+    /* 主價值卡 */
+    .value-hero {
+      text-align: center;
+      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+      color: white;
+      padding: 48px 32px;
+      border-radius: 20px;
+      margin-bottom: 24px;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .value-hero::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      right: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+      animation: rotate 20s linear infinite;
+    }
+    
+    @keyframes rotate {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    
+    .value-hero-content {
+      position: relative;
+      z-index: 1;
+    }
+    
+    .value-label {
+      font-size: 18px;
+      opacity: 0.9;
+      margin-bottom: 8px;
+      font-weight: 500;
+    }
+    
+    .value-amount {
+      font-size: 56px;
+      font-weight: 800;
+      margin: 16px 0;
+      text-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      line-height: 1.1;
+    }
+    
+    .value-per {
+      font-size: 24px;
+      opacity: 0.95;
+    }
+    
+    .value-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-top: 24px;
+    }
+    
+    .value-item {
+      background: rgba(255,255,255,0.2);
+      backdrop-filter: blur(10px);
+      padding: 16px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.3);
+    }
+    
+    .value-item-label {
+      font-size: 14px;
+      opacity: 0.9;
+      margin-bottom: 8px;
+    }
+    
+    .value-item-amount {
+      font-size: 24px;
+      font-weight: 700;
+    }
+    
+    /* 類型展示 */
+    .type-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+      padding: 12px 24px;
+      border-radius: 50px;
+      margin-bottom: 16px;
+      font-size: 18px;
+      font-weight: 600;
+      color: #333;
+    }
+    
+    .type-emoji {
+      font-size: 28px;
+    }
+    
+    /* 價值組成 */
+    .breakdown-section {
+      margin-bottom: 32px;
+    }
+    
+    .breakdown-title {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      color: #333;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .breakdown-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px;
+      background: #f8f9fa;
+      border-radius: 12px;
+      margin-bottom: 12px;
+    }
+    
+    .breakdown-label {
+      font-size: 16px;
+      color: #555;
+      flex: 1;
+    }
+    
+    .breakdown-sublabel {
+      font-size: 13px;
+      color: #888;
+      margin-top: 4px;
+    }
+    
+    .breakdown-value {
+      font-size: 20px;
+      font-weight: 700;
+      color: #f5576c;
+    }
+    
+    .multiplier-badge {
+      display: inline-block;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: 600;
+      margin-left: 12px;
+    }
+    
+    /* 品質評分 */
+    .quality-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+    }
+    
+    .quality-item {
+      background: #f8f9fa;
+      padding: 20px;
+      border-radius: 12px;
+    }
+    
+    .quality-label {
+      font-size: 14px;
+      color: #666;
+      margin-bottom: 8px;
+    }
+    
+    .quality-bar {
+      height: 8px;
+      background: #e0e0e0;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 8px;
+    }
+    
+    .quality-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #667eea, #764ba2);
+      transition: width 1s ease;
+    }
+    
+    .quality-score {
+      font-size: 20px;
+      font-weight: 700;
+      color: #667eea;
+    }
+    
+    /* 改進建議 */
+    .tips-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    
+    .tip-item {
+      padding: 16px;
+      background: #f0f7ff;
+      border-left: 4px solid #667eea;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      font-size: 15px;
+      color: #333;
+      line-height: 1.6;
+    }
+    
+    .tip-item::before {
+      content: '💡 ';
+      margin-right: 8px;
+    }
+    
+    /* 用戶資訊 */
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 20px;
+      background: linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%);
+      border-radius: 12px;
+      margin-bottom: 24px;
+    }
+    
+    .user-avatar {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+    }
+    
+    .user-details h3 {
+      margin: 0 0 4px;
+      font-size: 20px;
+      color: #333;
+    }
+    
+    .user-handle {
+      color: #666;
+      font-size: 14px;
+    }
+    
+    .stats-row {
+      display: flex;
+      gap: 24px;
+      margin-top: 12px;
+    }
+    
+    .stat {
+      font-size: 13px;
+      color: #555;
+    }
+    
+    .stat strong {
+      font-weight: 700;
+      color: #333;
+      margin-right: 4px;
+    }
+    
+    /* 按鈕 */
+    .action-buttons {
+      display: flex;
+      gap: 12px;
+      margin-top: 24px;
+    }
+    
+    .btn-restart {
+      flex: 1;
+      padding: 14px 24px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    
+    .btn-restart:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(102,126,234,0.3);
+    }
+    
+    /* 響應式 */
+    @media (max-width: 768px) {
+      .value-amount {
+        font-size: 42px;
+      }
+      
+      .value-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .quality-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .card {
+        padding: 24px 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div><strong>💰 IG 身價評估</strong></div>
+    <button class="btn btn-ghost btn-sm" onclick="clearAndRestart()">重新評估</button>
+  </header>
+
+  <main class="container">
+    <div id="err" class="status-error hidden"></div>
+    
+    <!-- 用戶資訊 -->
+    <div class="user-info">
+      <div class="user-avatar" id="userAvatar">👤</div>
+      <div class="user-details">
+        <h3 id="displayName">使用者</h3>
+        <div class="user-handle" id="username">@username</div>
+        <div class="stats-row">
+          <div class="stat"><strong id="followers">0</strong> 粉絲</div>
+          <div class="stat"><strong id="following">0</strong> 追蹤</div>
+          <div class="stat"><strong id="posts">0</strong> 貼文</div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 主價值卡 -->
+    <div class="value-hero">
+      <div class="value-hero-content">
+        <div class="type-badge" id="typeBadge">
+          <span class="type-emoji">🎨</span>
+          <span id="typeName">創作者</span>
+        </div>
+        <div class="value-label">你的發文價值</div>
+        <div class="value-amount">
+          NT$ <span id="postValue">0</span>
+        </div>
+        <div class="value-per">/ 篇</div>
+        
+        <div class="value-grid">
+          <div class="value-item">
+            <div class="value-item-label">🎬 Story</div>
+            <div class="value-item-amount">NT$ <span id="storyValue">0</span></div>
+          </div>
+          <div class="value-item">
+            <div class="value-item-label">📹 Reels</div>
+            <div class="value-item-amount">NT$ <span id="reelsValue">0</span></div>
+          </div>
+          <div class="value-item">
+            <div class="value-item-label">📦 月配合</div>
+            <div class="value-item-amount">NT$ <span id="monthlyValue">0</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 價值組成分析 -->
+    <div class="card">
+      <div class="breakdown-section">
+        <h2 class="breakdown-title">📊 價值組成分析</h2>
+        
+        <div class="breakdown-item">
+          <div>
+            <div class="breakdown-label">基礎身價（粉絲數）</div>
+            <div class="breakdown-sublabel" id="followerTier">—</div>
+          </div>
+          <div class="breakdown-value">NT$ <span id="basePrice">0</span></div>
+        </div>
+        
+        <div class="breakdown-item">
+          <div>
+            <div class="breakdown-label">視覺品質加成</div>
+            <div class="breakdown-sublabel">色彩、構圖、後製品質</div>
+          </div>
+          <div>
+            <span class="multiplier-badge" id="visualMult">×1.0</span>
+          </div>
+        </div>
+        
+        <div class="breakdown-item">
+          <div>
+            <div class="breakdown-label">內容類型加成</div>
+            <div class="breakdown-sublabel" id="contentType">—</div>
+          </div>
+          <div>
+            <span class="multiplier-badge" id="contentMult">×1.0</span>
+          </div>
+        </div>
+        
+        <div class="breakdown-item">
+          <div>
+            <div class="breakdown-label">專業度加成</div>
+            <div class="breakdown-sublabel">Bio、發文規律、品牌識別</div>
+          </div>
+          <div>
+            <span class="multiplier-badge" id="profMult">×1.0</span>
+          </div>
+        </div>
+        
+        <div class="breakdown-item">
+          <div>
+            <div class="breakdown-label">粉絲品質加成</div>
+            <div class="breakdown-sublabel" id="followerQuality">—</div>
+          </div>
+          <div>
+            <span class="multiplier-badge" id="followerMult">×1.0</span>
+          </div>
+        </div>
+        
+        <div class="breakdown-item">
+          <div>
+            <div class="breakdown-label">風格獨特性加成</div>
+            <div class="breakdown-sublabel" id="styleSignature">—</div>
+          </div>
+          <div>
+            <span class="multiplier-badge" id="uniqueMult">×1.0</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 品質評分 -->
+    <div class="card">
+      <h2 class="breakdown-title">⭐ 品質評分</h2>
+      <div class="quality-grid" id="qualityGrid">
+        <!-- JavaScript 動態生成 -->
+      </div>
+    </div>
+    
+    <!-- 價值陳述 -->
+    <div class="card">
+      <h2 class="breakdown-title">💬 你的價值定位</h2>
+      <p style="font-size: 16px; line-height: 1.8; color: #333;" id="valueStatement">
+        載入中...
+      </p>
+    </div>
+    
+    <!-- 改進建議 -->
+    <div class="card">
+      <h2 class="breakdown-title">📈 價值提升建議</h2>
+      <ul class="tips-list" id="improvementTips">
+        <!-- JavaScript 動態生成 -->
+      </ul>
+    </div>
+    
+    <div class="action-buttons">
+      <button class="btn-restart" onclick="clearAndRestart()">
+        🔄 重新評估
+      </button>
+    </div>
+  </main>
+
+  <script type="module">
+    import { initializeApp, getApps } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+    import { getAuth, signOut } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+    import { getFirestore, doc, deleteDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+    // 防止返回
+    (function() {
+      if (window.history && window.history.pushState) {
+        window.history.pushState(null, null, window.location.href);
+        window.addEventListener('popstate', function() {
+          window.history.pushState(null, null, window.location.href);
+          if (confirm('⚠️ 無法返回上一頁\n\n若要重新評估，請點擊「重新評估」。')) {
+            clearAndRestart();
+          }
+        });
+      }
+    })();
+
+    function formatNumber(num) {
+      return num.toLocaleString('zh-TW');
+    }
+
+    function fillUI(data) {
+      console.log('Filling UI with data:', data);
+      
+      // 基本資訊
+      document.getElementById('displayName').textContent = data.display_name || '使用者';
+      document.getElementById('username').textContent = data.username ? '@' + data.username : '—';
+      document.getElementById('followers').textContent = formatNumber(data.followers || 0);
+      document.getElementById('following').textContent = formatNumber(data.following || 0);
+      document.getElementById('posts').textContent = formatNumber(data.posts || 0);
+      
+      // 類型
+      const type = data.primary_type || {};
+      document.getElementById('typeBadge').innerHTML = `
+        <span class="type-emoji">${type.emoji || '🎨'}</span>
+        <span>${type.name_zh || '創作者'}</span>
+      `;
+      
+      // 頭像 emoji
+      document.getElementById('userAvatar').textContent = type.emoji || '👤';
+      
+      // 價值
+      const value = data.value_estimation || {};
+      document.getElementById('postValue').textContent = formatNumber(value.post_value || 0);
+      document.getElementById('storyValue').textContent = formatNumber(value.story_value || 0);
+      document.getElementById('reelsValue').textContent = formatNumber(value.reels_value || 0);
+      document.getElementById('monthlyValue').textContent = formatNumber(value.monthly_package || 0);
+      
+      // 價值組成
+      document.getElementById('basePrice').textContent = formatNumber(value.base_price || 0);
+      document.getElementById('followerTier').textContent = 
+        `你的級別：${value.follower_tier || '素人'}（${formatNumber(data.followers || 0)} 粉絲）`;
+      
+      const mult = value.multipliers || {};
+      document.getElementById('visualMult').textContent = '×' + (mult.visual || 1.0);
+      document.getElementById('contentMult').textContent = '×' + (mult.content || 1.0);
+      document.getElementById('profMult').textContent = '×' + (mult.professional || 1.0);
+      document.getElementById('followerMult').textContent = '×' + (mult.follower || 1.0);
+      document.getElementById('uniqueMult').textContent = '×' + (mult.unique || 1.0);
+      
+      // 內容類型
+      const analysis = data.analysis || {};
+      const contentType = analysis.content_type || {};
+      document.getElementById('contentType').textContent = contentType.primary || '—';
+      
+      // 粉絲品質
+      document.getElementById('followerQuality').textContent = 
+        `粉絲/追蹤比 = ${(data.followers / (data.following || 1)).toFixed(1)}（${value.follower_quality || '標準'}）`;
+      
+      // 風格簽名
+      const uniqueness = analysis.uniqueness || {};
+      document.getElementById('styleSignature').textContent = uniqueness.style_signature || '—';
+      
+      // 品質評分
+      const visual = analysis.visual_quality || {};
+      const qualityItems = [
+        { label: '色彩和諧度', score: visual.color_harmony || 5 },
+        { label: '構圖專業度', score: visual.composition || 5 },
+        { label: '後製品質', score: visual.editing || 5 },
+        { label: '整體美感', score: visual.overall || 5 }
+      ];
+      
+      const qualityGrid = document.getElementById('qualityGrid');
+      qualityGrid.innerHTML = '';
+      
+      qualityItems.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'quality-item';
+        div.innerHTML = `
+          <div class="quality-label">${item.label}</div>
+          <div class="quality-bar">
+            <div class="quality-fill" style="width: ${item.score * 10}%"></div>
+          </div>
+          <div class="quality-score">${item.score.toFixed(1)} / 10</div>
+        `;
+        qualityGrid.appendChild(div);
+      });
+      
+      // 價值陳述
+      document.getElementById('valueStatement').textContent = 
+        data.value_statement || '正在分析你的獨特價值...';
+      
+      // 改進建議
+      const tips = data.improvement_tips || [];
+      const tipsList = document.getElementById('improvementTips');
+      tipsList.innerHTML = '';
+      
+      if (tips.length > 0) {
+        tips.forEach(tip => {
+          const li = document.createElement('li');
+          li.className = 'tip-item';
+          li.textContent = tip;
+          tipsList.appendChild(li);
+        });
+      } else {
+        tipsList.innerHTML = '<li class="tip-item">目前沒有建議，你的帳號已經很棒了！</li>';
+      }
+    }
+
+    async function loadResult() {
+      const saved = sessionStorage.getItem('sa_result');
+      if (saved) {
+        try {
+          const data = JSON.parse(saved);
+          if (data && data.ok) {
+            fillUI(data);
+            return;
+          }
+        } catch {}
+      }
+      
+      // Fallback: 從 debug endpoint
+      try {
+        const r = await fetch('/debug/last_ai?ts=' + Date.now());
+        if (r.ok) {
+          const j = await r.json();
+          let parsed = null;
+          try {
+            parsed = JSON.parse(j.text || j.raw || '{}');
+          } catch {}
+          if (parsed && parsed.ok) {
+            fillUI(parsed);
+            return;
+          }
+        }
+      } catch {}
+      
+      document.getElementById('err').textContent = '找不到分析結果，3秒後返回首頁';
+      document.getElementById('err').style.display = 'block';
+      setTimeout(() => location.href = '/static/upload.html', 3000);
+    }
+
+    window.clearAndRestart = async function() {
+      if (!confirm('確定要清除所有資料並重新開始？')) return;
+      
+      try {
+        const config = {
+          apiKey: "AIzaSyBI2-4yEwzxvYOvui9FZiGAzCE22OhKmU8",
+          authDomain: "social-avatar-d13c8.firebaseapp.com",
+          projectId: "social-avatar-d13c8",
+          storageBucket: "social-avatar-d13c8.appspot.com",
+          messagingSenderId: "280598358339",
+          appId: "1:280598358339:web:214a0d4ca53793163367f6"
+        };
+
+        const app = getApps().length ? getApps()[0] : initializeApp(config);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        
+        const user = auth.currentUser;
+        if (user) {
+          await deleteDoc(doc(db, 'users', user.uid)).catch(() => {});
+        }
+        
+        sessionStorage.clear();
+        localStorage.clear();
+        await signOut(auth).catch(() => {});
+        
+        alert('✅ 已清除所有資料');
+        location.replace('/static/landing.html');
+      } catch (e) {
+        alert('清除失敗：' + e.message);
+      }
+    };
+
+    window.addEventListener('DOMContentLoaded', loadResult);
+  </script>
+</body>
+</html>
