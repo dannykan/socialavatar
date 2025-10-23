@@ -1266,12 +1266,19 @@
             
             const analysisData = getAnalysisData();
             
+            // 添加調試信息
+            console.log('Analysis data:', analysisData);
+            console.log('Session storage:', sessionStorage.getItem('sa_result'));
+            console.log('URL params:', window.location.search);
+            
             if (analysisData && analysisData.ok) {
+                console.log('Using real analysis data');
                 // 使用真實的分析數據
                 setTimeout(() => {
                     renderResult(analysisData);
                 }, 2000);
             } else {
+                console.log('Using mock data - no real analysis data found');
                 // 沒有數據，使用假資料進行展示
                 setTimeout(() => {
                     renderResult(mockData);
