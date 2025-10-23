@@ -1040,7 +1040,6 @@
             
             // 直接使用前端計算的報價系統
             const followers = data.followers || 0;
-            const multipliers = value.multipliers || {};
             
             // 基礎報價計算（每千粉價值）
             let basePricePerK;
@@ -1059,6 +1058,7 @@
             } else {
                 basePricePerK = 600;
             }
+
             
             // 計算品質係數
             const visual = multipliers.visual || 1.0;
@@ -1112,7 +1112,6 @@
             });
 
             // 係數
-            const multipliers = value.multipliers || {};
             const multipliersGrid = document.getElementById('multipliers-grid');
             multipliersGrid.innerHTML = '';
 
