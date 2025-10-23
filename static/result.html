@@ -155,40 +155,72 @@
             margin-bottom: 25px;
         }
 
-        /* 人格類型卡片 */
-        .personality-card {
+        /* 整合的帳號資訊卡片 */
+        .account-info-card {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             border-radius: 20px;
             padding: 25px;
-            margin: 0 30px 25px;
+            margin-top: 20px;
             color: white;
             box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
         }
 
+        .account-badges {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            justify-content: center;
+        }
+
+        .tier-badge {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            font-size: 12px;
+            padding: 6px 15px;
+        }
+
+        .personality-badge {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            font-size: 12px;
+            padding: 6px 15px;
+        }
+
+        .personality-details {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
         .personality-emoji {
-            font-size: 48px;
-            margin-bottom: 10px;
-            display: block;
+            font-size: 40px;
             filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2));
         }
 
+        .personality-info {
+            flex: 1;
+        }
+
         .personality-name {
-            font-size: 22px;
+            font-size: 18px;
             font-weight: 700;
-            margin-bottom: 5px;
+            margin-bottom: 3px;
         }
 
         .personality-en {
-            font-size: 13px;
+            font-size: 12px;
             opacity: 0.9;
             font-style: italic;
+            margin-bottom: 8px;
         }
 
         .personality-confidence {
-            margin-top: 15px;
-            font-size: 12px;
+            font-size: 11px;
             opacity: 0.8;
         }
+
 
         /* AI 分析文字區塊（新增）*/
         .analysis-section {
@@ -224,50 +256,58 @@
 
         /* 合作報價區塊 */
         .pricing-section {
-            padding: 0 30px 30px;
+            padding: 25px 30px;
+            background: linear-gradient(180deg, #fafafa 0%, #f5f5f5 100%);
+            border-radius: 20px;
+            margin: 0 30px 25px;
         }
 
         .pricing-title {
             font-size: 18px;
             font-weight: 700;
             color: #333;
-            margin-bottom: 15px;
+            margin-bottom: 20px;
             text-align: center;
         }
 
         .pricing-cards {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
+            gap: 15px;
         }
 
         .price-card {
             background: white;
-            border: 2px solid #f0f0f0;
+            border: 2px solid #e0e0e0;
             border-radius: 15px;
-            padding: 15px 10px;
+            padding: 20px 15px;
             text-align: center;
             transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
         }
 
         .price-card:hover {
             border-color: #667eea;
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.2);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.15);
         }
 
         .price-type {
-            font-size: 11px;
-            color: #999;
+            font-size: 12px;
+            color: #666;
             text-transform: uppercase;
             font-weight: 600;
-            margin-bottom: 8px;
+            margin-bottom: 10px;
+            letter-spacing: 0.5px;
         }
 
         .price-value {
-            font-size: 18px;
+            font-size: 20px;
             font-weight: 700;
-            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
 
         /* 係數展示 */
@@ -397,12 +437,28 @@
                 font-size: 52px;
             }
 
+            .account-badges {
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .personality-details {
+                flex-direction: column;
+                text-align: center;
+                gap: 10px;
+            }
+
             .pricing-cards {
                 grid-template-columns: 1fr;
             }
 
             .multiplier-grid {
                 grid-template-columns: 1fr;
+            }
+
+            .pricing-section {
+                margin: 0 20px 25px;
+                padding: 20px;
             }
         }
 
@@ -463,19 +519,26 @@
 
             <!-- 主要價值展示 -->
             <div class="value-section">
-                <div class="badge" id="follower-tier">評估中</div>
                 <div class="value-title">你的帳號總價值</div>
                 <div class="total-value" id="total-value">NT$ 0</div>
                 <div class="value-subtitle">基於 AI 多維度分析</div>
-            </div>
-
-            <!-- 人格類型卡片 -->
-            <div class="personality-card">
-                <span class="personality-emoji" id="personality-emoji">✨</span>
-                <div class="personality-name" id="personality-name">分析中...</div>
-                <div class="personality-en" id="personality-en">Analyzing...</div>
-                <div class="personality-confidence">
-                    信心度：<span id="personality-confidence">0</span>%
+                
+                <!-- 整合的帳號資訊卡片 -->
+                <div class="account-info-card">
+                    <div class="account-badges">
+                        <div class="badge tier-badge" id="follower-tier">評估中</div>
+                        <div class="badge personality-badge" id="personality-type">分析中...</div>
+                    </div>
+                    <div class="personality-details">
+                        <span class="personality-emoji" id="personality-emoji">✨</span>
+                        <div class="personality-info">
+                            <div class="personality-name" id="personality-name">分析中...</div>
+                            <div class="personality-en" id="personality-en">Analyzing...</div>
+                            <div class="personality-confidence">
+                                信心度：<span id="personality-confidence">0</span>%
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -485,7 +548,7 @@
                 <div class="analysis-text" id="analysis-text"></div>
             </div>
 
-            <!-- 合作報價 -->
+            <!-- 合作報價（整合到價值展示區） -->
             <div class="pricing-section">
                 <div class="pricing-title">💰 合作報價參考</div>
                 <div class="pricing-cards">
@@ -630,9 +693,15 @@
             document.getElementById('following').textContent = formatNumber(data.following || 0);
             document.getElementById('posts').textContent = formatNumber(data.posts || 0);
 
-            // 粉絲級別
+            // 粉絲級別和人格類型
             const value = data.value_estimation || {};
+            const personality = data.primary_type || {};
+            
+            // 更新粉絲級別徽章
             document.getElementById('follower-tier').textContent = value.follower_tier || '評估中';
+            
+            // 更新人格類型徽章
+            document.getElementById('personality-type').textContent = personality.name_zh || '分析中...';
 
             // 帳號市場價值（優先使用 AI 估算的價格，否則使用前端計算）
             let accountValue;
@@ -658,8 +727,7 @@
                 totalValueEl.textContent = formatPrice(Math.floor(currentValue));
             }, 20);
 
-            // 人格類型
-            const personality = data.primary_type || {};
+            // 人格類型詳細資訊
             document.getElementById('personality-emoji').textContent = personality.emoji || '✨';
             document.getElementById('personality-name').textContent = personality.name_zh || '分析中';
             document.getElementById('personality-en').textContent = personality.name_en || 'Analyzing';

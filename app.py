@@ -478,6 +478,13 @@ def analyze():
         json_start = ai_response.find('{')
         analysis_text = ai_response[:json_start].strip() if json_start > 0 else ""
         
+        # 清理可能的程式碼殘留
+        if analysis_text:
+            # 移除可能的 markdown 程式碼標記
+            analysis_text = analysis_text.replace('```json', '').replace('```', '')
+            # 移除多餘的空白行
+            analysis_text = '\n\n'.join([p.strip() for p in analysis_text.split('\n\n') if p.strip()])
+        
     except Exception as e:
         return jsonify({"ok": False, "error": f"AI 分析失敗: {str(e)}"}), 500
     
