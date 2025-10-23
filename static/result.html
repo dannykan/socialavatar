@@ -6,6 +6,13 @@
   <title>你的 IG 身價評估｜分析結果</title>
   <link rel="stylesheet" href="/static/app.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <script type="module">
+    import { synthesizeAudience } from './audience_model.js';
+    import { synthesizeTravelSplit } from './travel_split_model.js';
+    window._IG_Audience = { synthesizeAudience };
+    window._IG_Travel = { synthesizeTravelSplit };
+  </script>
   <style>
     body {
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -871,19 +878,16 @@
       }
 
       // ---- Audience Synthesis ----
-      // defaults and heuristics
-      const aud = analysis.audience || {};
-      const male = aud.male_ratio ?? (topic.includes('時尚')||topic.includes('美妝') ? 0.38 : topic.includes('科技') ? 0.62 : 0.52);
-      const female = 1 - male;
+      const audSynth = window._IG_Audience?.synthesizeAudience({
+        topic,
+        visual,
+        mult,
+        analysis
+      }) || { male_ratio:0.5, age_dist:[0.25,0.45,0.2,0.1], city_styles:['台北都會','生活機能'] };
 
-      const ageDist = aud.age_dist || [
-        Math.max(0.10, 0.30 - (visual.overall||7)/100),  // 18-24
-        Math.min(0.60, 0.45 + (mult.follower-1)*0.15),   // 25-34
-        0.18,                                            // 35-44
-        0.07                                             // 45+
-      ];
-      const s = ageDist.reduce((a,b)=>a+b,0);
-      for (let i=0;i<ageDist.length;i++) ageDist[i] = ageDist[i]/s;
+      const male = audSynth.male_ratio;
+      const female = audSynth.female_ratio;
+      const ageDist = audSynth.age_dist;
 
       if (window.Chart) {
         const gctx = document.getElementById('genderPie');
@@ -908,13 +912,7 @@
       const chipEl = document.getElementById('cityStyleChips');
       if (chipEl) {
         chipEl.innerHTML = '';
-        const styles = aud.city_styles || (
-          topic.includes('旅遊') ? ['台北都會','海島度假','文化歷史'] :
-          topic.includes('美食') ? ['熱門商圈','夜市小吃','網美咖啡'] :
-          topic.includes('時尚') ? ['精品百貨','設計選物','潮流快閃'] :
-          ['生活機能','社區小店','郊外踏青']
-        );
-        styles.forEach(name => {
+        (audSynth.city_styles || []).forEach(name => {
           const d = document.createElement('div');
           d.className = 'aud-chip';
           d.textContent = name;
@@ -926,17 +924,13 @@
       const tsRows = document.getElementById('travelSplitRows');
       if (tsRows) {
         tsRows.innerHTML = '';
-        const baseScore = (contentType.primary||'').includes('旅遊') ? 0.80 : 0.65;
-        const cityHotel = Math.min(0.96, baseScore + (visual.composition||6)/100);
-        const resort = Math.min(0.96, baseScore + 0.06 + (visual.color_harmony||6)/120);
-        const designHotel = Math.min(0.96, baseScore + (uniqueness.style_signature||'').length/300);
-
+        const ts = window._IG_Travel?.synthesizeTravelSplit({ topic, visual, uniqueness, analysis }) ||
+                   { city_hotel:72, resort:75, design_hotel:70 };
         const items = [
-          {label:'城市飯店', v: Math.round(cityHotel*100)},
-          {label:'度假村', v: Math.round(resort*100)},
-          {label:'設計旅店', v: Math.round(designHotel*100)},
+          {label:'城市飯店', v: ts.city_hotel},
+          {label:'度假村', v: ts.resort},
+          {label:'設計旅店', v: ts.design_hotel},
         ];
-
         items.forEach(it => {
           const row = document.createElement('div');
           row.className = 'split-row';
