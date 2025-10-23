@@ -13,7 +13,8 @@ app = Flask(__name__, static_folder="static", static_url_path="/static")
 CORS(app)
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o")  # 建議用 gpt-4o 獲得更好分析
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5")  # 使用 GPT-5 獲得最佳分析
+# 可選模型：gpt-5, gpt-5-mini, gpt-5-nano, gpt-5-chat-latest, gpt-5-pro
 MAX_SIDE = int(os.getenv("MAX_SIDE", "1280"))
 JPEG_Q = int(os.getenv("JPEG_QUALITY", "72"))
 
