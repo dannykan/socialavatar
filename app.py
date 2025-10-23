@@ -646,13 +646,13 @@ def analyze():
         
         # 分析詳情
         "analysis": {
-            "visual_quality": ai_data.get("visual_quality", {}),
-            "content_type": ai_data.get("content_type", {}),
-            "professionalism": ai_data.get("professionalism", {}),
-            "uniqueness": ai_data.get("uniqueness", {}),
+            "visual_quality": ai_data.get("visual_quality", {"overall": 7.5}),
+            "content_type": ai_data.get("content_type", {"primary": "生活記錄", "commercial_potential": "medium"}),
+            "professionalism": ai_data.get("professionalism", {"brand_identity": 7.0}),
+            "uniqueness": ai_data.get("uniqueness", {"creativity_score": 7.0}),
             "engagement_potential": ai_data.get("engagement_potential", {}),
             "niche_focus": ai_data.get("niche_focus", {}),
-            "audience_value": ai_data.get("audience_value", {}),
+            "audience_value": ai_data.get("audience_value", {"audience_tier": "一般用戶"}),
             "cross_platform": ai_data.get("cross_platform", {})
         },
         
