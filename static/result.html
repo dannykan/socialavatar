@@ -841,13 +841,65 @@
             ]
         };
 
+        // 從 URL 參數、sessionStorage 或 localStorage 獲取數據
+        function getAnalysisData() {
+            // 1. 嘗試從 URL 參數獲取
+            const urlParams = new URLSearchParams(window.location.search);
+            const dataParam = urlParams.get('data');
+            
+            if (dataParam) {
+                try {
+                    return JSON.parse(decodeURIComponent(dataParam));
+                } catch (e) {
+                    console.error('Failed to parse URL data:', e);
+                }
+            }
+            
+            // 2. 嘗試從 sessionStorage 獲取（upload.html 存儲的地方）
+            const sessionData = sessionStorage.getItem('sa_result');
+            if (sessionData) {
+                try {
+                    return JSON.parse(sessionData);
+                } catch (e) {
+                    console.error('Failed to parse session data:', e);
+                }
+            }
+            
+            // 3. 嘗試從 localStorage 獲取
+            const storedData = localStorage.getItem('ig_analysis_result');
+            if (storedData) {
+                try {
+                    return JSON.parse(storedData);
+                } catch (e) {
+                    console.error('Failed to parse stored data:', e);
+                }
+            }
+            
+            // 4. 如果都沒有，返回 null（顯示錯誤或重定向）
+            return null;
+        }
+
         // 頁面載入時
         window.addEventListener('DOMContentLoaded', () => {
-            // 從 URL 參數或 localStorage 獲取數據
-            // 這裡先用模擬數據展示
-            setTimeout(() => {
-                renderResult(mockData);
-            }, 1500);
+            const analysisData = getAnalysisData();
+            
+            if (analysisData && analysisData.ok) {
+                // 使用真實的分析數據
+                setTimeout(() => {
+                    renderResult(analysisData);
+                }, 1500);
+            } else {
+                // 沒有數據，顯示錯誤或重定向到上傳頁面
+                document.getElementById('loading').innerHTML = `
+                    <div class="loading-spinner"></div>
+                    <p>未找到分析結果</p>
+                    <p style="margin-top: 20px; font-size: 14px;">
+                        <a href="/static/upload.html" style="color: white; text-decoration: underline;">
+                            點此重新上傳圖片進行分析
+                        </a>
+                    </p>
+                `;
+            }
         });
     </script>
 </body>
