@@ -167,31 +167,44 @@ def save_last_ai(ai_dict=None, raw="", text=""):
 # -----------------------------------------------------------------------------
 def extract_json_from_text(text: str):
     """從包含自然語言的文本中提取 JSON"""
+    print(f"Extracting JSON from text (length: {len(text)})")
+    
     # 先嘗試找 ```json ``` 包裹的內容
     json_pattern = r'```json\s*(\{.*?\})\s*```'
     match = re.search(json_pattern, text, re.DOTALL)
     
     if match:
         json_str = match.group(1)
+        print(f"Found JSON in code block: {json_str[:200]}...")
         try:
-            return json.loads(json_str)
-        except:
-            pass
+            data = json.loads(json_str)
+            print(f"Successfully parsed JSON from code block")
+            return data
+        except Exception as e:
+            print(f"Failed to parse JSON from code block: {e}")
     
     # 再嘗試找任何 {...} 的內容
     json_pattern2 = r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}'
     matches = re.findall(json_pattern2, text, re.DOTALL)
+    print(f"Found {len(matches)} potential JSON matches")
     
     # 從最長的開始嘗試解析
-    for json_str in sorted(matches, key=len, reverse=True):
+    for i, json_str in enumerate(sorted(matches, key=len, reverse=True)):
         try:
+            print(f"Trying to parse JSON match {i+1} (length: {len(json_str)})")
             data = json.loads(json_str)
+            print(f"Successfully parsed JSON match {i+1}")
             # 驗證是否包含我們需要的關鍵字段
-            if 'account_value' in data or 'visual_quality' in data:
+            if 'account_value' in data or 'visual_quality' in data or 'pricing' in data:
+                print(f"JSON contains required fields: {list(data.keys())}")
                 return data
-        except:
+            else:
+                print(f"JSON doesn't contain required fields: {list(data.keys())}")
+        except Exception as e:
+            print(f"Failed to parse JSON match {i+1}: {e}")
             continue
     
+    print("No valid JSON found")
     return None
 
 # -----------------------------------------------------------------------------
@@ -337,71 +350,19 @@ def build_user_prompt(followers, following, posts):
   "account_value": {{
     "min": 50000,
     "max": 80000,
-    "short_term": 40000,
-    "market_price": 70000,
-    "long_term": 120000,
-    "reasoning": "基於市場行情的估值邏輯說明"
+    "reasoning": "基於亞洲市場行情的估值邏輯說明"
   }},
   "pricing": {{
     "post": 8000,
     "story": 3200,
     "reels": 12000
   }},
-  "target_audience": {{
-    "age_range": "25-35",
-    "demographics": "城市生活、高消費族群",
-    "interests": ["生活風格", "旅遊", "美學"]
-  }},
   "visual_quality": {{
-    "color_harmony": 8.5,
-    "composition": 7.8,
-    "editing": 8.2,
     "overall": 8.1
   }},
   "content_type": {{
     "primary": "美食料理",
-    "focus_score": 8,
     "commercial_potential": "high"
-  }},
-  "professionalism": {{
-    "has_business_tag": true,
-    "has_contact": false,
-    "has_link": true,
-    "consistency_score": 7.5,
-    "brand_identity": 8.0
-  }},
-  "uniqueness": {{
-    "style_signature": "極簡美食攝影",
-    "creativity_score": 7.8,
-    "differentiation": 7.5
-  }},
-  "engagement_potential": {{
-    "has_cta_in_bio": true,
-    "emoji_density": 7.0,
-    "selfie_ratio": 0.6,
-    "content_discussability": 8.0
-  }},
-  "niche_focus": {{
-    "theme_consistency": 8.5,
-    "has_professional_keyword": true,
-    "vertical_depth": 8.0
-  }},
-  "audience_value": {{
-    "audience_tier": "美食料理",
-    "engagement_quality": 7.5,
-    "target_precision": 8.0
-  }},
-  "cross_platform": {{
-    "has_youtube": false,
-    "has_tiktok": false,
-    "has_blog": true,
-    "has_other_social": false,
-    "content_reusability": 7.0
-  }},
-  "personality_type": {{
-    "primary_type": "type_5",
-    "confidence": 0.75,
-    "reasoning": "以日常美食記錄為主，風格自然親切"
   }},
   "improvement_tips": [
     "增加與粉絲互動的 Story 內容",
@@ -560,6 +521,9 @@ def analyze():
         ai_data = extract_json_from_text(ai_response)
         
         if not ai_data:
+            # 記錄 AI 回應以便調試
+            print(f"AI Response (first 500 chars): {ai_response[:500]}")
+            print(f"AI Response (last 500 chars): {ai_response[-500:]}")
             return jsonify({"ok": False, "error": "AI 分析結果格式錯誤。請重新上傳截圖並重試。"}), 500
         
         # 提取分析文字（JSON 之前的部分）
