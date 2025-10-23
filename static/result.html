@@ -988,12 +988,18 @@
 
             // 帳號市場價值（優先使用 AI 估算的價格，否則使用前端計算）
             let accountValue;
+            console.log('Value estimation data:', value);
+            console.log('Account value min:', value.account_value_min);
+            console.log('Account value max:', value.account_value_max);
+            
             if (value.account_value_min && value.account_value_max) {
                 // V5：使用 AI 給的價格區間（取中間值）
                 accountValue = Math.floor((value.account_value_min + value.account_value_max) / 2);
+                console.log('Using AI estimated value:', accountValue);
             } else {
                 // V4：前端計算
                 accountValue = calculateAccountValue(data);
+                console.log('Using calculated value:', accountValue);
             }
             
             const totalValueEl = document.getElementById('total-value');
@@ -1029,11 +1035,18 @@
             // === 計算合作報價 ===
             let postPrice, storyPrice, reelsPrice;
             
+            console.log('Pricing data:', {
+                post_value: value.post_value,
+                story_value: value.story_value,
+                reels_value: value.reels_value
+            });
+            
             // 優先使用 AI 估算的價格（V5）
             if (value.post_value && value.story_value && value.reels_value) {
                 postPrice = value.post_value;
                 storyPrice = value.story_value;
                 reelsPrice = value.reels_value;
+                console.log('Using AI pricing:', { postPrice, storyPrice, reelsPrice });
             } else {
                 // 降級使用前端計算（V4）
                 const followers = data.followers || 0;
