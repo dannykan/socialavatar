@@ -332,6 +332,76 @@
             font-weight: 500;
         }
 
+        /* 詳細分析區塊樣式 */
+        .detailed-analysis {
+            margin: 20px 0;
+        }
+
+        .analysis-block {
+            background: #f8f9fa;
+            border-radius: 15px;
+            margin: 15px 0;
+            padding: 20px;
+            border: 1px solid #e9ecef;
+        }
+
+        .block-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #2c3e50;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .block-content {
+            color: #495057;
+            line-height: 1.6;
+            font-size: 14px;
+        }
+
+        .data-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .data-item:last-child {
+            border-bottom: none;
+        }
+
+        .data-label {
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .data-value {
+            color: #28a745;
+            font-weight: 700;
+        }
+
+        .formula-item {
+            background: white;
+            border-radius: 8px;
+            padding: 12px;
+            margin: 8px 0;
+            border-left: 4px solid #007bff;
+        }
+
+        .formula-label {
+            font-weight: 600;
+            color: #007bff;
+            margin-bottom: 4px;
+        }
+
+        .formula-value {
+            color: #28a745;
+            font-weight: 700;
+        }
+
         .multiplier-value {
             font-size: 16px;
             font-weight: 700;
@@ -824,6 +894,33 @@
                 <div class="analysis-title">💼 專業 IG 社群帳號價值分析</div>
                 <div class="analysis-text" id="analysis-text"></div>
         </div>
+
+            <!-- 詳細分析區塊 -->
+            <div class="detailed-analysis" id="detailed-analysis" style="display:none;">
+                <!-- 基本數據分析 -->
+                <div class="analysis-block">
+                    <div class="block-title">🧮 帳號基本數據</div>
+                    <div class="block-content" id="basic-data-content"></div>
+                </div>
+
+                <!-- 估值公式 -->
+                <div class="analysis-block">
+                    <div class="block-title">💰 估值公式與推算</div>
+                    <div class="block-content" id="valuation-formula-content"></div>
+                </div>
+
+                <!-- 合作價值 -->
+                <div class="analysis-block">
+                    <div class="block-title">📊 合作價值分析</div>
+                    <div class="block-content" id="collaboration-value-content"></div>
+                </div>
+
+                <!-- 專業建議 -->
+                <div class="analysis-block">
+                    <div class="block-title">🧭 專業建議</div>
+                    <div class="block-content" id="professional-advice-content"></div>
+                </div>
+            </div>
     
             <!-- 係數展示 -->
             <div class="multipliers-section">
@@ -1045,6 +1142,9 @@
                 reels_value: value.reels_value
             });
             
+            // 取得 multipliers 資料（用於後續顯示）
+            const multipliers = value.multipliers || {};
+            
             // 使用 AI 分析的報價結果
             if (value.post_value && value.story_value && value.reels_value) {
                 postPrice = value.post_value;
@@ -1054,7 +1154,6 @@
             } else {
                 // 如果沒有 AI 報價，使用前端計算作為備用
                 const followers = data.followers || 0;
-                const multipliers = value.multipliers || {};
                 
                 // 基礎報價計算（每千粉價值）
                 let basePricePerK;
@@ -1154,9 +1253,125 @@
                 tipsContainer.appendChild(tipItem);
             });
 
+            // 處理詳細分析區塊
+            renderDetailedAnalysis(data);
+
             // 顯示結果，隱藏 loading
             document.getElementById('loading').classList.add('hidden');
             document.getElementById('result').classList.remove('hidden');
+        }
+
+        // 渲染詳細分析區塊
+        function renderDetailedAnalysis(data) {
+            const analysis = data.analysis || {};
+            const valueEstimation = data.value_estimation || {};
+            
+            // 基本數據分析
+            const basicDataContent = document.getElementById('basic-data-content');
+            if (basicDataContent) {
+                basicDataContent.innerHTML = `
+                    <div class="data-item">
+                        <span class="data-label">粉絲數</span>
+                        <span class="data-value">${data.followers?.toLocaleString() || 'N/A'}</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="data-label">追蹤數</span>
+                        <span class="data-value">${data.following?.toLocaleString() || 'N/A'}</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="data-label">貼文數</span>
+                        <span class="data-value">${data.posts?.toLocaleString() || 'N/A'}</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="data-label">粉絲質量</span>
+                        <span class="data-value">${valueEstimation.follower_quality || 'N/A'}</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="data-label">目標族群</span>
+                        <span class="data-value">${analysis.audience_value?.audience_tier || 'N/A'}</span>
+                    </div>
+                `;
+            }
+
+            // 估值公式分析 - 顯示 AI 分析的估值邏輯
+            const valuationContent = document.getElementById('valuation-formula-content');
+            if (valuationContent) {
+                const accountValue = valueEstimation;
+                valuationContent.innerHTML = `
+                    <div class="formula-item">
+                        <div class="formula-label">AI 估值範圍</div>
+                        <div class="formula-value">NT$ ${accountValue.account_value_min?.toLocaleString() || 'N/A'} - ${accountValue.account_value_max?.toLocaleString() || 'N/A'}</div>
+                    </div>
+                    <div class="formula-item">
+                        <div class="formula-label">粉絲等級</div>
+                        <div class="formula-value">${accountValue.follower_tier || 'N/A'}</div>
+                    </div>
+                    <div class="formula-item">
+                        <div class="formula-label">粉絲質量</div>
+                        <div class="formula-value">${accountValue.follower_quality || 'N/A'}</div>
+                    </div>
+                    <div class="formula-item">
+                        <div class="formula-label">估值邏輯</div>
+                        <div class="formula-value">${accountValue.account_value_reasoning || 'N/A'}</div>
+                    </div>
+                `;
+            }
+
+            // 合作價值分析
+            const collaborationContent = document.getElementById('collaboration-value-content');
+            if (collaborationContent) {
+                const pricing = valueEstimation;
+                collaborationContent.innerHTML = `
+                    <div class="data-item">
+                        <span class="data-label">單篇 Post 報價</span>
+                        <span class="data-value">NT$ ${pricing.post_value?.toLocaleString() || 'N/A'}</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="data-label">Story 報價</span>
+                        <span class="data-value">NT$ ${pricing.story_value?.toLocaleString() || 'N/A'}</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="data-label">Reels 報價</span>
+                        <span class="data-value">NT$ ${pricing.reels_value?.toLocaleString() || 'N/A'}</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="data-label">商業潛力</span>
+                        <span class="data-value">${analysis.content_type?.commercial_potential || 'N/A'}</span>
+                    </div>
+                `;
+            }
+
+            // 專業建議
+            const adviceContent = document.getElementById('professional-advice-content');
+            if (adviceContent) {
+                const tips = data.improvement_tips || [];
+                let tipsHtml = '';
+                tips.forEach(tip => {
+                    tipsHtml += `<div class="data-item"><span class="data-label">•</span><span class="data-value">${tip}</span></div>`;
+                });
+                
+                adviceContent.innerHTML = `
+                    <div class="data-item">
+                        <span class="data-label">帳號優勢</span>
+                        <span class="data-value">${analysis.professionalism?.brand_identity || 'N/A'}/10</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="data-label">風格獨特性</span>
+                        <span class="data-value">${analysis.uniqueness?.creativity_score || 'N/A'}/10</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="data-label">視覺品質</span>
+                        <span class="data-value">${analysis.visual_quality?.overall || 'N/A'}/10</span>
+                    </div>
+                    ${tipsHtml}
+                `;
+            }
+
+            // 顯示詳細分析區塊
+            const detailedAnalysis = document.getElementById('detailed-analysis');
+            if (detailedAnalysis) {
+                detailedAnalysis.style.display = 'block';
+            }
         }
 
         // 顯示係數詳細資訊
