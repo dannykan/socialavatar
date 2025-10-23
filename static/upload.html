@@ -76,71 +76,102 @@
     
     .preview-container {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-      gap: var(--spacing);
-      margin-top: var(--spacing);
-      min-height: 50px;
-      border: 1px dashed var(--border-light);
-      border-radius: var(--radius);
-      padding: var(--spacing-sm);
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 16px;
+      margin-top: 20px;
+      min-height: 60px;
+      border: 2px dashed rgba(34, 211, 238, 0.3);
+      border-radius: 12px;
+      padding: 20px;
+      background: linear-gradient(135deg, rgba(34, 211, 238, 0.05) 0%, rgba(168, 85, 247, 0.05) 100%);
+      transition: all 0.3s ease;
+    }
+    
+    .preview-container:hover {
+      border-color: rgba(34, 211, 238, 0.5);
+      background: linear-gradient(135deg, rgba(34, 211, 238, 0.08) 0%, rgba(168, 85, 247, 0.08) 100%);
     }
     
     .preview-container:empty::before {
-      content: "選擇圖片後會在這裡顯示預覽";
+      content: "📸 選擇圖片後會在這裡顯示預覽";
       color: var(--muted);
-      font-size: var(--font-size-xs);
+      font-size: 14px;
       text-align: center;
       display: flex;
       align-items: center;
       justify-content: center;
-      height: 50px;
+      height: 60px;
+      font-weight: 500;
     }
     
     .preview-item {
       position: relative;
-      border-radius: var(--radius);
+      border-radius: 12px;
       overflow: hidden;
-      background: var(--bg-secondary);
-      border: 1px solid var(--border);
+      background: white;
+      border: 2px solid #e5e7eb;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      transition: all 0.3s ease;
+    }
+    
+    .preview-item:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+      border-color: #22d3ee;
     }
     
     .preview-image {
       width: 100%;
-      height: 120px;
+      height: 140px;
       object-fit: cover;
+      transition: transform 0.3s ease;
+    }
+    
+    .preview-item:hover .preview-image {
+      transform: scale(1.05);
     }
     
     .preview-remove {
       position: absolute;
-      top: 4px;
-      right: 4px;
-      background: rgba(239, 68, 68, 0.9);
+      top: 8px;
+      right: 8px;
+      background: linear-gradient(135deg, #ef4444, #dc2626);
       color: white;
       border: none;
       border-radius: 50%;
-      width: 24px;
-      height: 24px;
-      min-width: 24px;
-      min-height: 24px;
+      width: 28px;
+      height: 28px;
+      min-width: 28px;
+      min-height: 28px;
       display: flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      font-size: 12px;
+      font-size: 14px;
       font-weight: bold;
       line-height: 1;
       padding: 0;
       margin: 0;
       box-sizing: border-box;
       flex-shrink: 0;
+      box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+      transition: all 0.2s ease;
+    }
+    
+    .preview-remove:hover {
+      transform: scale(1.1);
+      box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
     }
     
     .preview-filename {
-      padding: var(--spacing-sm);
-      font-size: var(--font-size-xs);
-      color: var(--muted);
+      padding: 12px;
+      font-size: 12px;
+      color: #6b7280;
       text-align: center;
       word-break: break-all;
+      background: #f9fafb;
+      border-top: 1px solid #e5e7eb;
+      font-weight: 500;
     }
     
     .action-buttons {
@@ -282,16 +313,19 @@
     
     @media (max-width: 768px) {
       .preview-remove {
-        width: 28px;
-        height: 28px;
+        width: 32px;
+        height: 32px;
+        font-size: 16px;
       }
       
       .preview-image {
-        height: 140px;
+        height: 160px;
       }
       
       .preview-container {
-        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        gap: 20px;
+        padding: 24px;
       }
     }
     
@@ -339,9 +373,9 @@
   </header>
 
   <main class="container">
-    <h1 class="page-title">上傳你的 IG 截圖</h1>
+    <h1 class="page-title">📊 上傳你的 IG 截圖</h1>
     <p class="page-description">
-      我們會透過 AI 分析你的 IG 風格，給你一個專屬的社群人格類型。<br>
+      我們會透過 AI 分析你的 IG 帳號價值，給你一個專屬的社群人格類型。<br>
       <strong>只需兩步：</strong><br>
       ① 上傳 IG 個人頁截圖（必填）<br>
       ② 可選上傳 1～6 張貼文縮圖，幫助 AI 更準確分析
@@ -353,8 +387,9 @@
         <div class="file-upload">
           <input id="profile" type="file" accept="image/*" required />
           <div>
-            <div style="font-size: 24px; margin-bottom: 8px;">📱</div>
-            <div>點擊選擇 IG 個人頁截圖</div>
+            <div style="font-size: 32px; margin-bottom: 12px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));">📱</div>
+            <div style="font-size: 16px; font-weight: 600; margin-bottom: 4px;">點擊選擇 IG 個人頁截圖</div>
+            <div style="font-size: 12px; opacity: 0.7;">支援 JPG、PNG 格式</div>
           </div>
         </div>
         <p class="upload-hint">💡 請確保截圖包含：用戶名、Bio、粉絲數/追蹤數/貼文數、九宮格縮圖</p>
@@ -368,9 +403,9 @@
         <div class="file-upload">
           <input id="posts" type="file" accept="image/*" multiple />
           <div>
-            <div style="font-size: 24px; margin-bottom: 8px;">📷</div>
-            <div>點擊選擇貼文縮圖（可多選）</div>
-            <div style="font-size: 12px; opacity: 0.7; margin-top: 4px;">最多 6 張，系統會自動壓縮</div>
+            <div style="font-size: 32px; margin-bottom: 12px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));">📷</div>
+            <div style="font-size: 16px; font-weight: 600; margin-bottom: 4px;">點擊選擇貼文縮圖（可多選）</div>
+            <div style="font-size: 12px; opacity: 0.7;">最多 6 張，系統會自動壓縮</div>
           </div>
         </div>
         <p class="upload-hint">💡 提供更多貼文可以讓 AI 更準確判斷你的風格類型</p>
@@ -383,7 +418,7 @@
         <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
         </svg>
-        開始分析我的 IG 風格
+        🚀 開始分析我的 IG 價值
       </button>
       <a class="btn btn-ghost" href="/static/landing.html">
         <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
