@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>你的 IG 身價評估｜分析結果</title>
   <link rel="stylesheet" href="/static/app.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -327,6 +328,84 @@
       box-shadow: 0 8px 20px rgba(102,126,234,0.3);
     }
     
+    /* 品牌契合度 */
+    .brand-fit-card .fit-row {
+      display: grid;
+      grid-template-columns: 140px 1fr 60px;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      background: #f8f9fa;
+      border-radius: 10px;
+      margin-bottom: 10px;
+    }
+    .fit-label { font-size:14px; color:#555; }
+    .fit-bar { height:10px; background:#e6e6e6; border-radius:6px; overflow:hidden; }
+    .fit-fill { height:100%; width:0%; background: linear-gradient(90deg,#667eea,#764ba2); transition: width .8s ease; }
+    .fit-score { font-weight:700; color:#667eea; text-align:right; }
+
+    /* 風格雷達圖容器 */
+    .radar-wrap { background:#fff; border-radius:16px; padding:20px; }
+    .radar-sub { font-size:13px; color:#777; margin-top:6px; }
+
+    /* 品牌建議 chips */
+    .chips { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
+    .chip { padding:6px 12px; border-radius:999px; background:linear-gradient(135deg,#a8edea,#fed6e3); color:#333; font-size:13px; font-weight:600; }
+
+    /* 建議清單 */
+    .brand-suggest li { padding:12px 14px; background:#f0fff6; border-left:4px solid #22c55e; border-radius:8px; margin-bottom:10px; }
+
+    /* 受眾分析 */
+    .audience-grid { display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-bottom:16px; }
+    .aud-card { background:#f8f9fa; border-radius:12px; padding:16px; text-align:center; }
+    .aud-chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+    .aud-chip { padding:4px 10px; border-radius:999px; background:linear-gradient(135deg,#e0c3fc,#8ec5fc); color:#333; font-size:12px; font-weight:500; }
+
+    /* 旅遊類別細分 */
+    .travel-split .split-row {
+      display: grid;
+      grid-template-columns: 120px 1fr 50px;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      background: #f8f9fa;
+      border-radius: 8px;
+      margin-bottom: 8px;
+    }
+    .split-label { font-size:13px; color:#555; }
+    .split-bar { height:8px; background:#e6e6e6; border-radius:4px; overflow:hidden; }
+    .split-fill { height:100%; width:0%; background: linear-gradient(90deg,#667eea,#764ba2); transition: width .8s ease; }
+    .split-score { font-weight:600; color:#667eea; text-align:right; font-size:13px; }
+
+    /* 報價區間信心條 */
+    .conf-row {
+      display: grid;
+      grid-template-columns: 100px 1fr;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .conf-label { font-size:14px; color:#555; font-weight:500; }
+    .conf-bar { 
+      height:12px; 
+      background:#f0f0f0; 
+      border-radius:6px; 
+      overflow:hidden; 
+      position:relative;
+    }
+    .conf-fill { 
+      height:100%; 
+      background: linear-gradient(90deg,#667eea,#764ba2); 
+      border-radius:6px;
+      transition: all .8s ease;
+    }
+    .conf-bounds { 
+      font-size:12px; 
+      color:#666; 
+      margin-top:4px; 
+      text-align:center;
+    }
+
     /* 響應式 */
     @media (max-width: 768px) {
       .value-amount {
@@ -343,6 +422,22 @@
       
       .card {
         padding: 24px 20px;
+      }
+
+      .audience-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .brand-fit-card .fit-row {
+        grid-template-columns: 120px 1fr 50px;
+      }
+
+      .travel-split .split-row {
+        grid-template-columns: 100px 1fr 45px;
+      }
+
+      .conf-row {
+        grid-template-columns: 80px 1fr;
       }
     }
   </style>
@@ -472,6 +567,87 @@
         <!-- JavaScript 動態生成 -->
       </div>
     </div>
+
+    <!-- 風格雷達圖 -->
+    <div class="card">
+      <h2 class="breakdown-title">🧭 風格指數 Radar</h2>
+      <div class="radar-wrap">
+        <canvas id="styleRadar" height="220"></canvas>
+        <div class="radar-sub">以「真實度、時尚感、親和力、娛樂性、專業度」五軸評估帳號調性。</div>
+      </div>
+    </div>
+
+    <!-- 品牌契合度 -->
+    <div class="card brand-fit-card">
+      <h2 class="breakdown-title">🏷️ 品牌契合度</h2>
+      <div id="brandFitRows"></div>
+      <div class="chips" id="brandFitChips"></div>
+    </div>
+
+    <!-- 合作品牌建議 -->
+    <div class="card">
+      <h2 class="breakdown-title">🤝 合作品牌建議</h2>
+      <ul class="brand-suggest" id="brandSuggestList"></ul>
+    </div>
+
+    <!-- 受眾輪廓推測 -->
+    <div class="card">
+      <h2 class="breakdown-title">👥 受眾輪廓（推測）</h2>
+      <div class="audience-grid">
+        <div class="aud-card">
+          <canvas id="genderPie" height="160"></canvas>
+          <div class="radar-sub">以影像/文字調性推測性別占比。</div>
+        </div>
+        <div class="aud-card">
+          <canvas id="ageBar" height="160"></canvas>
+          <div class="radar-sub">年齡區間（18–24、25–34、35–44、45+）。</div>
+        </div>
+      </div>
+      <div style="margin-top:12px;">
+        <div class="quality-label">城市／風格偏好（推測）</div>
+        <div class="aud-chips" id="cityStyleChips"></div>
+      </div>
+    </div>
+
+    <!-- 旅遊類別細分 -->
+    <div class="card travel-split">
+      <h2 class="breakdown-title">🏨 旅遊類別細分</h2>
+      <div id="travelSplitRows"></div>
+    </div>
+
+    <!-- 報價區間（信心條） -->
+    <div class="card">
+      <h2 class="breakdown-title">📉 報價區間（信心條）</h2>
+      <div class="conf-row">
+        <div class="conf-label">貼文 Post</div>
+        <div>
+          <div class="conf-bar"><div id="postConf" class="conf-fill" style="left:0%; width:0%"></div></div>
+          <div id="postBounds" class="conf-bounds"></div>
+        </div>
+      </div>
+      <div class="conf-row">
+        <div class="conf-label">限動 Story</div>
+        <div>
+          <div class="conf-bar"><div id="storyConf" class="conf-fill" style="left:0%; width:0%"></div></div>
+          <div id="storyBounds" class="conf-bounds"></div>
+        </div>
+      </div>
+      <div class="conf-row">
+        <div class="conf-label">短片 Reels</div>
+        <div>
+          <div class="conf-bar"><div id="reelsConf" class="conf-fill" style="left:0%; width:0%"></div></div>
+          <div id="reelsBounds" class="conf-bounds"></div>
+        </div>
+      </div>
+      <div class="conf-row">
+        <div class="conf-label">月配合</div>
+        <div>
+          <div class="conf-bar"><div id="monthlyConf" class="conf-fill" style="left:0%; width:0%"></div></div>
+          <div id="monthlyBounds" class="conf-bounds"></div>
+        </div>
+      </div>
+      <div class="radar-sub">說明：依視覺品質、專業度、內容類型與粉絲品質推估 ±(10%–35%) 的不確定性區間。</div>
+    </div>
     
     <!-- 價值陳述 -->
     <div class="card">
@@ -594,6 +770,207 @@
         `;
         qualityGrid.appendChild(div);
       });
+
+      // ---- Radar Style Index ----
+      const style = (analysis.style_index || {});
+      const radarData = [
+        style.authenticity ?? Math.min(10, (visual.overall || 6) * 0.9 + 1.5),
+        style.fashion ?? (visual.color_harmony || 6) * 0.9,
+        style.affinity ?? (mult.follower >= 1.5 ? 7.5 : 6.2),
+        style.entertainment ?? (contentType.primary?.includes('旅遊') || contentType.primary?.includes('生活') ? 7.8 : 6.0),
+        style.professional ?? (mult.professional ? 6 + (mult.professional-1)*4 : 6.2),
+      ].map(v => Math.max(3, Math.min(9.8, Number(v))));
+
+      const ctx = document.getElementById('styleRadar');
+      if (ctx && window.Chart) {
+        new Chart(ctx, {
+          type: 'radar',
+          data: {
+            labels: ['真實度','時尚感','親和力','娛樂性','專業度'],
+            datasets: [{
+              label: '風格指數',
+              data: radarData
+            }]
+          },
+          options: {
+            responsive: true,
+            scales: { r: { suggestedMin: 0, suggestedMax: 10, ticks: { stepSize: 2 } } },
+            plugins: { legend: { display: false } }
+          }
+        });
+      }
+
+      // ---- Brand Fit ----
+      const brandMap = [
+        { key:'旅遊', label:'旅宿/觀光', seed: 0.82 },
+        { key:'美食', label:'餐飲/食品', seed: 0.78 },
+        { key:'生活', label:'生活家電/日用品', seed: 0.75 },
+        { key:'時尚', label:'服飾/配件', seed: 0.70 },
+        { key:'科技', label:'3C/電商', seed: 0.66 },
+        { key:'美妝', label:'彩妝/保養', seed: 0.64 },
+      ];
+
+      const topic = (contentType.primary || '生活');
+      const base = (visual.overall || 6.8) / 10;
+      const rows = document.getElementById('brandFitRows');
+      const chips = document.getElementById('brandFitChips');
+      rows.innerHTML = ''; chips.innerHTML = '';
+
+      brandMap.forEach((b) => {
+        // heuristic: closer topic gets a small boost
+        const boost = topic.includes('旅遊') && b.key=='旅遊' ? 0.08 :
+                      topic.includes('美食') && b.key=='美食' ? 0.08 :
+                      topic.includes('時尚') && b.key=='時尚' ? 0.06 :
+                      topic.includes('生活') && b.key in {'生活':1,'美食':1,'旅遊':1} ? 0.03 : 0.0;
+        const score = Math.max(0.4, Math.min(0.96, b.seed*0.7 + base*0.3 + boost));
+        const pct = Math.round(score*100);
+
+        const row = document.createElement('div');
+        row.className = 'fit-row';
+        row.innerHTML = `
+          <div class="fit-label">${b.label}</div>
+          <div class="fit-bar"><div class="fit-fill" style="width:${pct}%"></div></div>
+          <div class="fit-score">${pct}%</div>`;
+        rows.appendChild(row);
+
+        if (pct >= 75) {
+          const chip = document.createElement('div');
+          chip.className = 'chip';
+          chip.textContent = '適合：' + b.label;
+          chips.appendChild(chip);
+        }
+      });
+
+      // ---- Collaboration Suggestions ----
+      const suggest = document.getElementById('brandSuggestList');
+      suggest.innerHTML = '';
+
+      function addSuggest(title, body) {
+        const li = document.createElement('li');
+        li.innerHTML = `<strong>${title}</strong><br>${body}`;
+        suggest.appendChild(li);
+      }
+
+      const tier = (value.follower_tier || '').toString();
+      const postVal = Number(value.post_value || 0);
+      const storyVal = Number(value.story_value || 0);
+      const reelsVal = Number(value.reels_value || 0);
+
+      addSuggest('旅宿 2天1夜 住宿交換 + 內容授權',
+        `以 Reels + 貼文 + 2-3 組 Story，換取平日入住（或折抵金額 NT$ ${(postVal*0.6).toLocaleString('zh-TW')}），建議加購二次曝光（加價 NT$ ${(storyVal*0.5).toLocaleString('zh-TW')}）。`);
+
+      addSuggest('餐飲試吃＋短影音套餐',
+        `1 Reels + 1 Story 精選（永久），建議報價 NT$ ${(reelsVal*0.85).toLocaleString('zh-TW')}，目標投放於商圈微型品牌。`);
+
+      addSuggest('生活家電體驗＋月配合',
+        `每月 1 貼文 + 2 Story，月費 NT$ ${(Math.max(15000, postVal*0.4+storyVal*0.6)).toLocaleString('zh-TW')}，含基礎素材授權（30天）。`);
+
+      if (postVal > 60000) {
+        addSuggest('品牌大使（季度）',
+          `每季 2 貼文 + 3 Reels + 6 Story，季度費用約 NT$ ${(postVal*3 + reelsVal*2).toLocaleString('zh-TW')}，含品牌頁面露出與官網素材。`);
+      }
+
+      // ---- Audience Synthesis ----
+      // defaults and heuristics
+      const aud = analysis.audience || {};
+      const male = aud.male_ratio ?? (topic.includes('時尚')||topic.includes('美妝') ? 0.38 : topic.includes('科技') ? 0.62 : 0.52);
+      const female = 1 - male;
+
+      const ageDist = aud.age_dist || [
+        Math.max(0.10, 0.30 - (visual.overall||7)/100),  // 18-24
+        Math.min(0.60, 0.45 + (mult.follower-1)*0.15),   // 25-34
+        0.18,                                            // 35-44
+        0.07                                             // 45+
+      ];
+      const s = ageDist.reduce((a,b)=>a+b,0);
+      for (let i=0;i<ageDist.length;i++) ageDist[i] = ageDist[i]/s;
+
+      if (window.Chart) {
+        const gctx = document.getElementById('genderPie');
+        if (gctx) new Chart(gctx, {
+          type:'doughnut',
+          data:{ labels:['男性','女性'], datasets:[{ data:[Math.round(male*100), Math.round(female*100)] }] },
+          options:{ plugins:{ legend:{ position:'bottom' } } }
+        });
+
+        const actx = document.getElementById('ageBar');
+        if (actx) new Chart(actx, {
+          type:'bar',
+          data:{
+            labels:['18–24','25–34','35–44','45+'],
+            datasets:[{ label:'占比(%)', data: ageDist.map(x=>Math.round(x*100)) }]
+          },
+          options:{ plugins:{ legend:{ display:false } }, scales:{ y:{ suggestedMax: 60 } } }
+        });
+      }
+
+      // City style chips
+      const chipEl = document.getElementById('cityStyleChips');
+      if (chipEl) {
+        chipEl.innerHTML = '';
+        const styles = aud.city_styles || (
+          topic.includes('旅遊') ? ['台北都會','海島度假','文化歷史'] :
+          topic.includes('美食') ? ['熱門商圈','夜市小吃','網美咖啡'] :
+          topic.includes('時尚') ? ['精品百貨','設計選物','潮流快閃'] :
+          ['生活機能','社區小店','郊外踏青']
+        );
+        styles.forEach(name => {
+          const d = document.createElement('div');
+          d.className = 'aud-chip';
+          d.textContent = name;
+          chipEl.appendChild(d);
+        });
+      }
+
+      // ---- Travel Split ----
+      const tsRows = document.getElementById('travelSplitRows');
+      if (tsRows) {
+        tsRows.innerHTML = '';
+        const baseScore = (contentType.primary||'').includes('旅遊') ? 0.80 : 0.65;
+        const cityHotel = Math.min(0.96, baseScore + (visual.composition||6)/100);
+        const resort = Math.min(0.96, baseScore + 0.06 + (visual.color_harmony||6)/120);
+        const designHotel = Math.min(0.96, baseScore + (uniqueness.style_signature||'').length/300);
+
+        const items = [
+          {label:'城市飯店', v: Math.round(cityHotel*100)},
+          {label:'度假村', v: Math.round(resort*100)},
+          {label:'設計旅店', v: Math.round(designHotel*100)},
+        ];
+
+        items.forEach(it => {
+          const row = document.createElement('div');
+          row.className = 'split-row';
+          row.innerHTML = `
+            <div class="split-label">${it.label}</div>
+            <div class="split-bar"><div class="split-fill" style="width:${it.v}%"></div></div>
+            <div class="split-score">${it.v}%</div>`;
+          tsRows.appendChild(row);
+        });
+      }
+
+      // ---- Pricing Confidence Bands ----
+      function setBounds(idFill, idText, center, pct){
+        const lo = Math.max(0, Math.round(center*(1-pct)));
+        const hi = Math.round(center*(1+pct));
+        const total = hi==0?1:hi;
+        const left = (lo/total)*100;
+        const width = ((hi-lo)/total)*100;
+        const fill = document.getElementById(idFill);
+        const txt = document.getElementById(idText);
+        if (fill) { fill.style.left = left+'%'; fill.style.width = width+'%'; }
+        if (txt) { txt.textContent = `估計區間：NT$ ${lo.toLocaleString('zh-TW')} ~ NT$ ${hi.toLocaleString('zh-TW')}（±${Math.round(pct*100)}%）`; }
+      }
+
+      const uncertBase = 0.10 + Math.max(0, 0.25 - (visual.overall||7)/20); // 10%~35%
+      const postUn = Math.min(0.35, uncertBase - (mult.professional-1)*0.08);
+      const storyUn = Math.min(0.35, uncertBase + 0.02);
+      const reelsUn = Math.min(0.35, uncertBase + 0.05);
+      const monthlyUn = Math.min(0.30, uncertBase - 0.03);
+
+      setBounds('postConf','postBounds', Number(value.post_value||0), Math.max(0.10, postUn));
+      setBounds('storyConf','storyBounds', Number(value.story_value||0), Math.max(0.12, storyUn));
+      setBounds('reelsConf','reelsBounds', Number(value.reels_value||0), Math.max(0.15, reelsUn));
+      setBounds('monthlyConf','monthlyBounds', Number(value.monthly_package||0), Math.max(0.10, monthlyUn));
       
       // 價值陳述
       document.getElementById('valueStatement').textContent = 
