@@ -10,8 +10,12 @@
   <script type="module">
     import { synthesizeAudience } from './audience_model.js';
     import { synthesizeTravelSplit } from './travel_split_model.js';
+    import { getConfidenceBands } from './pricing_confidence_model.js';
+    import { computeBrandFit } from './brand_fit_model.js';
     window._IG_Audience = { synthesizeAudience };
     window._IG_Travel = { synthesizeTravelSplit };
+    window._IG_Pricing = { getConfidenceBands };
+    window._IG_BrandFit = { computeBrandFit };
   </script>
   <style>
     body {
@@ -808,44 +812,31 @@
       }
 
       // ---- Brand Fit ----
-      const brandMap = [
-        { key:'旅遊', label:'旅宿/觀光', seed: 0.82 },
-        { key:'美食', label:'餐飲/食品', seed: 0.78 },
-        { key:'生活', label:'生活家電/日用品', seed: 0.75 },
-        { key:'時尚', label:'服飾/配件', seed: 0.70 },
-        { key:'科技', label:'3C/電商', seed: 0.66 },
-        { key:'美妝', label:'彩妝/保養', seed: 0.64 },
-      ];
+      const bf = window._IG_BrandFit?.computeBrandFit({
+        topic,
+        visual,
+        multipliers: mult
+      }) || { scores: [], suggested: [] };
 
-      const topic = (contentType.primary || '生活');
-      const base = (visual.overall || 6.8) / 10;
       const rows = document.getElementById('brandFitRows');
       const chips = document.getElementById('brandFitChips');
       rows.innerHTML = ''; chips.innerHTML = '';
 
-      brandMap.forEach((b) => {
-        // heuristic: closer topic gets a small boost
-        const boost = topic.includes('旅遊') && b.key=='旅遊' ? 0.08 :
-                      topic.includes('美食') && b.key=='美食' ? 0.08 :
-                      topic.includes('時尚') && b.key=='時尚' ? 0.06 :
-                      topic.includes('生活') && b.key in {'生活':1,'美食':1,'旅遊':1} ? 0.03 : 0.0;
-        const score = Math.max(0.4, Math.min(0.96, b.seed*0.7 + base*0.3 + boost));
-        const pct = Math.round(score*100);
-
+      (bf.scores || []).forEach(item => {
         const row = document.createElement('div');
         row.className = 'fit-row';
         row.innerHTML = `
-          <div class="fit-label">${b.label}</div>
-          <div class="fit-bar"><div class="fit-fill" style="width:${pct}%"></div></div>
-          <div class="fit-score">${pct}%</div>`;
+          <div class="fit-label">${item.label}</div>
+          <div class="fit-bar"><div class="fit-fill" style="width:${item.score}%"></div></div>
+          <div class="fit-score">${item.score}%</div>`;
         rows.appendChild(row);
+      });
 
-        if (pct >= 75) {
-          const chip = document.createElement('div');
-          chip.className = 'chip';
-          chip.textContent = '適合：' + b.label;
-          chips.appendChild(chip);
-        }
+      (bf.suggested || []).forEach(t => {
+        const chip = document.createElement('div');
+        chip.className = 'chip';
+        chip.textContent = t;
+        chips.appendChild(chip);
       });
 
       // ---- Collaboration Suggestions ----
@@ -955,16 +946,17 @@
         if (txt) { txt.textContent = `估計區間：NT$ ${lo.toLocaleString('zh-TW')} ~ NT$ ${hi.toLocaleString('zh-TW')}（±${Math.round(pct*100)}%）`; }
       }
 
-      const uncertBase = 0.10 + Math.max(0, 0.25 - (visual.overall||7)/20); // 10%~35%
-      const postUn = Math.min(0.35, uncertBase - (mult.professional-1)*0.08);
-      const storyUn = Math.min(0.35, uncertBase + 0.02);
-      const reelsUn = Math.min(0.35, uncertBase + 0.05);
-      const monthlyUn = Math.min(0.30, uncertBase - 0.03);
+      const bands = window._IG_Pricing?.getConfidenceBands({
+        value,
+        visual,
+        mult,
+        contentPrimary: contentType.primary || ''
+      }) || { post:0.2, story:0.22, reels:0.25, monthly:0.15 };
 
-      setBounds('postConf','postBounds', Number(value.post_value||0), Math.max(0.10, postUn));
-      setBounds('storyConf','storyBounds', Number(value.story_value||0), Math.max(0.12, storyUn));
-      setBounds('reelsConf','reelsBounds', Number(value.reels_value||0), Math.max(0.15, reelsUn));
-      setBounds('monthlyConf','monthlyBounds', Number(value.monthly_package||0), Math.max(0.10, monthlyUn));
+      setBounds('postConf','postBounds', Number(value.post_value||0), bands.post);
+      setBounds('storyConf','storyBounds', Number(value.story_value||0), bands.story);
+      setBounds('reelsConf','reelsBounds', Number(value.reels_value||0), bands.reels);
+      setBounds('monthlyConf','monthlyBounds', Number(value.monthly_package||0), bands.monthly);
       
       // 價值陳述
       document.getElementById('valueStatement').textContent = 
