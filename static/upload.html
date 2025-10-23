@@ -174,45 +174,228 @@
       font-weight: 500;
     }
     
-    .action-buttons {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: var(--spacing);
+    /* 按鈕區域樣式 */
+    .grid {
       margin-top: var(--spacing-lg);
     }
     
-    .action-buttons .btn {
-      width: 100%;
-      font-size: var(--font-size-sm);
-      padding: 12px 20px;
-      min-height: 44px;
-      font-weight: 600;
-      border-radius: var(--radius-md);
+    /* 重新設計為鏈接樣式 - 不使用按鈕 */
+    .container {
+      max-width: 480px;
+      margin: 0 auto;
     }
     
-    .action-buttons .btn-primary {
-      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-      color: var(--text-inverse);
-      box-shadow: 0 4px 15px rgba(34, 211, 238, 0.3);
-      border: none;
+    /* 動作鏈接容器 */
+    .action-links {
+      margin-top: var(--spacing-lg);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
     }
     
-    .action-buttons .btn-primary:hover {
+    /* 主要動作鏈接 */
+    .action-link.primary {
+      display: inline-block;
+      padding: 8px 16px;
+      background: linear-gradient(135deg, #22d3ee, #a855f7);
+      color: white;
+      text-decoration: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      text-align: center;
+      transition: all 0.2s ease;
+      box-shadow: 0 2px 8px rgba(34, 211, 238, 0.2);
+    }
+    
+    .action-link.primary:hover {
       transform: translateY(-1px);
-      box-shadow: 0 6px 20px rgba(34, 211, 238, 0.4);
-      filter: brightness(1.05);
+      box-shadow: 0 4px 12px rgba(34, 211, 238, 0.3);
+      background: linear-gradient(135deg, #06b6d4, #9333ea);
     }
     
-    .action-buttons .btn-ghost {
+    /* 次要動作鏈接 */
+    .action-link.secondary {
+      display: inline-block;
+      padding: 6px 12px;
       background: transparent;
       color: var(--text);
-      border: 1px solid var(--border-light);
+      text-decoration: none;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 400;
+      text-align: center;
+      transition: all 0.2s ease;
     }
     
-    .action-buttons .btn-ghost:hover {
-      background: rgba(255, 255, 255, 0.05);
+    .action-link.secondary:hover {
+      background: var(--bg-light);
       border-color: var(--primary);
-      transform: translateY(-1px);
+      color: var(--primary);
+    }
+    
+    /* 範例圖片區域樣式 */
+    .example-section {
+      margin-bottom: var(--spacing-lg);
+      padding: var(--spacing);
+      background: linear-gradient(135deg, rgba(34, 211, 238, 0.05) 0%, rgba(168, 85, 247, 0.05) 100%);
+      border-radius: var(--radius-md);
+      border: 1px solid rgba(34, 211, 238, 0.2);
+    }
+    
+    .example-title {
+      font-size: var(--font-size-lg);
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: var(--spacing);
+      text-align: center;
+    }
+    
+    .example-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--spacing);
+    }
+    
+    .example-item {
+      text-align: center;
+      padding: var(--spacing-sm);
+      border-radius: var(--radius-md);
+      transition: all 0.3s ease;
+    }
+    
+    .example-item.correct {
+      background: linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(16, 185, 129, 0.1) 100%);
+      border: 1px solid rgba(34, 197, 94, 0.3);
+    }
+    
+    .example-item.incorrect {
+      background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(220, 38, 38, 0.1) 100%);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+    
+    .example-label {
+      font-size: var(--font-size-sm);
+      font-weight: 600;
+      margin-bottom: var(--spacing-xs);
+    }
+    
+    .example-item.correct .example-label {
+      color: #10b981;
+    }
+    
+    .example-item.incorrect .example-label {
+      color: #ef4444;
+    }
+    
+    .example-image {
+      margin-bottom: var(--spacing-xs);
+    }
+    
+    .example-image img {
+      width: 100%;
+      max-width: 150px;
+      height: auto;
+      border-radius: var(--radius-sm);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      object-fit: cover;
+      aspect-ratio: 3/4;
+    }
+    
+    .example-desc {
+      font-size: var(--font-size-xs);
+      color: var(--text-light);
+      line-height: 1.4;
+    }
+    
+    @media (max-width: 640px) {
+      .example-grid {
+        grid-template-columns: 1fr;
+        gap: var(--spacing-sm);
+      }
+      
+      .example-image img {
+        max-width: 100px;
+      }
+    }
+    
+    /* 貼文範例區域樣式 */
+    .posts-example-section {
+      margin-bottom: var(--spacing-lg);
+      padding: var(--spacing);
+      background: linear-gradient(135deg, rgba(34, 211, 238, 0.05) 0%, rgba(168, 85, 247, 0.05) 100%);
+      border-radius: var(--radius-md);
+      border: 1px solid rgba(34, 211, 238, 0.2);
+    }
+    
+    .posts-example-title {
+      font-size: var(--font-size-lg);
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: var(--spacing);
+      text-align: center;
+    }
+    
+    .posts-example-grid {
+      display: flex;
+      justify-content: center;
+    }
+    
+    .posts-example-item {
+      text-align: center;
+      padding: var(--spacing-sm);
+      border-radius: var(--radius-md);
+      background: linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(16, 185, 129, 0.1) 100%);
+      border: 1px solid rgba(34, 197, 94, 0.3);
+    }
+    
+    .posts-example-label {
+      font-size: var(--font-size-sm);
+      font-weight: 600;
+      margin-bottom: var(--spacing-xs);
+      color: #10b981;
+    }
+    
+    .posts-example-images {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: var(--spacing-xs);
+      justify-items: center;
+    }
+    
+    .posts-example-image {
+      width: 90px;
+      height: 90px;
+    }
+    
+    .posts-example-image img {
+      width: 100%;
+      height: 100%;
+      border-radius: var(--radius-sm);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      object-fit: cover;
+    }
+    
+    .posts-example-desc {
+      font-size: var(--font-size-xs);
+      color: var(--text-light);
+      line-height: 1.4;
+    }
+    
+    @media (max-width: 640px) {
+      .posts-example-images {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+      }
+      
+      .posts-example-image {
+        width: 75px;
+        height: 75px;
+      }
     }
     
     /* Loading Overlay */
@@ -376,14 +559,6 @@
       }
     }
     
-    @media (max-width: 768px) {
-      .action-buttons .btn {
-        padding: 14px 20px;
-        font-size: var(--font-size);
-        min-height: 48px;
-      }
-    }
-    
     @media (max-width: 640px) {
       .container {
         padding: var(--spacing);
@@ -395,20 +570,6 @@
       
       .page-description {
         font-size: var(--font-size);
-      }
-      
-      .action-buttons .btn {
-        padding: 14px 20px;
-        font-size: var(--font-size);
-        min-height: 48px;
-      }
-    }
-    
-    @media (max-width: 480px) {
-      .action-buttons .btn {
-        padding: 14px 20px;
-        font-size: var(--font-size);
-        min-height: 52px;
       }
     }
   </style>
@@ -437,6 +598,28 @@
     <div class="card upload-section">
       <div class="form-group">
         <label class="form-label">📸 IG 個人頁截圖（必填）</label>
+        
+        <!-- 範例圖片區域 -->
+        <div class="example-section">
+          <div class="example-title">📋 截圖範例</div>
+          <div class="example-grid">
+            <div class="example-item correct">
+              <div class="example-label">✅ 正確範例</div>
+              <div class="example-image">
+                <img src="/static/examples/correct-example.jpg" alt="正確範例 - Instagram個人頁面截圖" />
+              </div>
+              <div class="example-desc">包含完整個人資訊：用戶名、粉絲數、追蹤數、貼文數、個人簡介、精選動態、貼文網格</div>
+            </div>
+            <div class="example-item incorrect">
+              <div class="example-label">❌ 錯誤範例</div>
+              <div class="example-image">
+                <img src="/static/examples/incorrect-example.jpg" alt="錯誤範例 - Instagram動態消息頁面" />
+              </div>
+              <div class="example-desc">這是動態消息頁面，缺少個人資訊，不適合用於帳號價值分析</div>
+            </div>
+          </div>
+        </div>
+        
         <div class="file-upload">
           <input id="profile" type="file" accept="image/*" required />
           <div>
@@ -453,6 +636,29 @@
     <div class="card upload-section">
       <div class="form-group">
         <label class="form-label">🖼️ 貼文縮圖（選填，可多選）</label>
+        
+        <!-- 貼文範例區域 -->
+        <div class="posts-example-section">
+          <div class="posts-example-title">📋 貼文範例</div>
+          <div class="posts-example-grid">
+            <div class="posts-example-item">
+              <div class="posts-example-label">✅ 正確範例</div>
+              <div class="posts-example-images">
+                <div class="posts-example-image">
+                  <img src="/static/examples/IMG_3826.jpg" alt="貼文範例1" />
+                </div>
+                <div class="posts-example-image">
+                  <img src="/static/examples/IMG_3827.jpg" alt="貼文範例2" />
+                </div>
+                <div class="posts-example-image">
+                  <img src="/static/examples/IMG_3828.jpg" alt="貼文範例3" />
+                </div>
+              </div>
+              <div class="posts-example-desc">任何IG個人頁圖片都可以，AI會自動分析內容風格</div>
+            </div>
+          </div>
+        </div>
+        
         <div class="file-upload">
           <input id="posts" type="file" accept="image/*" multiple />
           <div>
@@ -466,18 +672,12 @@
       </div>
     </div>
 
-    <div class="action-buttons">
-      <button class="btn btn-primary" onclick="startAnalyze()">
-        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
-        </svg>
+    <div class="action-links">
+      <a href="#" class="action-link primary" onclick="startAnalyze(); return false;">
         🚀 開始分析我的 IG 價值
-      </button>
-      <a class="btn btn-ghost" href="/static/landing.html">
-        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M19 12H5M12 19l-7-7 7-7"/>
-        </svg>
-        返回首頁
+      </a>
+      <a href="/static/landing.html" class="action-link secondary">
+        ← 返回首頁
       </a>
     </div>
 

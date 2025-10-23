@@ -4,24 +4,24 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>我的 IG 帳號價值報告</title>
-    <style>
+  <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
 
-        body {
+    body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
             padding: 20px;
-            display: flex;
+      display: flex;
             justify-content: center;
-            align-items: center;
-        }
-
-        .container {
+      align-items: center;
+    }
+    
+    .container {
             max-width: 500px;
             width: 100%;
             background: rgba(255, 255, 255, 0.98);
@@ -35,19 +35,19 @@
         .header {
             background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
             padding: 40px 30px;
-            text-align: center;
-            position: relative;
-            overflow: hidden;
-        }
-
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    
         .header::before {
-            content: '';
-            position: absolute;
-            top: -50%;
+      content: '';
+      position: absolute;
+      top: -50%;
             left: -50%;
-            width: 200%;
-            height: 200%;
-            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
             animation: pulse 4s ease-in-out infinite;
         }
 
@@ -62,10 +62,10 @@
             font-weight: 700;
             margin-bottom: 10px;
             text-shadow: 0 2px 4px rgba(0,0,0,0.2);
-            position: relative;
-            z-index: 1;
-        }
-
+      position: relative;
+      z-index: 1;
+    }
+    
         .username::before {
             content: '@';
             opacity: 0.8;
@@ -93,7 +93,7 @@
         }
 
         .stat-label {
-            opacity: 0.9;
+      opacity: 0.9;
             font-size: 11px;
         }
 
@@ -120,12 +120,12 @@
             font-size: 16px;
             color: #666;
             margin-bottom: 15px;
-            font-weight: 500;
-        }
-
+      font-weight: 500;
+    }
+    
         .total-value {
             font-size: 64px;
-            font-weight: 800;
+      font-weight: 800;
             background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
@@ -190,7 +190,7 @@
 
         .personality-details {
             display: flex;
-            align-items: center;
+      align-items: center;
             gap: 15px;
         }
 
@@ -205,7 +205,7 @@
 
         .personality-name {
             font-size: 18px;
-            font-weight: 700;
+      font-weight: 700;
             margin-bottom: 3px;
         }
 
@@ -229,7 +229,7 @@
         }
 
         .analysis-title {
-            font-size: 16px;
+      font-size: 16px;
             font-weight: 700;
             color: #333;
             margin-bottom: 15px;
@@ -239,7 +239,7 @@
         .analysis-text {
             font-size: 14px;
             line-height: 1.8;
-            color: #555;
+      color: #555;
             background: #f8f9fa;
             padding: 20px;
             border-radius: 15px;
@@ -258,7 +258,7 @@
         .pricing-section {
             padding: 25px 30px;
             background: linear-gradient(180deg, #fafafa 0%, #f5f5f5 100%);
-            border-radius: 20px;
+      border-radius: 20px;
             margin: 0 30px 25px;
         }
 
@@ -302,8 +302,8 @@
         }
 
         .price-value {
-            font-size: 20px;
-            font-weight: 700;
+      font-size: 20px;
+      font-weight: 700;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
@@ -319,7 +319,7 @@
         .multipliers-title {
             font-size: 16px;
             font-weight: 700;
-            color: #333;
+      color: #333;
             margin-bottom: 15px;
             text-align: center;
         }
@@ -334,9 +334,9 @@
             background: white;
             border-radius: 12px;
             padding: 12px;
-            display: flex;
+      display: flex;
             justify-content: space-between;
-            align-items: center;
+      align-items: center;
             border: 1px solid #f0f0f0;
         }
 
@@ -375,8 +375,8 @@
             border-radius: 8px;
             padding: 12px 15px;
             margin-bottom: 10px;
-            font-size: 13px;
-            color: #555;
+      font-size: 13px;
+      color: #555;
             line-height: 1.5;
         }
 
@@ -393,14 +393,14 @@
         }
 
         .share-button {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
             padding: 15px 40px;
             border-radius: 25px;
-            font-size: 16px;
+      font-size: 16px;
             font-weight: 700;
-            cursor: pointer;
+      cursor: pointer;
             box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
             transition: all 0.3s ease;
             display: inline-flex;
@@ -409,7 +409,7 @@
         }
 
         .share-button:hover {
-            transform: translateY(-2px);
+      transform: translateY(-2px);
             box-shadow: 0 15px 35px rgba(102, 126, 234, 0.5);
         }
 
@@ -449,13 +449,13 @@
             }
 
             .pricing-cards {
-                grid-template-columns: 1fr;
-            }
-
+        grid-template-columns: 1fr;
+      }
+      
             .multiplier-grid {
-                grid-template-columns: 1fr;
-            }
-
+        grid-template-columns: 1fr;
+      }
+      
             .pricing-section {
                 margin: 0 20px 25px;
                 padding: 20px;
@@ -485,8 +485,8 @@
 
         .hidden {
             display: none;
-        }
-    </style>
+    }
+  </style>
 </head>
 <body>
     <div class="container">
@@ -494,8 +494,8 @@
         <div id="loading" class="loading">
             <div class="loading-spinner"></div>
             <p>正在分析你的 IG 帳號...</p>
-        </div>
-
+    </div>
+    
         <!-- 結果展示（預設隱藏） -->
         <div id="result" class="hidden">
             <!-- Instagram 風格頭部 -->
@@ -505,18 +505,18 @@
                     <div class="stat-item">
                         <span class="stat-number" id="followers">0</span>
                         <span class="stat-label">粉絲</span>
-                    </div>
+        </div>
                     <div class="stat-item">
                         <span class="stat-number" id="following">0</span>
                         <span class="stat-label">追蹤</span>
-                    </div>
+        </div>
                     <div class="stat-item">
                         <span class="stat-number" id="posts">0</span>
                         <span class="stat-label">貼文</span>
-                    </div>
-                </div>
-            </div>
-
+          </div>
+      </div>
+    </div>
+    
             <!-- 主要價值展示 -->
             <div class="value-section">
                 <div class="value-title">你的帳號總價值</div>
@@ -528,7 +528,7 @@
                     <div class="account-badges">
                         <div class="badge tier-badge" id="follower-tier">評估中</div>
                         <div class="badge personality-badge" id="personality-type">分析中...</div>
-                    </div>
+          </div>
                     <div class="personality-details">
                         <span class="personality-emoji" id="personality-emoji">✨</span>
                         <div class="personality-info">
@@ -536,18 +536,18 @@
                             <div class="personality-en" id="personality-en">Analyzing...</div>
                             <div class="personality-confidence">
                                 信心度：<span id="personality-confidence">0</span>%
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
+        </div>
+          </div>
+          </div>
+          </div>
+        </div>
+        
             <!-- AI 專業分析（新增，僅當有 analysis_text 時顯示）-->
             <div class="analysis-section" id="analysis-section" style="display:none;">
                 <div class="analysis-title">💼 專業估值分析</div>
                 <div class="analysis-text" id="analysis-text"></div>
-            </div>
-
+        </div>
+        
             <!-- 合作報價（整合到價值展示區） -->
             <div class="pricing-section">
                 <div class="pricing-title">💰 合作報價參考</div>
@@ -555,33 +555,33 @@
                     <div class="price-card">
                         <div class="price-type">貼文</div>
                         <div class="price-value" id="post-value">NT$ 0</div>
-                    </div>
+          </div>
                     <div class="price-card">
                         <div class="price-type">限動</div>
                         <div class="price-value" id="story-value">NT$ 0</div>
-                    </div>
+          </div>
                     <div class="price-card">
                         <div class="price-type">短影音</div>
                         <div class="price-value" id="reels-value">NT$ 0</div>
-                    </div>
-                </div>
-            </div>
-
+        </div>
+      </div>
+    </div>
+    
             <!-- 係數展示 -->
             <div class="multipliers-section">
                 <div class="multipliers-title">📊 價值係數</div>
                 <div class="multiplier-grid" id="multipliers-grid">
                     <!-- 將由 JS 動態生成 -->
-                </div>
-            </div>
+      </div>
+    </div>
 
             <!-- 提升建議 -->
             <div class="tips-section">
                 <div class="tips-title">💡 價值提升建議</div>
                 <div id="tips-container">
                     <!-- 將由 JS 動態生成 -->
-                </div>
-            </div>
+      </div>
+    </div>
 
             <!-- 分享按鈕 -->
             <div class="share-section">
@@ -589,13 +589,13 @@
                     <span>📸</span>
                     <span>分享我的帳號價值</span>
                 </button>
-            </div>
+    </div>
 
             <!-- 底部 -->
             <div class="footer">
                 Powered by IG Value Estimation System V5
-            </div>
-        </div>
+    </div>
+      </div>
     </div>
 
     <script>
@@ -687,14 +687,14 @@
 
         // 渲染結果
         function renderResult(data) {
-            // 基本資訊
+      // 基本資訊
             document.getElementById('username').textContent = data.username || 'username';
-            document.getElementById('followers').textContent = formatNumber(data.followers || 0);
-            document.getElementById('following').textContent = formatNumber(data.following || 0);
-            document.getElementById('posts').textContent = formatNumber(data.posts || 0);
-
+      document.getElementById('followers').textContent = formatNumber(data.followers || 0);
+      document.getElementById('following').textContent = formatNumber(data.following || 0);
+      document.getElementById('posts').textContent = formatNumber(data.posts || 0);
+      
             // 粉絲級別和人格類型
-            const value = data.value_estimation || {};
+      const value = data.value_estimation || {};
             const personality = data.primary_type || {};
             
             // 更新粉絲級別徽章
@@ -830,11 +830,11 @@
             });
 
             // 提升建議
-            const tips = data.improvement_tips || [];
+      const tips = data.improvement_tips || [];
             const tipsContainer = document.getElementById('tips-container');
             tipsContainer.innerHTML = '';
-
-            tips.forEach(tip => {
+      
+        tips.forEach(tip => {
                 const tipItem = document.createElement('div');
                 tipItem.className = 'tip-item';
                 tipItem.textContent = tip;
@@ -969,6 +969,6 @@
                 `;
             }
         });
-    </script>
+  </script>
 </body>
 </html>
