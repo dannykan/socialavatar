@@ -994,8 +994,18 @@
             
             if (value.account_value_min && value.account_value_max) {
                 // V5：使用 AI 給的價格區間（取中間值）
-                accountValue = Math.floor((value.account_value_min + value.account_value_max) / 2);
-                console.log('Using AI estimated value:', accountValue);
+                const aiValue = Math.floor((value.account_value_min + value.account_value_max) / 2);
+                const calculatedValue = calculateAccountValue(data);
+                
+                // 檢查 AI 估值是否合理（不應低於前端計算的 50%）
+                if (aiValue >= calculatedValue * 0.5) {
+                    accountValue = aiValue;
+                    console.log('Using AI estimated value:', accountValue);
+                } else {
+                    accountValue = calculatedValue;
+                    console.log('AI value too low, using calculated value:', accountValue);
+                    console.log('AI value:', aiValue, 'Calculated value:', calculatedValue);
+                }
             } else {
                 // V4：前端計算
                 accountValue = calculateAccountValue(data);
@@ -1003,6 +1013,8 @@
             }
             
             const totalValueEl = document.getElementById('total-value');
+            console.log('Total value element found:', totalValueEl);
+            console.log('Current total value text:', totalValueEl?.textContent);
             
             // 數字動畫效果
             let currentValue = 0;
@@ -1014,6 +1026,7 @@
                     clearInterval(timer);
                 }
                 totalValueEl.textContent = formatPrice(Math.floor(currentValue));
+                console.log('Updated total value to:', totalValueEl.textContent);
             }, 20);
 
             // 社群定位詳細資訊
@@ -1102,9 +1115,25 @@
             }
             
             // 顯示報價
-            document.getElementById('post-value').textContent = formatPrice(postPrice);
-            document.getElementById('story-value').textContent = formatPrice(storyPrice);
-            document.getElementById('reels-value').textContent = formatPrice(reelsPrice);
+            const postValueEl = document.getElementById('post-value');
+            const storyValueEl = document.getElementById('story-value');
+            const reelsValueEl = document.getElementById('reels-value');
+            
+            console.log('Pricing elements found:', {
+                post: postValueEl,
+                story: storyValueEl,
+                reels: reelsValueEl
+            });
+            
+            postValueEl.textContent = formatPrice(postPrice);
+            storyValueEl.textContent = formatPrice(storyPrice);
+            reelsValueEl.textContent = formatPrice(reelsPrice);
+            
+            console.log('Updated pricing values:', {
+                post: postValueEl.textContent,
+                story: storyValueEl.textContent,
+                reels: reelsValueEl.textContent
+            });
 
             // 係數
             const multipliers = value.multipliers || {};
