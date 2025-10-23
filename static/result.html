@@ -992,25 +992,9 @@
             console.log('Account value min:', value.account_value_min);
             console.log('Account value max:', value.account_value_max);
             
-            if (value.account_value_min && value.account_value_max) {
-                // V5：使用 AI 給的價格區間（取中間值）
-                const aiValue = Math.floor((value.account_value_min + value.account_value_max) / 2);
-                const calculatedValue = calculateAccountValue(data);
-                
-                // 檢查 AI 估值是否合理（不應低於前端計算的 50%）
-                if (aiValue >= calculatedValue * 0.5) {
-                    accountValue = aiValue;
-                    console.log('Using AI estimated value:', accountValue);
-                } else {
-                    accountValue = calculatedValue;
-                    console.log('AI value too low, using calculated value:', accountValue);
-                    console.log('AI value:', aiValue, 'Calculated value:', calculatedValue);
-                }
-            } else {
-                // V4：前端計算
-                accountValue = calculateAccountValue(data);
-                console.log('Using calculated value:', accountValue);
-            }
+            // 直接使用前端計算的估值系統
+            accountValue = calculateAccountValue(data);
+            console.log('Using frontend calculated value:', accountValue);
             
             const totalValueEl = document.getElementById('total-value');
             console.log('Total value element found:', totalValueEl);
@@ -1054,14 +1038,7 @@
                 reels_value: value.reels_value
             });
             
-            // 優先使用 AI 估算的價格（V5）
-            if (value.post_value && value.story_value && value.reels_value) {
-                postPrice = value.post_value;
-                storyPrice = value.story_value;
-                reelsPrice = value.reels_value;
-                console.log('Using AI pricing:', { postPrice, storyPrice, reelsPrice });
-            } else {
-                // 降級使用前端計算（V4）
+            // 直接使用前端計算的報價系統
                 const followers = data.followers || 0;
                 const multipliers = value.multipliers || {};
                 
