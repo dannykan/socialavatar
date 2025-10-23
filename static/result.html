@@ -552,6 +552,8 @@
       if (evt && !confirm('確定要清除所有資料？\n\n這將刪除分析結果並登出。')) return;
       
       try {
+        console.log('[CLEAR] Starting clear and restart process...');
+        
         const [{ initializeApp, getApps }, { getAuth, signOut }, { getFirestore, doc, deleteDoc }] = 
           await Promise.all([
             import('https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js'),
@@ -574,17 +576,41 @@
         
         const user = auth.currentUser;
         if (user) {
-          await deleteDoc(doc(db, 'users', user.uid)).catch(()=>{});
+          console.log('[CLEAR] Deleting user data from Firestore for user:', user.uid);
+          try {
+            await deleteDoc(doc(db, 'users', user.uid));
+            console.log('[CLEAR] ✅ Successfully deleted user data from Firestore');
+          } catch (deleteError) {
+            console.error('[CLEAR] ❌ Failed to delete user data from Firestore:', deleteError);
+            // 即使刪除失敗，也繼續清除流程
+            alert('⚠️ 清除 Firestore 資料時遇到問題，但會繼續清除其他資料。\n\n錯誤：' + deleteError.message);
+          }
+        } else {
+          console.log('[CLEAR] No authenticated user found');
         }
         
+        // 清除本地存儲
+        console.log('[CLEAR] Clearing session and local storage...');
         sessionStorage.clear();
         localStorage.clear();
-        await signOut(auth).catch(()=>{});
         
+        // 登出
+        console.log('[CLEAR] Signing out user...');
+        try {
+          await signOut(auth);
+          console.log('[CLEAR] ✅ Successfully signed out user');
+        } catch (signOutError) {
+          console.error('[CLEAR] ❌ Failed to sign out user:', signOutError);
+          // 即使登出失敗，也繼續跳轉
+        }
+        
+        console.log('[CLEAR] ✅ Clear process completed, redirecting to landing page');
         alert('✅ 已清除所有資料\n\n請重新登入');
         location.replace('/static/landing.html');
+        
       } catch (e) {
-        alert('清除失敗：' + e.message);
+        console.error('[CLEAR] ❌ Clear process failed:', e);
+        alert('清除失敗：' + e.message + '\n\n請重新整理頁面後重試。');
       }
     }
 
