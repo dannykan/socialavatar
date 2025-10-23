@@ -705,8 +705,27 @@
       return num.toLocaleString('zh-TW');
     }
 
+    function destroyAllCharts() {
+      // 銷毀所有圖表實例
+      if (window.styleRadarChart) {
+        window.styleRadarChart.destroy();
+        window.styleRadarChart = null;
+      }
+      if (window.genderPieChart) {
+        window.genderPieChart.destroy();
+        window.genderPieChart = null;
+      }
+      if (window.ageBarChart) {
+        window.ageBarChart.destroy();
+        window.ageBarChart = null;
+      }
+    }
+
     function fillUI(data) {
       console.log('Filling UI with data:', data);
+      
+      // 清理現有圖表實例
+      destroyAllCharts();
       
       // 基本資訊
       document.getElementById('displayName').textContent = data.display_name || '使用者';
@@ -794,7 +813,12 @@
 
       const ctx = document.getElementById('styleRadar');
       if (ctx && window.Chart) {
-        new Chart(ctx, {
+        // 銷毀現有的圖表實例
+        if (window.styleRadarChart) {
+          window.styleRadarChart.destroy();
+        }
+        
+        window.styleRadarChart = new Chart(ctx, {
           type: 'radar',
           data: {
             labels: ['真實度','時尚感','親和力','娛樂性','專業度'],
@@ -882,21 +906,35 @@
 
       if (window.Chart) {
         const gctx = document.getElementById('genderPie');
-        if (gctx) new Chart(gctx, {
-          type:'doughnut',
-          data:{ labels:['男性','女性'], datasets:[{ data:[Math.round(male*100), Math.round(female*100)] }] },
-          options:{ plugins:{ legend:{ position:'bottom' } } }
-        });
+        if (gctx) {
+          // 銷毀現有的性別圓餅圖實例
+          if (window.genderPieChart) {
+            window.genderPieChart.destroy();
+          }
+          
+          window.genderPieChart = new Chart(gctx, {
+            type:'doughnut',
+            data:{ labels:['男性','女性'], datasets:[{ data:[Math.round(male*100), Math.round(female*100)] }] },
+            options:{ plugins:{ legend:{ position:'bottom' } } }
+          });
+        }
 
         const actx = document.getElementById('ageBar');
-        if (actx) new Chart(actx, {
-          type:'bar',
-          data:{
-            labels:['18–24','25–34','35–44','45+'],
-            datasets:[{ label:'占比(%)', data: ageDist.map(x=>Math.round(x*100)) }]
-          },
-          options:{ plugins:{ legend:{ display:false } }, scales:{ y:{ suggestedMax: 60 } } }
-        });
+        if (actx) {
+          // 銷毀現有的年齡長條圖實例
+          if (window.ageBarChart) {
+            window.ageBarChart.destroy();
+          }
+          
+          window.ageBarChart = new Chart(actx, {
+            type:'bar',
+            data:{
+              labels:['18–24','25–34','35–44','45+'],
+              datasets:[{ label:'占比(%)', data: ageDist.map(x=>Math.round(x*100)) }]
+            },
+            options:{ plugins:{ legend:{ display:false } }, scales:{ y:{ suggestedMax: 60 } } }
+          });
+        }
       }
 
       // City style chips
