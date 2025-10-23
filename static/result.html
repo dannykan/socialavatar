@@ -961,6 +961,13 @@
 
         // 渲染結果
         function renderResult(data) {
+            // 添加調試信息
+            console.log('renderResult called with data:', data);
+            console.log('Username:', data.username);
+            console.log('Followers:', data.followers);
+            console.log('Account value min:', data.value_estimation?.account_value_min);
+            console.log('Account value max:', data.value_estimation?.account_value_max);
+            
       // 基本資訊
             document.getElementById('username').textContent = data.username || 'username';
             document.getElementById('display-name').textContent = data.display_name || '台北美食探索者';
