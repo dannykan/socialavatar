@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>上傳素材｜Social Avatar</title>
+  <title>上傳 IG 截圖｜人格分析</title>
   <link rel="stylesheet" href="/static/app.css">
   <style>
     body {
@@ -143,22 +143,6 @@
       word-break: break-all;
     }
     
-    .analysis-hint {
-      margin-top: var(--spacing-sm);
-    }
-    
-    .hint-error {
-      background: rgba(239, 68, 68, 0.1);
-      border: 1px solid rgba(239, 68, 68, 0.3);
-      color: #fca5a5;
-    }
-    
-    .hint-info {
-      background: rgba(59, 130, 246, 0.1);
-      border: 1px solid rgba(59, 130, 246, 0.3);
-      color: #93c5fd;
-    }
-    
     .action-buttons {
       display: grid;
       grid-template-columns: 1fr;
@@ -173,134 +157,7 @@
       min-height: 44px;
     }
     
-    .gender-option {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 12px 20px;
-      border: 1px solid var(--border-light);
-      border-radius: var(--radius-md);
-      background: var(--bg-secondary);
-      cursor: pointer;
-      transition: var(--transition);
-      min-width: 120px;
-    }
-    
-    .gender-option:hover {
-      border-color: var(--primary);
-      background: rgba(34, 211, 238, 0.05);
-    }
-    
-    .gender-option input[type="radio"] {
-      margin: 0;
-      width: 18px;
-      height: 18px;
-      accent-color: var(--primary);
-      cursor: pointer;
-    }
-    
-    .gender-option input[type="radio"]:checked + .gender-label {
-      color: var(--primary);
-      font-weight: 600;
-    }
-    
-    .gender-label {
-      font-size: var(--font-size-sm);
-      transition: var(--transition);
-      cursor: pointer;
-    }
-    
-    @media (max-width: 768px) {
-      .action-buttons {
-        gap: 12px;
-      }
-      
-      .action-buttons .btn {
-        font-size: var(--font-size);
-        padding: 12px 20px;
-        min-height: 44px;
-      }
-      
-      .preview-remove {
-        width: 28px;
-        height: 28px;
-        min-width: 28px;
-        min-height: 28px;
-        font-size: 14px;
-        top: 6px;
-        right: 6px;
-      }
-      
-      .preview-image {
-        height: 140px;
-      }
-      
-      .preview-container {
-        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-        gap: 12px;
-      }
-    }
-    
-    @media (max-width: 640px) {
-      .gender-option {
-        min-width: calc(50% - 6px);
-        justify-content: center;
-        padding: 16px 20px;
-        font-size: var(--font-size);
-      }
-      
-      .action-buttons .btn {
-        font-size: var(--font-size);
-        padding: 12px 20px;
-        min-height: 44px;
-      }
-      
-      .container {
-        padding: var(--spacing);
-      }
-      
-      .page-title {
-        font-size: var(--font-size-3xl);
-        margin-bottom: var(--spacing-md);
-      }
-      
-      .page-description {
-        font-size: var(--font-size-xl);
-        margin-bottom: var(--spacing-xl);
-      }
-    }
-    
-    @media (max-width: 480px) {
-      .action-buttons .btn {
-        font-size: var(--font-size);
-        padding: 12px 20px;
-        min-height: 44px;
-      }
-      
-      .preview-remove {
-        width: 26px;
-        height: 26px;
-        min-width: 26px;
-        min-height: 26px;
-        font-size: 13px;
-      }
-      
-      .preview-image {
-        height: 120px;
-      }
-      
-      .preview-container {
-        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-        gap: 10px;
-      }
-      
-      .gender-option {
-        padding: 14px 16px;
-        font-size: var(--font-size-sm);
-      }
-    }
-    
-    /* Loading Overlay Styles */
+    /* Loading Overlay */
     .loading-overlay {
       position: fixed;
       top: 0;
@@ -314,8 +171,6 @@
       align-items: center;
       z-index: 9999;
       flex-direction: column;
-      color: #e5e7eb;
-      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     }
     
     .loading-overlay.show {
@@ -398,115 +253,78 @@
       color: white;
     }
     
-    /* Loading Overlay Responsive Design */
     @media (max-width: 768px) {
-      .loading-content {
-        max-width: 320px;
-        padding: 0 16px;
+      .preview-remove {
+        width: 28px;
+        height: 28px;
       }
       
-      .loading-title {
-        font-size: 20px;
-        margin-bottom: 8px;
+      .preview-image {
+        height: 140px;
       }
       
-      .loading-description {
-        font-size: 14px;
-        margin-bottom: 16px;
-      }
-      
-      .loading-progress {
-        padding: 10px 12px;
-        font-size: 13px;
-      }
-      
-      .loading-step {
-        margin-bottom: 6px;
-      }
-      
-      .loading-step-icon {
-        width: 14px;
-        height: 14px;
-        font-size: 9px;
+      .preview-container {
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
       }
     }
     
-    @media (max-width: 480px) {
-      .loading-content {
-        max-width: 280px;
-        padding: 0 12px;
+    @media (max-width: 640px) {
+      .container {
+        padding: var(--spacing);
       }
       
-      .loading-title {
-        font-size: 18px;
+      .page-title {
+        font-size: var(--font-size-xl);
       }
       
-      .loading-description {
-        font-size: 13px;
-      }
-      
-      .loading-progress {
-        padding: 8px 10px;
-        font-size: 12px;
+      .page-description {
+        font-size: var(--font-size);
       }
     }
   </style>
 </head>
 <body>
   <header class="header">
-    <div><strong>Social Avatar</strong></div>
+    <div><strong>IG 人格分析</strong></div>
     <div class="user-badge" id="userBadge">載入中...</div>
   </header>
 
   <main class="container">
-    <h1 class="page-title">上傳素材</h1>
-    <p class="page-description">只需兩步：<br>① 上傳 IG 個人頁截圖（必填）<br>②（可選）上傳 1～6 張最近貼文首圖，有助 AI 更準確。</p>
-
-    <!-- 性別選擇區塊 -->
-    <div class="card upload-section">
-      <div class="form-group">
-        <label class="form-label">性別（必填）</label>
-        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-          <label class="gender-option">
-            <input type="radio" name="gender" value="male" required />
-            <span class="gender-label">👨 男性</span>
-          </label>
-          <label class="gender-option">
-            <input type="radio" name="gender" value="female" required />
-            <span class="gender-label">👩 女性</span>
-          </label>
-        </div>
-        <p class="upload-hint">性別資料將幫助 AI 更準確分析你的社群人格</p>
-      </div>
-    </div>
+    <h1 class="page-title">上傳你的 IG 截圖</h1>
+    <p class="page-description">
+      我們會透過 AI 分析你的 IG 風格，給你一個專屬的社群人格類型。<br>
+      <strong>只需兩步：</strong><br>
+      ① 上傳 IG 個人頁截圖（必填）<br>
+      ② 可選上傳 1～6 張貼文縮圖，幫助 AI 更準確分析
+    </p>
 
     <div class="card upload-section">
       <div class="form-group">
-        <label class="form-label">IG 個人頁截圖（必填）</label>
+        <label class="form-label">📸 IG 個人頁截圖（必填）</label>
         <div class="file-upload">
           <input id="profile" type="file" accept="image/*" required />
           <div>
-            <div style="font-size: 24px; margin-bottom: 8px;">📸</div>
+            <div style="font-size: 24px; margin-bottom: 8px;">📱</div>
             <div>點擊選擇 IG 個人頁截圖</div>
           </div>
         </div>
-        <p class="upload-hint">圖像清晰、包含名稱、bio、粉絲/追蹤/貼文數</p>
+        <p class="upload-hint">💡 請確保截圖包含：用戶名、Bio、粉絲數/追蹤數/貼文數、九宮格縮圖</p>
         <div class="preview-container" id="profilePreview"></div>
       </div>
     </div>
 
     <div class="card upload-section">
       <div class="form-group">
-        <label class="form-label">貼文首圖（選填，可多選）</label>
+        <label class="form-label">🖼️ 貼文縮圖（選填，可多選）</label>
         <div class="file-upload">
           <input id="posts" type="file" accept="image/*" multiple />
           <div>
-            <div style="font-size: 24px; margin-bottom: 8px;">🖼️</div>
-            <div>點擊選擇貼文首圖（可多選）</div>
-            <div style="font-size: 12px; opacity: 0.7; margin-top: 4px;">最多 6 張</div>
+            <div style="font-size: 24px; margin-bottom: 8px;">📷</div>
+            <div>點擊選擇貼文縮圖（可多選）</div>
+            <div style="font-size: 12px; opacity: 0.7; margin-top: 4px;">最多 6 張，系統會自動壓縮</div>
           </div>
         </div>
-        <p class="upload-hint">可上傳 1～6 張，系統會自動壓縮以節省用量</p>
+        <p class="upload-hint">💡 提供更多貼文可以讓 AI 更準確判斷你的風格類型</p>
         <div class="preview-container" id="postsPreview"></div>
       </div>
     </div>
@@ -516,7 +334,7 @@
         <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
         </svg>
-        開始分析
+        開始分析我的 IG 風格
       </button>
       <a class="btn btn-ghost" href="/static/landing.html">
         <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -527,7 +345,6 @@
     </div>
 
     <div id="err" class="status-error hidden"></div>
-    <div id="ok" class="status-success hidden"></div>
   </main>
 
   <!-- Loading Overlay -->
@@ -535,7 +352,7 @@
     <div class="loading-spinner"></div>
     <div class="loading-content">
       <h2 class="loading-title">AI 分析中，請稍候…</h2>
-      <p class="loading-description">我們正在閱讀你的截圖資訊，產出社群 MBTI 與 200 字說明。</p>
+      <p class="loading-description">我們正在分析你的 IG 風格與色彩基因，這需要 10-20 秒。</p>
       <div class="loading-progress">
         <div class="loading-step" id="step1">
           <div class="loading-step-icon">1</div>
@@ -547,11 +364,11 @@
         </div>
         <div class="loading-step" id="step3">
           <div class="loading-step-icon">3</div>
-          <span>AI 分析截圖內容</span>
+          <span>AI 分析視覺風格</span>
         </div>
         <div class="loading-step" id="step4">
           <div class="loading-step-icon">4</div>
-          <span>生成分析結果</span>
+          <span>生成人格類型卡</span>
         </div>
       </div>
     </div>
@@ -562,21 +379,14 @@
     import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
     import { getFirestore, doc, setDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
-    // ==========================================
-    // 檢查是否已提交分析（防止返回）
-    // ==========================================
     (function() {
       const analysisSubmitted = sessionStorage.getItem('analysis_submitted');
       const hasResult = sessionStorage.getItem('sa_result');
       
       if (analysisSubmitted === 'true' || hasResult) {
-        console.log('[DEBUG] Analysis already submitted, redirecting to result page');
-        
         if (hasResult) {
-          alert('你已經完成分析，將導向結果頁面。\n\n若要重新分析，請點擊「清除並重新開始」。');
           window.location.replace('/static/result.html');
         } else {
-          alert('偵測到異常狀態，將返回首頁。');
           sessionStorage.clear();
           window.location.replace('/static/landing.html');
         }
@@ -597,157 +407,67 @@
     const db = getFirestore(app);
 
     let currentAuthUser = null;
-    let authReadySettled = false;
     let authReadyResolve;
-    const authReady = new Promise((resolve) => {
-      authReadyResolve = resolve;
-    });
+    const authReady = new Promise((resolve) => { authReadyResolve = resolve; });
 
     onAuthStateChanged(auth, (user) => {
       currentAuthUser = user;
-      if (!authReadySettled) {
-        authReadySettled = true;
-        authReadyResolve(user);
-      }
+      authReadyResolve(user);
       if (!user) {
         alert('請先登入');
         window.location.href = '/static/landing.html';
       } else {
-        const userBadge = document.getElementById('userBadge');
-        if (userBadge) {
-          if (user.photoURL) {
-            userBadge.innerHTML = `<img class="user-avatar" src="${user.photoURL}" alt="User"><span>${user.displayName || user.email}</span>`;
-          } else {
-            userBadge.innerHTML = `<span>👤 ${user.displayName || user.email}</span>`;
-          }
+        const badge = document.getElementById('userBadge');
+        if (badge) {
+          badge.innerHTML = user.photoURL 
+            ? `<img class="user-avatar" src="${user.photoURL}"><span>${user.displayName || user.email}</span>`
+            : `<span>👤 ${user.displayName || user.email}</span>`;
         }
       }
     });
 
-    let selectedFiles = { profile: null, posts: [] };
-    
-    function showAnalysisHint(containerId, message, isError = false) {
-      const container = document.getElementById(containerId);
-      if (!container) return;
-      const existingHint = container.querySelector('.analysis-hint');
-      if (existingHint) existingHint.remove();
-      const hint = document.createElement('div');
-      hint.className = `analysis-hint ${isError ? 'hint-error' : 'hint-info'}`;
-      hint.innerHTML = `<div style="display: flex; align-items: center; gap: 8px; padding: 8px; border-radius: 4px; font-size: 12px; margin-top: 8px;"><span style="font-size: 16px;">${isError ? '⚠️' : '💡'}</span><span>${message}</span></div>`;
-      container.appendChild(hint);
-    }
-    
     function createImagePreview(file, containerId, index = null) {
       const container = document.getElementById(containerId);
       if (!container) return;
       const reader = new FileReader();
-      reader.onload = function(e) {
-        const previewItem = document.createElement('div');
-        previewItem.className = 'preview-item';
-        previewItem.setAttribute('data-index', index !== null ? index : 'single');
-        previewItem.innerHTML = `<img src="${e.target.result}" class="preview-image" alt="預覽"><button class="preview-remove" onclick="removePreview('${containerId}', this)">×</button><div class="preview-filename">${file.name}</div>`;
-        container.appendChild(previewItem);
+      reader.onload = (e) => {
+        const div = document.createElement('div');
+        div.className = 'preview-item';
+        div.setAttribute('data-index', index !== null ? index : 'single');
+        div.innerHTML = `<img src="${e.target.result}" class="preview-image"><button class="preview-remove" onclick="removePreview('${containerId}', this)">×</button><div class="preview-filename">${file.name}</div>`;
+        container.appendChild(div);
       };
       reader.readAsDataURL(file);
     }
     
-    function removePreview(containerId, buttonElement) {
-      const previewItem = buttonElement.parentElement;
-      const index = previewItem.getAttribute('data-index');
-      previewItem.remove();
+    window.removePreview = function(containerId, btn) {
+      btn.parentElement.remove();
       if (containerId === 'profilePreview') {
-        selectedFiles.profile = null;
         document.getElementById('profile').value = '';
-      } else if (containerId === 'postsPreview') {
-        if (index !== 'single' && index !== null && !isNaN(parseInt(index))) {
-          selectedFiles.posts.splice(parseInt(index), 1);
-          updatePostsInput();
-          const container = document.getElementById('postsPreview');
-          container.innerHTML = '';
-          selectedFiles.posts.forEach((file, newIndex) => {
-            createImagePreview(file, 'postsPreview', newIndex);
-          });
-        }
       }
-    }
+    };
     
-    function updatePostsInput() {
-      const postsInput = document.getElementById('posts');
-      const dt = new DataTransfer();
-      selectedFiles.posts.forEach(file => dt.items.add(file));
-      postsInput.files = dt.files;
-    }
-    
-    function clearPreviews(containerId) {
-      const container = document.getElementById(containerId);
+    document.getElementById('profile').addEventListener('change', (e) => {
+      const container = document.getElementById('profilePreview');
       container.innerHTML = '';
-      if (containerId === 'profilePreview') {
-        selectedFiles.profile = null;
-        document.getElementById('profile').value = '';
-      } else if (containerId === 'postsPreview') {
-        selectedFiles.posts = [];
-        updatePostsInput();
-      }
-    }
+      if (e.target.files[0]) createImagePreview(e.target.files[0], 'profilePreview');
+    });
     
-    window.removePreview = removePreview;
-    
-    document.addEventListener('DOMContentLoaded', function() {
-      const profileInput = document.getElementById('profile');
-      const postsInput = document.getElementById('posts');
-      
-      if (profileInput) {
-        profileInput.addEventListener('change', function(e) {
-          const files = e.target.files;
-          if (files.length > 0) {
-            const container = document.getElementById('profilePreview');
-            if (container) container.innerHTML = '';
-            if (files[0]) {
-              selectedFiles.profile = files[0];
-              createImagePreview(files[0], 'profilePreview');
-              showAnalysisHint('profilePreview', '💡 請確保截圖包含完整的 IG 個人頁面信息（用戶名、bio、粉絲數等）', false);
-            }
-          }
-        });
-      }
-      
-      if (postsInput) {
-        postsInput.addEventListener('change', function(e) {
-          const files = e.target.files;
-          if (files.length > 0) {
-            clearPreviews('postsPreview');
-            selectedFiles.posts = Array.from(files);
-            selectedFiles.posts.forEach((file, index) => {
-              createImagePreview(file, 'postsPreview', index);
-            });
-          }
-        });
-      }
+    document.getElementById('posts').addEventListener('change', (e) => {
+      const container = document.getElementById('postsPreview');
+      container.innerHTML = '';
+      Array.from(e.target.files).forEach((f, i) => createImagePreview(f, 'postsPreview', i));
     });
 
-    // Loading overlay control functions
-    function showLoadingOverlay() {
+    function showLoading() {
       const overlay = document.getElementById('loadingOverlay');
-      if (overlay) {
-        overlay.classList.add('show');
-        // Reset all steps
-        document.querySelectorAll('.loading-step').forEach(step => {
-          step.classList.remove('active', 'completed');
-        });
-        // Start with step 1
-        document.getElementById('step1').classList.add('active');
-      }
+      overlay.classList.add('show');
+      document.querySelectorAll('.loading-step').forEach(s => s.classList.remove('active', 'completed'));
+      document.getElementById('step1').classList.add('active');
     }
 
-    function hideLoadingOverlay() {
-      const overlay = document.getElementById('loadingOverlay');
-      if (overlay) {
-        overlay.classList.remove('show');
-      }
-    }
-
-    function updateLoadingStep(stepNumber, status = 'active') {
-      const step = document.getElementById(`step${stepNumber}`);
+    function updateStep(num, status) {
+      const step = document.getElementById(`step${num}`);
       if (step) {
         step.classList.remove('active', 'completed');
         step.classList.add(status);
@@ -756,98 +476,37 @@
 
     window.startAnalyze = async function() {
       const errBox = document.getElementById('err');
-      const okBox = document.getElementById('ok');
       errBox.style.display = 'none';
-      okBox.style.display = 'none';
 
-      const selectedGender = document.querySelector('input[name="gender"]:checked');
-      if (!selectedGender) {
-        alert('請選擇性別');
-        errBox.textContent = '請選擇性別後再開始分析';
-        errBox.style.display = 'block';
-        return;
-      }
-
-      const profile = document.querySelector('#profile').files[0];
+      const profile = document.getElementById('profile').files[0];
       if (!profile) {
         alert('請先上傳 IG 個人頁截圖');
         return;
       }
 
-      // Show loading overlay immediately
-      showLoadingOverlay();
+      showLoading();
 
       const form = new FormData();
-      form.append('gender', selectedGender.value);
       form.append('profile', profile);
-
-      const posts = document.querySelector('#posts').files;
-      for (let i = 0; i < Math.min(posts.length, 6); i++) {
-        form.append('posts', posts[i]);
-      }
-
-      let succeeded = false;
+      Array.from(document.getElementById('posts').files).slice(0, 6).forEach(f => form.append('posts', f));
 
       try {
-        // Step 1: Check authentication
-        updateLoadingStep(1, 'active');
+        updateStep(1, 'active');
         await authReady;
         if (!currentAuthUser) throw new Error('未登入，請先回首頁登入帳號');
-        updateLoadingStep(1, 'completed');
+        updateStep(1, 'completed');
 
-        // Step 2: Upload to server
-        updateLoadingStep(2, 'active');
-        console.log('[DEBUG] Sending analysis request with gender:', selectedGender.value);
-
+        updateStep(2, 'active');
         const res = await fetch('/bd/analyze', { method: 'POST', body: form });
-        if (!res.ok) {
-          const errorText = await res.text();
-          throw new Error(`伺服器錯誤（${res.status}）：${errorText.slice(0, 200)}`);
-        }
-        updateLoadingStep(2, 'completed');
+        if (!res.ok) throw new Error(`伺服器錯誤（${res.status}）`);
+        updateStep(2, 'completed');
 
-        // Step 3: AI Analysis
-        updateLoadingStep(3, 'active');
-        let data;
-        try {
-          data = await res.json();
-        } catch (jsonError) {
-          throw new Error('伺服器回傳格式錯誤，請稍後再試。');
-        }
+        updateStep(3, 'active');
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || 'server error');
+        updateStep(3, 'completed');
 
-        if (!data.ok) {
-          hideLoadingOverlay();
-          errBox.textContent = '分析失敗：' + (data.error || 'server error');
-          errBox.style.display = 'block';
-          return;
-        }
-        updateLoadingStep(3, 'completed');
-
-        // Step 4: Generate results
-        updateLoadingStep(4, 'active');
-
-        data.gender = selectedGender.value;
-
-        const hasUsername = data.username && data.username.trim() !== '';
-        const hasDisplayName = data.display_name && data.display_name.trim() !== '';
-        const hasFollowers = data.followers && data.followers > 0;
-        const hasFollowing = data.following && data.following > 0;
-        const hasPosts = data.posts && data.posts > 0;
-        
-        if (!hasUsername && !hasDisplayName) {
-          hideLoadingOverlay();
-          alert('❌ 無法從截圖中提取用戶名或顯示名稱\n\n請確保上傳的是完整的 IG 個人頁截圖。');
-          window.location.href = '/static/upload.html';
-          return;
-        }
-        
-        if (!hasFollowers || !hasFollowing || !hasPosts) {
-          hideLoadingOverlay();
-          alert('❌ 無法完整提取個人頁面統計資料\n\n截圖可能不完整，請重新截圖。');
-          window.location.href = '/static/upload.html';
-          return;
-        }
-        
+        updateStep(4, 'active');
         data.user = {
           uid: currentAuthUser.uid,
           email: currentAuthUser.email,
@@ -858,57 +517,31 @@
 
         try {
           sessionStorage.setItem('user', JSON.stringify(data.user));
-        } catch (storageError) {
-          console.warn('[WARN] Unable to persist user session:', storageError);
-        }
+        } catch {}
 
         try {
-          const userDocRef = doc(db, 'users', currentAuthUser.uid);
-          const firestoreData = {
+          await setDoc(doc(db, 'users', currentAuthUser.uid), {
             uid: currentAuthUser.uid,
             email: currentAuthUser.email,
-            displayName: currentAuthUser.displayName,
-            photoURL: currentAuthUser.photoURL,
             hasAnalysis: true,
-            gender: selectedGender.value,
-            latestAnalysis: {
-              ok: data.ok,
-              mbti: data.mbti,
-              display_name: data.display_name,
-              username: data.username,
-              followers: data.followers,
-              following: data.following,
-              posts: data.posts,
-              summary: data.summary,
-              vehicle: data.vehicle,
-              gender: selectedGender.value,
-              diagnose: data.diagnose,
-              timestamp: serverTimestamp()
-            },
+            latestAnalysis: data,
             updatedAt: serverTimestamp()
-          };
-          await setDoc(userDocRef, firestoreData);
-        } catch (firestoreError) {
-          console.error('[ERROR] Failed to save to Firestore:', firestoreError);
-          alert('⚠️ 分析完成，但儲存到雲端時發生錯誤。\n\n你仍可以查看結果，但下次登入時可能需要重新分析。');
+          });
+        } catch (e) {
+          console.error('Firestore save failed:', e);
         }
 
         sessionStorage.setItem('sa_result', JSON.stringify(data));
-        sessionStorage.setItem('analysis_submitted', 'true'); // 標記已提交
+        sessionStorage.setItem('analysis_submitted', 'true');
         
-        updateLoadingStep(4, 'completed');
-        succeeded = true;
+        updateStep(4, 'completed');
         
-        // Keep loading overlay visible for a moment before redirecting
-        setTimeout(() => {
-          window.location.replace('/static/loading.html'); // 使用 replace 防止返回
-        }, 800);
+        setTimeout(() => window.location.replace('/static/loading.html'), 800);
 
       } catch (e) {
-        console.error('[ERROR] Network error:', e);
-        hideLoadingOverlay();
-        const message = e?.message || e || '未知錯誤';
-        errBox.textContent = String(message).includes('未登入') ? message : '網路錯誤：' + message;
+        console.error('Analysis failed:', e);
+        document.getElementById('loadingOverlay').classList.remove('show');
+        errBox.textContent = e.message || '網路錯誤';
         errBox.style.display = 'block';
       }
     };
