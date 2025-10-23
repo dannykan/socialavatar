@@ -298,6 +298,7 @@ def build_user_prompt(followers, following, posts):
    - 粉絲質量如何？內容風格如何？
    - 適合什麼品牌合作？
    - 有什麼特別的加分項？
+   - 基於真實市場行情，給出合理的估值範圍
 
 2. **在分析文字後面，提供以下 JSON 數據：**
 
@@ -306,7 +307,7 @@ def build_user_prompt(followers, following, posts):
   "account_value": {{
     "min": 50000,
     "max": 80000,
-    "reasoning": "簡短說明估值邏輯（1-2句話）"
+    "reasoning": "基於市場行情的估值邏輯說明"
   }},
   "pricing": {{
     "post": 8000,
