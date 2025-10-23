@@ -121,6 +121,166 @@
       margin-top: var(--spacing-lg);
     }
     
+    /* 排行榜預覽樣式 */
+    .leaderboard-preview {
+      background: linear-gradient(135deg, rgba(34, 211, 238, 0.1) 0%, rgba(168, 85, 247, 0.1) 100%);
+      border-radius: var(--radius-lg);
+      padding: var(--spacing-lg);
+      margin: var(--spacing-lg) 0;
+      border: 1px solid rgba(34, 211, 238, 0.2);
+    }
+    
+    .leaderboard-preview-header {
+      text-align: center;
+      margin-bottom: var(--spacing);
+    }
+    
+    .leaderboard-preview-header h2 {
+      font-size: var(--font-size-xl);
+      font-weight: 700;
+      color: var(--text);
+      margin: 0 0 var(--spacing-xs) 0;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    .leaderboard-preview-header p {
+      color: var(--text-light);
+      font-size: var(--font-size-sm);
+      margin: 0;
+    }
+    
+    .leaderboard-preview-content {
+      max-height: 300px;
+      overflow-y: auto;
+      margin-bottom: var(--spacing);
+    }
+    
+    .leaderboard-preview-footer {
+      text-align: center;
+    }
+    
+    /* 排行榜項目樣式 */
+    .leaderboard-item-preview {
+      display: flex;
+      align-items: center;
+      padding: var(--spacing-sm);
+      margin-bottom: var(--spacing-xs);
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: var(--radius-md);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      transition: all 0.3s ease;
+    }
+    
+    .leaderboard-item-preview:hover {
+      background: rgba(255, 255, 255, 0.1);
+      transform: translateX(4px);
+    }
+    
+    .leaderboard-item-preview.rank-1 {
+      background: linear-gradient(135deg, rgba(255, 215, 0, 0.1) 0%, rgba(255, 193, 7, 0.05) 100%);
+      border-color: rgba(255, 215, 0, 0.3);
+    }
+    
+    .leaderboard-item-preview.rank-2 {
+      background: linear-gradient(135deg, rgba(192, 192, 192, 0.1) 0%, rgba(169, 169, 169, 0.05) 100%);
+      border-color: rgba(192, 192, 192, 0.3);
+    }
+    
+    .leaderboard-item-preview.rank-3 {
+      background: linear-gradient(135deg, rgba(205, 127, 50, 0.1) 0%, rgba(184, 115, 51, 0.05) 100%);
+      border-color: rgba(205, 127, 50, 0.3);
+    }
+    
+    .rank-preview {
+      font-size: var(--font-size-lg);
+      font-weight: 700;
+      min-width: 30px;
+      text-align: center;
+      margin-right: var(--spacing-sm);
+    }
+    
+    .user-info-preview {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+    }
+    
+    .user-avatar-preview {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-inverse);
+      font-weight: 700;
+      font-size: var(--font-size-sm);
+      position: relative;
+    }
+    
+    .rank-1 .user-avatar-preview::before {
+      content: '👑';
+      position: absolute;
+      top: -4px;
+      right: -4px;
+      font-size: 12px;
+      z-index: 10;
+      filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
+      animation: crownGlow 4s ease-in-out infinite;
+    }
+    
+    @keyframes crownGlow {
+      0%, 100% { 
+        filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3)) drop-shadow(0 0 3px rgba(255, 215, 0, 0.4));
+      }
+      50% { 
+        filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3)) drop-shadow(0 0 6px rgba(255, 215, 0, 0.8));
+      }
+    }
+    
+    .user-details-preview {
+      flex: 1;
+    }
+    
+    .username-preview {
+      font-size: var(--font-size-sm);
+      font-weight: 600;
+      color: var(--text);
+      margin: 0;
+    }
+    
+    .account-value-preview {
+      font-size: var(--font-size-sm);
+      font-weight: 700;
+      color: var(--primary);
+    }
+    
+    .loading {
+      text-align: center;
+      padding: var(--spacing-lg);
+      color: var(--text-light);
+    }
+    
+    .spinner {
+      width: 24px;
+      height: 24px;
+      border: 2px solid var(--border);
+      border-top: 2px solid var(--primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto var(--spacing-sm);
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
     @media (max-width: 640px) {
       .landing-card {
         padding: var(--spacing-lg);
@@ -146,6 +306,25 @@
     <h1 class="landing-title">💰 IG 帳號價值分析</h1>
     <p class="landing-description" id="mainDescription">專業的 Instagram 帳號商業價值評估系統，AI 深度分析你的帳號市場價值、人格類型與合作報價。</p>
     
+    <!-- 排行榜預覽區域 -->
+    <div class="leaderboard-preview">
+      <div class="leaderboard-preview-header">
+        <h2>🏆 價值排行榜</h2>
+        <p>看看誰的 IG 帳號最有價值！</p>
+      </div>
+      
+      <div class="leaderboard-preview-content" id="leaderboardPreview">
+        <div class="loading">
+          <div class="spinner"></div>
+          <p>正在載入排行榜...</p>
+        </div>
+      </div>
+      
+      <div class="leaderboard-preview-footer">
+        <a href="/static/leaderboard.html" class="btn btn-ghost btn-sm">查看完整排行榜 →</a>
+      </div>
+    </div>
+    
     <div id="loginSection">
       <div class="grid grid-cols-1 gap-3">
         <button class="btn btn-facebook btn-full" id="fbLoginBtn">
@@ -169,7 +348,6 @@
       <div class="divider"><span>或</span></div>
 
       <div class="grid grid-cols-1 gap-3">
-        <a class="btn btn-ghost btn-full" href="/static/leaderboard.html">🏆 價值排行榜</a>
         <a class="btn btn-ghost btn-full" href="/health" target="_blank">系統狀態</a>
       </div>
     </div>
@@ -983,6 +1161,76 @@
         } else {
           logMobileDebug('Google button not found');
         }
+
+    // 載入排行榜預覽
+    async function loadLeaderboardPreview() {
+      try {
+        const response = await fetch('/api/leaderboard');
+        const data = await response.json();
+        
+        if (data.ok && data.data) {
+          renderLeaderboardPreview(data.data.slice(0, 5)); // 只顯示前5名
+        } else {
+          showLeaderboardError();
+        }
+      } catch (error) {
+        console.error('Failed to load leaderboard:', error);
+        showLeaderboardError();
+      }
+    }
+    
+    function renderLeaderboardPreview(data) {
+      const container = document.getElementById('leaderboardPreview');
+      
+      if (data.length === 0) {
+        container.innerHTML = '<div class="empty-state"><p>暫無排行榜數據</p></div>';
+        return;
+      }
+      
+      const html = data.map(item => {
+        const rankClass = item.rank <= 3 ? `rank-${item.rank}` : '';
+        
+        // 前三名使用emoji
+        let rankDisplay = item.rank;
+        if (item.rank === 1) rankDisplay = '🥇';
+        else if (item.rank === 2) rankDisplay = '🥈';
+        else if (item.rank === 3) rankDisplay = '🥉';
+        
+        return `
+          <div class="leaderboard-item-preview ${rankClass}">
+            <div class="rank-preview">${rankDisplay}</div>
+            <div class="user-info-preview">
+              <div class="user-avatar-preview">${item.avatar}</div>
+              <div class="user-details-preview">
+                <div class="username-preview">@${item.username}</div>
+                <div class="account-value-preview">$${formatNumber(item.accountValue)}</div>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+      
+      container.innerHTML = html;
+    }
+    
+    function showLeaderboardError() {
+      const container = document.getElementById('leaderboardPreview');
+      container.innerHTML = '<div class="empty-state"><p>載入排行榜失敗</p></div>';
+    }
+    
+    function formatNumber(num) {
+      if (num >= 1000000) {
+        return (num / 1000000).toFixed(1) + 'M';
+      } else if (num >= 1000) {
+        return (num / 1000).toFixed(1) + 'K';
+      }
+      return num.toString();
+    }
+    
+    // 頁面載入完成後載入排行榜預覽
+    document.addEventListener('DOMContentLoaded', () => {
+      setTimeout(loadLeaderboardPreview, 1000); // 延遲1秒載入
+    });
 
     })().catch(error => {
       console.error('[ERROR] Failed to initialize app:', error);
