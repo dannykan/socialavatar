@@ -766,7 +766,8 @@
       // 內容類型
       const analysis = data.analysis || {};
       const contentType = analysis.content_type || {};
-      document.getElementById('contentType').textContent = contentType.primary || '—';
+      const topic = contentType.primary || '生活';
+      document.getElementById('contentType').textContent = topic;
       
       // 粉絲品質
       document.getElementById('followerQuality').textContent = 
