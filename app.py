@@ -195,11 +195,15 @@ def extract_json_from_text(text: str):
             data = json.loads(json_str)
             print(f"Successfully parsed JSON match {i+1}")
             # 驗證是否包含我們需要的關鍵字段
-            if 'account_value' in data or 'visual_quality' in data or 'pricing' in data:
-                print(f"JSON contains required fields: {list(data.keys())}")
+            required_fields = ['account_value', 'pricing', 'visual_quality', 'content_type', 'professionalism', 'uniqueness', 'audience_value', 'improvement_tips']
+            missing_fields = [field for field in required_fields if field not in data]
+            
+            if not missing_fields:
+                print(f"JSON contains all required fields: {list(data.keys())}")
                 return data
             else:
-                print(f"JSON doesn't contain required fields: {list(data.keys())}")
+                print(f"JSON missing required fields: {missing_fields}")
+                print(f"Available fields: {list(data.keys())}")
         except Exception as e:
             print(f"Failed to parse JSON match {i+1}: {e}")
             continue
@@ -364,6 +368,15 @@ def build_user_prompt(followers, following, posts):
     "primary": "美食料理",
     "commercial_potential": "high"
   }},
+  "professionalism": {{
+    "brand_identity": 8.0
+  }},
+  "uniqueness": {{
+    "creativity_score": 7.8
+  }},
+  "audience_value": {{
+    "audience_tier": "美食愛好者"
+  }},
   "improvement_tips": [
     "增加與粉絲互動的 Story 內容",
     "建立固定發文時段提升粉絲黏性",
@@ -372,7 +385,11 @@ def build_user_prompt(followers, following, posts):
 }}
 ```
 
-**重要提醒：所有價格數值都必須是新台幣(NT$)，基於亞洲市場行情，絕對不要使用美元(USD)或其他貨幣。包括 account_value 和 pricing 中的所有數值都必須是台幣。**
+**重要提醒：**
+1. 所有價格數值都必須是新台幣(NT$)，基於亞洲市場行情，絕對不要使用美元(USD)或其他貨幣
+2. 必須提供完整的 JSON 結構，包含所有必要欄位
+3. 所有數值欄位都必須有具體數值，不能為空或 null
+4. 文字欄位必須有具體內容，不能為空字串
 
 可用 IG 社群帳號定位類型：
 - type_1: 夢幻柔焦系 🌸
@@ -646,13 +663,13 @@ def analyze():
         
         # 分析詳情
         "analysis": {
-            "visual_quality": ai_data.get("visual_quality", {"overall": 7.5}),
-            "content_type": ai_data.get("content_type", {"primary": "生活記錄", "commercial_potential": "medium"}),
-            "professionalism": ai_data.get("professionalism", {"brand_identity": 7.0}),
-            "uniqueness": ai_data.get("uniqueness", {"creativity_score": 7.0}),
+            "visual_quality": ai_data.get("visual_quality", {}),
+            "content_type": ai_data.get("content_type", {}),
+            "professionalism": ai_data.get("professionalism", {}),
+            "uniqueness": ai_data.get("uniqueness", {}),
             "engagement_potential": ai_data.get("engagement_potential", {}),
             "niche_focus": ai_data.get("niche_focus", {}),
-            "audience_value": ai_data.get("audience_value", {"audience_tier": "一般用戶"}),
+            "audience_value": ai_data.get("audience_value", {}),
             "cross_platform": ai_data.get("cross_platform", {})
         },
         
