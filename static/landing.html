@@ -1386,12 +1386,20 @@
     }
     
     function formatNumber(num) {
-      if (num >= 1000000) {
-        return (num / 1000000).toFixed(1) + 'M';
-      } else if (num >= 1000) {
-        return (num / 1000).toFixed(1) + 'K';
+      // 如果已經是字符串且包含K/M，直接返回
+      if (typeof num === 'string' && (num.includes('K') || num.includes('M'))) {
+        return num;
       }
-      return num.toString();
+      
+      // 轉換為數字進行處理
+      const numValue = typeof num === 'string' ? parseFloat(num) : num;
+      
+      if (numValue >= 1000000) {
+        return (numValue / 1000000).toFixed(1) + 'M';
+      } else if (numValue >= 10000) {
+        return (numValue / 1000).toFixed(1) + 'K';
+      }
+      return numValue.toString();
     }
     
     // 頭像彈窗功能
