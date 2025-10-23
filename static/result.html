@@ -544,7 +544,7 @@
         
             <!-- AI 專業分析（新增，僅當有 analysis_text 時顯示）-->
             <div class="analysis-section" id="analysis-section" style="display:none;">
-                <div class="analysis-title">💼 專業估值分析</div>
+                <div class="analysis-title">💼 專業 IG 社群帳號價值分析</div>
                 <div class="analysis-text" id="analysis-text"></div>
         </div>
         
@@ -615,7 +615,7 @@
         // 係數標籤映射
         const multiplierLabels = {
             'visual': '視覺品質',
-            'content': '內容類型',
+            'content': '內容定位',
             'professional': '專業程度',
             'follower': '粉絲品質',
             'unique': '風格獨特',
@@ -666,7 +666,7 @@
             // 計算綜合品質分數（加權平均，而非乘積）
             const qualityScore = (
                 visual * 0.15 +           // 視覺品質 15%
-                content * 0.15 +          // 內容類型 15%
+                content * 0.15 +          // 內容定位 15%
                 engagement * 0.20 +       // 互動潛力 20%（最重要）
                 niche * 0.15 +            // 利基專注 15%
                 audience * 0.15 +         // 受眾價值 15%
@@ -693,14 +693,14 @@
       document.getElementById('following').textContent = formatNumber(data.following || 0);
       document.getElementById('posts').textContent = formatNumber(data.posts || 0);
       
-            // 粉絲級別和人格類型
+            // 粉絲級別和社群定位
       const value = data.value_estimation || {};
             const personality = data.primary_type || {};
             
             // 更新粉絲級別徽章
             document.getElementById('follower-tier').textContent = value.follower_tier || '評估中';
             
-            // 更新人格類型徽章
+            // 更新社群定位徽章
             document.getElementById('personality-type').textContent = personality.name_zh || '分析中...';
 
             // 帳號市場價值（優先使用 AI 估算的價格，否則使用前端計算）
@@ -727,7 +727,7 @@
                 totalValueEl.textContent = formatPrice(Math.floor(currentValue));
             }, 20);
 
-            // 人格類型詳細資訊
+            // 社群定位詳細資訊
             document.getElementById('personality-emoji').textContent = personality.emoji || '✨';
             document.getElementById('personality-name').textContent = personality.name_zh || '分析中';
             document.getElementById('personality-en').textContent = personality.name_en || 'Analyzing';

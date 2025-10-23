@@ -19,12 +19,12 @@
       backdrop-filter: blur(12px);
       border-radius: var(--radius-lg);
       padding: var(--spacing-xl);
-      max-width: 480px;
+      max-width: 520px;
       width: 100%;
       box-shadow: var(--shadow-xl);
       border: 1px solid rgba(255, 255, 255, 0.1);
       position: relative;
-      overflow: hidden;
+      overflow: visible;
     }
     
     .landing-card::before {
@@ -128,6 +128,8 @@
       padding: var(--spacing-lg);
       margin: var(--spacing-lg) 0;
       border: 1px solid rgba(34, 211, 238, 0.2);
+      min-height: 400px;
+      overflow: visible;
     }
     
     .leaderboard-preview-header {
@@ -140,10 +142,22 @@
       font-weight: 700;
       color: var(--text);
       margin: 0 0 var(--spacing-xs) 0;
-      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      background: linear-gradient(135deg, #22d3ee, #a855f7, #f59e0b);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
+      animation: gradientShift 3s ease-in-out infinite;
+    }
+    
+    @keyframes gradientShift {
+      0%, 100% { 
+        background: linear-gradient(135deg, #22d3ee, #a855f7, #f59e0b);
+        -webkit-background-clip: text;
+      }
+      50% { 
+        background: linear-gradient(135deg, #a855f7, #f59e0b, #22d3ee);
+        -webkit-background-clip: text;
+      }
     }
     
     .leaderboard-preview-header p {
@@ -153,9 +167,9 @@
     }
     
     .leaderboard-preview-content {
-      max-height: 300px;
-      overflow-y: auto;
       margin-bottom: var(--spacing);
+      padding: var(--spacing-xs);
+      overflow: visible;
     }
     
     .leaderboard-preview-footer {
@@ -166,17 +180,19 @@
     .leaderboard-item-preview {
       display: flex;
       align-items: center;
-      padding: var(--spacing-sm);
-      margin-bottom: var(--spacing-xs);
+      padding: 8px 12px;
+      margin-bottom: 4px;
       background: rgba(255, 255, 255, 0.05);
       border-radius: var(--radius-md);
       border: 1px solid rgba(255, 255, 255, 0.1);
       transition: all 0.3s ease;
+      min-height: 45px;
     }
     
     .leaderboard-item-preview:hover {
       background: rgba(255, 255, 255, 0.1);
-      transform: translateX(4px);
+      transform: translateX(4px) scale(1.02);
+      box-shadow: 0 8px 25px rgba(34, 211, 238, 0.15);
     }
     
     .leaderboard-item-preview.rank-1 {
@@ -221,6 +237,21 @@
       font-weight: 700;
       font-size: var(--font-size-sm);
       position: relative;
+      overflow: hidden;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    
+    .user-avatar-preview:hover {
+      transform: scale(1.1);
+      box-shadow: 0 4px 12px rgba(34, 211, 238, 0.3);
+    }
+    
+    .user-avatar-preview .avatar-image {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 50%;
     }
     
     .rank-1 .user-avatar-preview::before {
@@ -281,6 +312,87 @@
       100% { transform: rotate(360deg); }
     }
     
+    /* 頭像彈窗樣式 */
+    .avatar-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.3s ease;
+    }
+    
+    .avatar-modal.show {
+      opacity: 1;
+      visibility: visible;
+    }
+    
+    .avatar-modal-content {
+      background: var(--bg);
+      border-radius: var(--radius-lg);
+      padding: var(--spacing-lg);
+      max-width: 90vw;
+      max-height: 90vh;
+      position: relative;
+      transform: scale(0.8);
+      transition: transform 0.3s ease;
+    }
+    
+    .avatar-modal.show .avatar-modal-content {
+      transform: scale(1);
+    }
+    
+    .avatar-modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: var(--spacing);
+    }
+    
+    .avatar-modal-title {
+      font-size: var(--font-size-lg);
+      font-weight: 700;
+      color: var(--text);
+      margin: 0;
+    }
+    
+    .avatar-modal-close {
+      background: none;
+      border: none;
+      color: var(--text-light);
+      font-size: var(--font-size-xl);
+      cursor: pointer;
+      padding: var(--spacing-xs);
+      border-radius: var(--radius-md);
+      transition: all 0.2s ease;
+    }
+    
+    .avatar-modal-close:hover {
+      background: var(--bg-light);
+      color: var(--text);
+    }
+    
+    .avatar-modal-image {
+      max-width: 100%;
+      max-height: 70vh;
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-lg);
+    }
+    
+    .avatar-modal-info {
+      margin-top: var(--spacing);
+      text-align: center;
+      color: var(--text-light);
+      font-size: var(--font-size-sm);
+    }
+    
     @media (max-width: 640px) {
       .landing-card {
         padding: var(--spacing-lg);
@@ -303,14 +415,14 @@
   </div>
 
   <div class="landing-card">
-    <h1 class="landing-title">💰 IG 帳號價值分析</h1>
-    <p class="landing-description" id="mainDescription">專業的 Instagram 帳號商業價值評估系統，AI 深度分析你的帳號市場價值、人格類型與合作報價。</p>
+    <h1 class="landing-title">💰 IG 社群帳號價值分析</h1>
+    <p class="landing-description" id="mainDescription">專業的 Instagram 社群帳號商業價值評估系統，AI 深度分析你的帳號市場價值、社群定位與合作報價。</p>
     
     <!-- 排行榜預覽區域 -->
     <div class="leaderboard-preview">
       <div class="leaderboard-preview-header">
-        <h2>🏆 價值排行榜</h2>
-        <p>看看誰的 IG 帳號最有價值！</p>
+        <h2>🏆 IG 社群帳號價值排行榜</h2>
+        <p>看看誰的 IG 社群帳號最有價值！</p>
       </div>
       
       <div class="leaderboard-preview-content" id="leaderboardPreview">
@@ -362,6 +474,18 @@
     <div class="info" id="infoMsg"></div>
     
     <p class="hint-text" id="hintText">💡 提示：可使用 Google 或 Facebook 登入，同一個 Email 會自動整合。</p>
+  </div>
+
+  <!-- 頭像彈窗 -->
+  <div class="avatar-modal" id="avatarModal">
+    <div class="avatar-modal-content">
+      <div class="avatar-modal-header">
+        <h3 class="avatar-modal-title" id="avatarModalTitle">用戶頭像</h3>
+        <button class="avatar-modal-close" onclick="closeAvatarModal()">&times;</button>
+      </div>
+      <img class="avatar-modal-image" id="avatarModalImage" src="" alt="用戶頭像" />
+      <div class="avatar-modal-info" id="avatarModalInfo">點擊頭像查看完整個人頁截圖</div>
+    </div>
   </div>
 
   <script type="module">
@@ -1165,14 +1289,52 @@
     // 載入排行榜預覽
     async function loadLeaderboardPreview() {
       try {
-        const response = await fetch('/api/leaderboard');
-        const data = await response.json();
+        // 直接使用假資料，不嘗試載入API數據
+        const mockData = [
+          {
+            rank: 1,
+            username: "taylorswift",
+            displayName: "Taylor Swift",
+            followers: "282M",
+            accountValue: 9850000,
+            avatar: "TS"
+          },
+          {
+            rank: 2,
+            username: "cristiano",
+            displayName: "Cristiano Ronaldo", 
+            followers: "631M",
+            accountValue: 9200000,
+            avatar: "CR"
+          },
+          {
+            rank: 3,
+            username: "therock",
+            displayName: "Dwayne Johnson",
+            followers: "395M", 
+            accountValue: 8750000,
+            avatar: "DJ"
+          },
+          {
+            rank: 4,
+            username: "kyliejenner",
+            displayName: "Kylie Jenner",
+            followers: "399M",
+            accountValue: 8200000,
+            avatar: "KJ"
+          },
+          {
+            rank: 5,
+            username: "selenagomez",
+            displayName: "Selena Gomez",
+            followers: "429M",
+            accountValue: 7800000,
+            avatar: "SG"
+          }
+        ];
         
-        if (data.ok && data.data) {
-          renderLeaderboardPreview(data.data.slice(0, 5)); // 只顯示前5名
-        } else {
-          showLeaderboardError();
-        }
+        renderLeaderboardPreview(mockData);
+        console.log('排行榜假資料已載入');
       } catch (error) {
         console.error('Failed to load leaderboard:', error);
         showLeaderboardError();
@@ -1200,7 +1362,12 @@
           <div class="leaderboard-item-preview ${rankClass}">
             <div class="rank-preview">${rankDisplay}</div>
             <div class="user-info-preview">
-              <div class="user-avatar-preview">${item.avatar}</div>
+              <div class="user-avatar-preview" onclick="showAvatarModal('${item.username}', '${item.avatar_url || ''}')">
+                ${item.avatar_url ? 
+                  `<img src="${item.avatar_url}" alt="${item.username}" class="avatar-image" />` : 
+                  item.avatar
+                }
+              </div>
               <div class="user-details-preview">
                 <div class="username-preview">@${item.username}</div>
                 <div class="account-value-preview">$${formatNumber(item.accountValue)}</div>
@@ -1227,10 +1394,51 @@
       return num.toString();
     }
     
-    // 頁面載入完成後載入排行榜預覽
-    document.addEventListener('DOMContentLoaded', () => {
-      setTimeout(loadLeaderboardPreview, 1000); // 延遲1秒載入
+    // 頭像彈窗功能
+    function showAvatarModal(username, avatarUrl) {
+      const modal = document.getElementById('avatarModal');
+      const title = document.getElementById('avatarModalTitle');
+      const image = document.getElementById('avatarModalImage');
+      const info = document.getElementById('avatarModalInfo');
+      
+      if (avatarUrl) {
+        title.textContent = `@${username} 的個人頁截圖`;
+        image.src = avatarUrl;
+        image.alt = `${username} 的個人頁截圖`;
+        info.textContent = '這是用戶上傳的完整個人頁截圖';
+        modal.classList.add('show');
+      } else {
+        title.textContent = `@${username}`;
+        image.src = '';
+        image.alt = '無頭像';
+        info.textContent = '該用戶尚未上傳個人頁截圖';
+        modal.classList.add('show');
+      }
+    }
+    
+    function closeAvatarModal() {
+      const modal = document.getElementById('avatarModal');
+      modal.classList.remove('show');
+    }
+    
+    // 點擊背景關閉彈窗
+    document.addEventListener('click', (e) => {
+      if (e.target.classList.contains('avatar-modal')) {
+        closeAvatarModal();
+      }
     });
+    
+    // ESC鍵關閉彈窗
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeAvatarModal();
+      }
+    });
+
+    // 立即載入排行榜預覽（不等待DOMContentLoaded）
+    setTimeout(() => {
+      loadLeaderboardPreview();
+    }, 100);
 
     })().catch(error => {
       console.error('[ERROR] Failed to initialize app:', error);

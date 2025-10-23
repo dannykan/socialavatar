@@ -589,7 +589,7 @@
 
     <h1 class="page-title">📊 上傳你的 IG 截圖</h1>
     <p class="page-description">
-      我們會透過 AI 深度分析你的 IG 帳號商業價值，提供專業的市場估值與人格類型分析。<br>
+      我們會透過 AI 深度分析你的 IG 社群帳號價值，提供專業的市場估值與社群定位分析。<br>
       <strong>只需兩步：</strong><br>
       ① 上傳 IG 個人頁截圖（必填）<br>
       ② 可選上傳 1～6 張貼文縮圖，讓 AI 更準確評估你的帳號價值
@@ -705,7 +705,7 @@
         </div>
         <div class="loading-step" id="step4">
           <div class="loading-step-icon">4</div>
-          <span>生成人格類型卡</span>
+          <span>生成 IG 社群帳號價值報告</span>
         </div>
       </div>
     </div>
@@ -826,6 +826,11 @@
       const form = new FormData();
       form.append('profile', profile);
       Array.from(document.getElementById('posts').files).slice(0, 6).forEach(f => form.append('posts', f));
+      
+      // 添加用戶ID用於儲存頭像
+      if (currentAuthUser && currentAuthUser.uid) {
+        form.append('user_id', currentAuthUser.uid);
+      }
 
       try {
         updateStep(1, 'active');

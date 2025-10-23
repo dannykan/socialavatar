@@ -18,7 +18,7 @@ MAX_SIDE = int(os.getenv("MAX_SIDE", "1280"))
 JPEG_Q = int(os.getenv("JPEG_QUALITY", "72"))
 
 # -----------------------------------------------------------------------------
-# 12種IG人格類型定義
+# 12種IG社群帳號定位類型定義
 # -----------------------------------------------------------------------------
 PERSONALITY_TYPES = {
     "type_1": {"name_zh": "夢幻柔焦系", "name_en": "Dreamy Aesthetic", "emoji": "🌸"},
@@ -38,6 +38,41 @@ PERSONALITY_TYPES = {
 # -----------------------------------------------------------------------------
 # 工具函數
 # -----------------------------------------------------------------------------
+def save_user_avatar(user_id, image_data, image_format="JPEG"):
+    """儲存用戶頭像"""
+    try:
+        # 創建用戶頭像目錄
+        avatar_dir = os.path.join("static", "user_avatars")
+        os.makedirs(avatar_dir, exist_ok=True)
+        
+        # 儲存頭像文件
+        avatar_path = os.path.join(avatar_dir, f"{user_id}_avatar.{image_format.lower()}")
+        
+        # 如果是base64數據，先解碼
+        if isinstance(image_data, str):
+            image_data = base64.b64decode(image_data)
+        
+        # 儲存圖片
+        with open(avatar_path, "wb") as f:
+            f.write(image_data)
+        
+        return avatar_path
+    except Exception as e:
+        print(f"Error saving user avatar: {e}")
+        return None
+
+def get_user_avatar_url(user_id):
+    """獲取用戶頭像URL"""
+    avatar_dir = os.path.join("static", "user_avatars")
+    
+    # 檢查不同格式的頭像文件
+    for ext in ["jpg", "jpeg", "png", "webp"]:
+        avatar_path = os.path.join(avatar_dir, f"{user_id}_avatar.{ext}")
+        if os.path.exists(avatar_path):
+            return f"/static/user_avatars/{user_id}_avatar.{ext}"
+    
+    # 如果沒有找到頭像，返回默認頭像
+    return None
 def calculate_base_price(followers):
     """根據粉絲數計算基礎身價"""
     if followers >= 100000:
@@ -335,7 +370,7 @@ def build_user_prompt(followers, following, posts):
 }}
 ```
 
-可用人格類型：
+可用 IG 社群帳號定位類型：
 - type_1: 夢幻柔焦系 🌸
 - type_2: 藝術實驗者 🎨
 - type_3: 戶外探險家 🏔️
@@ -408,6 +443,14 @@ def analyze():
     
     # 3. 處理 profile 圖片
     profile_b64 = resize_and_encode_b64(profile_img, MAX_SIDE, JPEG_Q)
+    
+    # 3.1 儲存用戶頭像（從個人頁截圖中提取）
+    user_id = request.form.get("user_id")  # 從前端獲取用戶ID
+    if user_id:
+        # 將個人頁截圖作為用戶頭像儲存
+        avatar_saved = save_user_avatar(user_id, profile_b64, "JPEG")
+        if avatar_saved:
+            print(f"User avatar saved: {avatar_saved}")
     
     # 4. 處理其他貼文圖片（最多 6 張）
     post_files = request.files.getlist("posts")
@@ -568,7 +611,7 @@ def analyze():
         # AI 分析文字（新增）
         "analysis_text": analysis_text,
         
-        # 人格類型
+        # IG 社群帳號定位類型
         "primary_type": {
             "id": primary_type_id,
             "name_zh": primary_type_info["name_zh"],
@@ -621,6 +664,30 @@ def analyze():
     return jsonify(result)
 
 # -----------------------------------------------------------------------------
+# User Avatar API
+# -----------------------------------------------------------------------------
+@app.route("/api/user/<user_id>/avatar", methods=["GET"])
+def get_user_avatar(user_id):
+    """獲取用戶頭像"""
+    try:
+        avatar_url = get_user_avatar_url(user_id)
+        if avatar_url:
+            return jsonify({
+                "ok": True,
+                "avatar_url": avatar_url
+            })
+        else:
+            return jsonify({
+                "ok": False,
+                "error": "Avatar not found"
+            }), 404
+    except Exception as e:
+        return jsonify({
+            "ok": False,
+            "error": f"Failed to get avatar: {str(e)}"
+        }), 500
+
+# -----------------------------------------------------------------------------
 # Leaderboard API
 # -----------------------------------------------------------------------------
 @app.route("/api/leaderboard", methods=["GET"])
@@ -629,6 +696,7 @@ def get_leaderboard():
     try:
         # 這裡應該從數據庫獲取真實數據
         # 目前返回模擬數據
+        # 模擬數據，但包含真實頭像URL
         mock_data = [
             {
                 "rank": 1,
@@ -636,7 +704,8 @@ def get_leaderboard():
                 "displayName": "Taylor Swift",
                 "followers": "282M",
                 "accountValue": 9850000,
-                "avatar": "TS"
+                "avatar": "TS",
+                "avatar_url": get_user_avatar_url("taylorswift") or None
             },
             {
                 "rank": 2,
@@ -644,7 +713,8 @@ def get_leaderboard():
                 "displayName": "Cristiano Ronaldo", 
                 "followers": "631M",
                 "accountValue": 9200000,
-                "avatar": "CR"
+                "avatar": "CR",
+                "avatar_url": get_user_avatar_url("cristiano") or None
             },
             {
                 "rank": 3,
@@ -652,7 +722,8 @@ def get_leaderboard():
                 "displayName": "Dwayne Johnson",
                 "followers": "395M", 
                 "accountValue": 8750000,
-                "avatar": "DJ"
+                "avatar": "DJ",
+                "avatar_url": get_user_avatar_url("therock") or None
             }
         ]
         
