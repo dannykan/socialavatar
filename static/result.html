@@ -31,23 +31,52 @@
             position: relative;
         }
 
-        /* Instagram 風格漸變頭部 */
-        .header {
-            background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
-            padding: 40px 30px;
-      text-align: center;
-      position: relative;
-      overflow: hidden;
-    }
+        /* 帳號資訊區域 */
+        .account-info {
+            padding: 20px 30px 10px;
+            text-align: left;
+            margin: 20px 30px 0;
+        }
+
+        .username {
+            color: #333;
+            font-size: 28px;
+            font-weight: 800;
+            margin-bottom: 8px;
+        }
     
-        .header::before {
-      content: '';
-      position: absolute;
-      top: -50%;
+        .username::before {
+            content: '@';
+            opacity: 0.8;
+        }
+
+        .display-name {
+            color: #666;
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        /* 社群定位卡片 */
+        .personality-card {
+            background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+            border-radius: 20px;
+            padding: 25px;
+            margin: 10px 30px 20px;
+            color: white;
+            box-shadow: 0 15px 35px rgba(240, 148, 51, 0.3);
+            position: relative;
+            overflow: hidden;
+            text-align: center;
+        }
+
+        .personality-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
             left: -50%;
-      width: 200%;
-      height: 200%;
-      background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
             animation: pulse 4s ease-in-out infinite;
         }
 
@@ -56,30 +85,49 @@
             50% { transform: scale(1.1); opacity: 0.8; }
         }
 
-        .username {
+        .badge {
+            background: rgba(255, 255, 255, 0.25);
+            border: 1px solid rgba(255, 255, 255, 0.4);
             color: white;
-            font-size: 24px;
-            font-weight: 700;
-            margin-bottom: 10px;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.2);
-      position: relative;
-      z-index: 1;
-    }
-    
-        .username::before {
-            content: '@';
-            opacity: 0.8;
-        }
-
-        .stats {
-            display: flex;
-            justify-content: center;
-            gap: 20px;
-            color: white;
-            font-size: 13px;
-            margin-top: 15px;
+            font-size: 14px;
+            padding: 8px 16px;
+            border-radius: 15px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            display: inline-block;
             position: relative;
             z-index: 1;
+        }
+
+        .personality-info {
+            color: white;
+            font-size: 16px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .personality-name {
+            font-weight: 700;
+            margin-bottom: 5px;
+            font-size: 18px;
+        }
+
+        .personality-en {
+            font-size: 12px;
+            opacity: 0.8;
+            font-style: italic;
+        }
+
+        /* 數據統計區域 */
+        .stats-section {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            padding: 30px;
+            margin: 20px 30px;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 20px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
         }
 
         .stat-item {
@@ -87,14 +135,17 @@
         }
 
         .stat-number {
-            font-weight: 700;
-            font-size: 16px;
+            font-weight: 800;
+            font-size: 24px;
+            color: #333;
             display: block;
+            margin-bottom: 5px;
         }
 
         .stat-label {
-      opacity: 0.9;
-            font-size: 11px;
+            color: #666;
+            font-size: 14px;
+            font-weight: 500;
         }
 
         /* 主要價值展示區 */
@@ -155,71 +206,6 @@
             margin-bottom: 25px;
         }
 
-        /* 整合的帳號資訊卡片 */
-        .account-info-card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 20px;
-            padding: 25px;
-            margin-top: 20px;
-            color: white;
-            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
-        }
-
-        .account-badges {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-            justify-content: center;
-        }
-
-        .tier-badge {
-            background: rgba(255, 255, 255, 0.2);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            color: white;
-            font-size: 12px;
-            padding: 6px 15px;
-        }
-
-        .personality-badge {
-            background: rgba(255, 255, 255, 0.2);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            color: white;
-            font-size: 12px;
-            padding: 6px 15px;
-        }
-
-        .personality-details {
-            display: flex;
-      align-items: center;
-            gap: 15px;
-        }
-
-        .personality-emoji {
-            font-size: 40px;
-            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2));
-        }
-
-        .personality-info {
-            flex: 1;
-        }
-
-        .personality-name {
-            font-size: 18px;
-      font-weight: 700;
-            margin-bottom: 3px;
-        }
-
-        .personality-en {
-            font-size: 12px;
-            opacity: 0.9;
-            font-style: italic;
-            margin-bottom: 8px;
-        }
-
-        .personality-confidence {
-            font-size: 11px;
-            opacity: 0.8;
-        }
 
 
         /* AI 分析文字區塊（新增）*/
@@ -258,8 +244,8 @@
         .pricing-section {
             padding: 25px 30px;
             background: linear-gradient(180deg, #fafafa 0%, #f5f5f5 100%);
-      border-radius: 20px;
-            margin: 0 30px 25px;
+            border-radius: 20px;
+            margin: 20px 0 25px;
         }
 
         .pricing-title {
@@ -427,34 +413,63 @@
         }
 
         /* 響應式設計 */
+        @media (max-width: 768px) {
+            .account-info,
+            .personality-card,
+            .stats-section {
+                margin: 15px 20px;
+            }
+
+            .account-info {
+                padding: 15px 20px;
+            }
+
+            .stats-section {
+                gap: 20px;
+            }
+        }
+
         @media (max-width: 480px) {
             .container {
                 border-radius: 0;
                 box-shadow: none;
             }
 
+            .account-info,
+            .personality-card,
+            .stats-section {
+                margin: 15px 20px;
+            }
+
+            .account-info {
+                padding: 15px 20px;
+            }
+
+            .personality-card,
+            .stats-section {
+                padding: 20px;
+            }
+
+            .stats-section {
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            .username {
+                font-size: 24px;
+            }
+
             .total-value {
                 font-size: 52px;
             }
 
-            .account-badges {
-                flex-direction: column;
-                gap: 8px;
-            }
-
-            .personality-details {
-                flex-direction: column;
-                text-align: center;
-                gap: 10px;
-            }
-
             .pricing-cards {
-        grid-template-columns: 1fr;
-      }
+                grid-template-columns: 1fr;
+            }
       
             .multiplier-grid {
-        grid-template-columns: 1fr;
-      }
+                grid-template-columns: 1fr;
+            }
       
             .pricing-section {
                 margin: 0 20px 25px;
@@ -467,20 +482,121 @@
             text-align: center;
             padding: 60px 30px;
             color: white;
+            position: relative;
+        }
+
+        .loading-container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 30px;
+            padding: 50px 40px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            max-width: 400px;
+            margin: 0 auto;
+        }
+
+        .loading-title {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .loading-subtitle {
+            font-size: 14px;
+            opacity: 0.8;
+            margin-bottom: 30px;
         }
 
         .loading-spinner {
-            width: 50px;
-            height: 50px;
-            border: 4px solid rgba(255,255,255,0.3);
-            border-top-color: white;
+            width: 60px;
+            height: 60px;
+            margin: 0 auto 30px;
+            position: relative;
+        }
+
+        .spinner-ring {
+            width: 100%;
+            height: 100%;
+            border: 3px solid rgba(255, 255, 255, 0.2);
+            border-top: 3px solid #f09433;
+            border-right: 3px solid #e6683c;
             border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 20px;
+            animation: spin 1.2s linear infinite;
+        }
+
+        .spinner-dot {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 8px;
+            height: 8px;
+            background: linear-gradient(45deg, #f09433, #e6683c);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            animation: pulse 1.5s ease-in-out infinite;
         }
 
         @keyframes spin {
             to { transform: rotate(360deg); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { 
+                transform: translate(-50%, -50%) scale(1);
+                opacity: 1;
+            }
+            50% { 
+                transform: translate(-50%, -50%) scale(1.2);
+                opacity: 0.7;
+            }
+        }
+
+        .loading-progress {
+            width: 100%;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 2px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        .loading-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+            border-radius: 2px;
+            animation: progress 3s ease-in-out infinite;
+        }
+
+        @keyframes progress {
+            0% { width: 0%; }
+            50% { width: 70%; }
+            100% { width: 100%; }
+        }
+
+        .loading-steps {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+            font-size: 12px;
+            opacity: 0.7;
+        }
+
+        .loading-step {
+            flex: 1;
+            text-align: center;
+            padding: 5px;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .loading-step.active {
+            background: rgba(255, 255, 255, 0.1);
+            opacity: 1;
         }
 
         .hidden {
@@ -492,87 +608,101 @@
     <div class="container">
         <!-- Loading 狀態 -->
         <div id="loading" class="loading">
-            <div class="loading-spinner"></div>
-            <p>正在分析你的 IG 帳號...</p>
-    </div>
+            <div class="loading-container">
+                <div class="loading-title">IG 帳號價值分析</div>
+                <div class="loading-subtitle">AI 正在深度分析您的社群影響力...</div>
+                
+                <div class="loading-spinner">
+                    <div class="spinner-ring"></div>
+                    <div class="spinner-dot"></div>
+                </div>
+                
+                <div class="loading-progress">
+                    <div class="loading-progress-bar"></div>
+                </div>
+                
+                <div class="loading-steps">
+                    <div class="loading-step active">分析中</div>
+                    <div class="loading-step">計算價值</div>
+                    <div class="loading-step">生成報告</div>
+                </div>
+            </div>
+        </div>
     
         <!-- 結果展示（預設隱藏） -->
         <div id="result" class="hidden">
-            <!-- Instagram 風格頭部 -->
-            <div class="header">
+            <!-- 帳號資訊區域 -->
+            <div class="account-info">
                 <div class="username" id="username">username</div>
-                <div class="stats">
-                    <div class="stat-item">
-                        <span class="stat-number" id="followers">0</span>
-                        <span class="stat-label">粉絲</span>
-        </div>
-                    <div class="stat-item">
-                        <span class="stat-number" id="following">0</span>
-                        <span class="stat-label">追蹤</span>
-        </div>
-                    <div class="stat-item">
-                        <span class="stat-number" id="posts">0</span>
-                        <span class="stat-label">貼文</span>
-          </div>
-      </div>
-    </div>
+                <div class="display-name" id="display-name">台北美食探索者</div>
+            </div>
+            
+            <!-- 社群定位卡片 -->
+            <div class="personality-card">
+                <div class="badge" id="follower-tier">意見領袖</div>
+                <div class="personality-info">
+                    <div class="personality-name" id="personality-name">生活記錄者</div>
+                    <div class="personality-en" id="personality-en">Everyday Chronicler</div>
+                </div>
+            </div>
+            
+            <!-- 數據統計區域 -->
+            <div class="stats-section">
+                <div class="stat-item">
+                    <span class="stat-number" id="followers">0</span>
+                    <span class="stat-label">粉絲</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number" id="following">0</span>
+                    <span class="stat-label">追蹤</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number" id="posts">0</span>
+                    <span class="stat-label">貼文</span>
+                </div>
+            </div>
     
             <!-- 主要價值展示 -->
             <div class="value-section">
                 <div class="value-title">你的帳號總價值</div>
                 <div class="total-value" id="total-value">NT$ 0</div>
-                <div class="value-subtitle">基於 AI 多維度分析</div>
+                <div class="value-subtitle">基於 AI 多維度分析 (本分析結果僅供娛樂性質參考)</div>
                 
-                <!-- 整合的帳號資訊卡片 -->
-                <div class="account-info-card">
-                    <div class="account-badges">
-                        <div class="badge tier-badge" id="follower-tier">評估中</div>
-                        <div class="badge personality-badge" id="personality-type">分析中...</div>
+                <!-- 合作報價（整合到價值展示區） -->
+                <div class="pricing-section">
+                    <div class="pricing-title">💰 合作報價參考</div>
+                    <div class="pricing-cards">
+                        <div class="price-card">
+                            <div class="price-type">貼文</div>
+                            <div class="price-value" id="post-value">NT$ 0</div>
+              </div>
+                        <div class="price-card">
+                            <div class="price-type">限動</div>
+                            <div class="price-value" id="story-value">NT$ 0</div>
+              </div>
+                        <div class="price-card">
+                            <div class="price-type">短影音</div>
+                            <div class="price-value" id="reels-value">NT$ 0</div>
+            </div>
           </div>
-                    <div class="personality-details">
-                        <span class="personality-emoji" id="personality-emoji">✨</span>
-                        <div class="personality-info">
-                            <div class="personality-name" id="personality-name">分析中...</div>
-                            <div class="personality-en" id="personality-en">Analyzing...</div>
-                            <div class="personality-confidence">
-                                信心度：<span id="personality-confidence">0</span>%
         </div>
-          </div>
-          </div>
-          </div>
-        </div>
+                
         
             <!-- AI 專業分析（新增，僅當有 analysis_text 時顯示）-->
             <div class="analysis-section" id="analysis-section" style="display:none;">
                 <div class="analysis-title">💼 專業 IG 社群帳號價值分析</div>
                 <div class="analysis-text" id="analysis-text"></div>
         </div>
-        
-            <!-- 合作報價（整合到價值展示區） -->
-            <div class="pricing-section">
-                <div class="pricing-title">💰 合作報價參考</div>
-                <div class="pricing-cards">
-                    <div class="price-card">
-                        <div class="price-type">貼文</div>
-                        <div class="price-value" id="post-value">NT$ 0</div>
-          </div>
-                    <div class="price-card">
-                        <div class="price-type">限動</div>
-                        <div class="price-value" id="story-value">NT$ 0</div>
-          </div>
-                    <div class="price-card">
-                        <div class="price-type">短影音</div>
-                        <div class="price-value" id="reels-value">NT$ 0</div>
-        </div>
-      </div>
-    </div>
     
             <!-- 係數展示 -->
             <div class="multipliers-section">
-                <div class="multipliers-title">📊 價值係數</div>
+                <div class="multipliers-title">📊 價值參考維度</div>
                 <div class="multiplier-grid" id="multipliers-grid">
                     <!-- 將由 JS 動態生成 -->
       </div>
+                <div style="text-align: center; margin-top: 15px;">
+                    <button id="learn-more-btn" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 8px 20px; border-radius: 20px; font-size: 12px; cursor: pointer; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);" onclick="showMultiplierDetails()">了解更多</button>
+                </div>
     </div>
 
             <!-- 提升建議 -->
@@ -702,6 +832,7 @@
         function renderResult(data) {
       // 基本資訊
             document.getElementById('username').textContent = data.username || 'username';
+            document.getElementById('display-name').textContent = data.display_name || '台北美食探索者';
       document.getElementById('followers').textContent = formatNumber(data.followers || 0);
       document.getElementById('following').textContent = formatNumber(data.following || 0);
       document.getElementById('posts').textContent = formatNumber(data.posts || 0);
@@ -712,9 +843,10 @@
             
             // 更新粉絲級別徽章
             document.getElementById('follower-tier').textContent = value.follower_tier || '評估中';
-            
-            // 更新社群定位徽章
-            document.getElementById('personality-type').textContent = personality.name_zh || '分析中...';
+
+            // 更新人格類型資訊
+            document.getElementById('personality-name').textContent = personality.name_zh || '分析中';
+            document.getElementById('personality-en').textContent = personality.name_en || 'Analyzing';
 
             // 帳號市場價值（優先使用 AI 估算的價格，否則使用前端計算）
             let accountValue;
@@ -741,10 +873,8 @@
             }, 20);
 
             // 社群定位詳細資訊
-            document.getElementById('personality-emoji').textContent = personality.emoji || '✨';
             document.getElementById('personality-name').textContent = personality.name_zh || '分析中';
             document.getElementById('personality-en').textContent = personality.name_en || 'Analyzing';
-            document.getElementById('personality-confidence').textContent = Math.round((personality.confidence || 0) * 100);
 
             // AI 分析文字（V5 新增，如果有的話才顯示）
             if (data.analysis_text && data.analysis_text.trim()) {
@@ -836,7 +966,6 @@
                     item.className = 'multiplier-item';
                     item.innerHTML = `
                         <span class="multiplier-label">${multiplierLabels[key]}</span>
-                        <span class="multiplier-value">${multipliers[key]}×</span>
                     `;
                     multipliersGrid.appendChild(item);
                 }
@@ -857,6 +986,26 @@
             // 顯示結果，隱藏 loading
             document.getElementById('loading').classList.add('hidden');
             document.getElementById('result').classList.remove('hidden');
+        }
+
+        // 顯示係數詳細資訊
+        function showMultiplierDetails() {
+            const details = `
+價值參考維度說明：
+
+• 視覺品質：照片構圖、色彩搭配、整體美感
+• 內容定位：內容主題明確度、垂直領域專精度
+• 專業程度：內容專業性、可信度、權威感
+• 粉絲品質：粉絲活躍度、互動率、忠誠度
+• 風格獨特：個人風格辨識度、創意表現
+• 互動潛力：粉絲參與度、評論質量、分享意願
+• 利基專注：特定領域深耕程度、專業知識
+• 受眾價值：粉絲群體商業價值、消費能力
+• 跨平台：多平台影響力、品牌一致性
+
+這些維度綜合評估您的帳號在商業合作中的潛在價值。
+            `;
+            alert(details);
         }
 
         // 分享功能
@@ -960,26 +1109,42 @@
             return null;
         }
 
+        // 載入步驟動畫
+        function animateLoadingSteps() {
+            const steps = document.querySelectorAll('.loading-step');
+            let currentStep = 0;
+            
+            const stepInterval = setInterval(() => {
+                // 移除所有 active 類別
+                steps.forEach(step => step.classList.remove('active'));
+                
+                // 添加 active 類別到當前步驟
+                if (currentStep < steps.length) {
+                    steps[currentStep].classList.add('active');
+                    currentStep++;
+                } else {
+                    clearInterval(stepInterval);
+                }
+            }, 500);
+        }
+
         // 頁面載入時
         window.addEventListener('DOMContentLoaded', () => {
+            // 開始載入步驟動畫
+            animateLoadingSteps();
+            
             const analysisData = getAnalysisData();
             
             if (analysisData && analysisData.ok) {
                 // 使用真實的分析數據
                 setTimeout(() => {
                     renderResult(analysisData);
-                }, 1500);
+                }, 2000);
             } else {
-                // 沒有數據，顯示錯誤或重定向到上傳頁面
-                document.getElementById('loading').innerHTML = `
-                    <div class="loading-spinner"></div>
-                    <p>未找到分析結果</p>
-                    <p style="margin-top: 20px; font-size: 14px;">
-                        <a href="/static/upload.html" style="color: white; text-decoration: underline;">
-                            點此重新上傳圖片進行分析
-                        </a>
-                    </p>
-                `;
+                // 沒有數據，使用假資料進行展示
+                setTimeout(() => {
+                    renderResult(mockData);
+                }, 2000);
             }
         });
   </script>
