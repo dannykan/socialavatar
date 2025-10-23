@@ -399,12 +399,12 @@ def analyze():
     # 2. 獲取上傳的圖片
     profile_file = request.files.get("profile")
     if not profile_file:
-        return jsonify({"ok": False, "error": "未上傳 profile 截圖"}), 400
+        return jsonify({"ok": False, "error": "請上傳 IG 個人頁截圖。請確保截圖包含用戶名、粉絲數、追蹤數、貼文數等完整資訊。"}), 400
     
     try:
         profile_img = Image.open(profile_file.stream)
     except Exception as e:
-        return jsonify({"ok": False, "error": f"無法讀取 profile 圖片: {str(e)}"}), 400
+        return jsonify({"ok": False, "error": "圖片格式不支援，請上傳 JPG 或 PNG 格式的截圖。"}), 400
     
     # 3. 處理 profile 圖片
     profile_b64 = resize_and_encode_b64(profile_img, MAX_SIDE, JPEG_Q)
@@ -450,7 +450,7 @@ def analyze():
         ocr_data = extract_json_from_text(ocr_result)
         
         if not ocr_data:
-            return jsonify({"ok": False, "error": "無法解析基本資訊"}), 500
+            return jsonify({"ok": False, "error": "無法從截圖中讀取 IG 資訊。請確保截圖清晰且包含完整的個人頁面資訊（用戶名、粉絲數、追蹤數、貼文數）。"}), 400
         
         username = ocr_data.get("username", "")
         display_name = ocr_data.get("display_name", "")
@@ -459,7 +459,7 @@ def analyze():
         posts = int(ocr_data.get("posts", 0))
         
     except Exception as e:
-        return jsonify({"ok": False, "error": f"基本資訊提取失敗: {str(e)}"}), 500
+        return jsonify({"ok": False, "error": "截圖解析失敗。請確保上傳的是清晰的 IG 個人頁截圖，包含完整的用戶資訊。"}), 400
     
     # 7. 進行完整的開放式價值分析（V5 - 新方法）
     try:
@@ -472,7 +472,7 @@ def analyze():
         ai_data = extract_json_from_text(ai_response)
         
         if not ai_data:
-            return jsonify({"ok": False, "error": "AI 回應格式錯誤"}), 500
+            return jsonify({"ok": False, "error": "AI 分析結果格式錯誤。請重新上傳截圖並重試。"}), 500
         
         # 提取分析文字（JSON 之前的部分）
         json_start = ai_response.find('{')
@@ -486,7 +486,7 @@ def analyze():
             analysis_text = '\n\n'.join([p.strip() for p in analysis_text.split('\n\n') if p.strip()])
         
     except Exception as e:
-        return jsonify({"ok": False, "error": f"AI 分析失敗: {str(e)}"}), 500
+        return jsonify({"ok": False, "error": "AI 分析服務暫時無法使用。請稍後再試，或檢查截圖是否清晰完整。"}), 500
     
     # 8. 計算係數（用於前端顯示）
     def calc_multiplier(data, key, default=1.0):

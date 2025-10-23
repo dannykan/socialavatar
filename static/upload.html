@@ -234,6 +234,28 @@
     .loading-overlay.show {
       display: flex;
     }
+
+    /* 錯誤框樣式 */
+    .error-box {
+      background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(220, 38, 38, 0.1) 100%);
+      color: #fca5a5;
+      border: 2px solid rgba(239, 68, 68, 0.3);
+      border-radius: 12px;
+      padding: 20px;
+      margin-top: 20px;
+      box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+      animation: errorShake 0.5s ease-in-out;
+    }
+
+    @keyframes errorShake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-5px); }
+      75% { transform: translateX(5px); }
+    }
+
+    .hidden {
+      display: none;
+    }
     
     .loading-spinner {
       width: 64px;
@@ -428,7 +450,7 @@
       </a>
     </div>
 
-    <div id="err" class="status-error hidden"></div>
+    <div id="err" class="error-box hidden"></div>
   </main>
 
   <!-- Loading Overlay -->
@@ -582,12 +604,24 @@
 
         updateStep(2, 'active');
         const res = await fetch('/bd/analyze', { method: 'POST', body: form });
-        if (!res.ok) throw new Error(`伺服器錯誤（${res.status}）`);
+        if (!res.ok) {
+          // 嘗試解析錯誤訊息
+          let errorMessage = `伺服器錯誤（${res.status}）`;
+          try {
+            const errorData = await res.json();
+            if (errorData.error) {
+              errorMessage = errorData.error;
+            }
+          } catch (e) {
+            // 如果無法解析 JSON，使用預設錯誤訊息
+          }
+          throw new Error(errorMessage);
+        }
         updateStep(2, 'completed');
 
         updateStep(3, 'active');
         const data = await res.json();
-        if (!data.ok) throw new Error(data.error || 'server error');
+        if (!data.ok) throw new Error(data.error || '分析失敗，請重試');
         updateStep(3, 'completed');
 
         updateStep(4, 'active');
@@ -625,8 +659,25 @@
       } catch (e) {
         console.error('Analysis failed:', e);
         document.getElementById('loadingOverlay').classList.remove('show');
-        errBox.textContent = e.message || '網路錯誤';
+        
+        // 顯示友善的錯誤訊息
+        const errorMessage = e.message || '網路錯誤';
+        errBox.innerHTML = `
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="font-size: 24px;">⚠️</div>
+            <div>
+              <div style="font-weight: 600; margin-bottom: 4px;">分析失敗</div>
+              <div style="font-size: 14px; opacity: 0.9;">${errorMessage}</div>
+            </div>
+          </div>
+        `;
         errBox.style.display = 'block';
+        
+        // 重置步驟狀態
+        updateStep(1, 'pending');
+        updateStep(2, 'pending');
+        updateStep(3, 'pending');
+        updateStep(4, 'pending');
       }
     };
   </script>
