@@ -621,6 +621,54 @@ def analyze():
     return jsonify(result)
 
 # -----------------------------------------------------------------------------
+# Leaderboard API
+# -----------------------------------------------------------------------------
+@app.route("/api/leaderboard", methods=["GET"])
+def get_leaderboard():
+    """獲取排行榜數據"""
+    try:
+        # 這裡應該從數據庫獲取真實數據
+        # 目前返回模擬數據
+        mock_data = [
+            {
+                "rank": 1,
+                "username": "taylorswift",
+                "displayName": "Taylor Swift",
+                "followers": "282M",
+                "accountValue": 9850000,
+                "avatar": "TS"
+            },
+            {
+                "rank": 2,
+                "username": "cristiano",
+                "displayName": "Cristiano Ronaldo", 
+                "followers": "631M",
+                "accountValue": 9200000,
+                "avatar": "CR"
+            },
+            {
+                "rank": 3,
+                "username": "therock",
+                "displayName": "Dwayne Johnson",
+                "followers": "395M", 
+                "accountValue": 8750000,
+                "avatar": "DJ"
+            }
+        ]
+        
+        return jsonify({
+            "ok": True,
+            "data": mock_data,
+            "total": len(mock_data)
+        })
+        
+    except Exception as e:
+        return jsonify({
+            "ok": False,
+            "error": f"獲取排行榜數據失敗: {str(e)}"
+        }), 500
+
+# -----------------------------------------------------------------------------
 # Run
 # -----------------------------------------------------------------------------
 if __name__ == "__main__":

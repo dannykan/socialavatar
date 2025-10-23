@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🏆 IG 帳號價值排行榜</title>
+  <link rel="stylesheet" href="/static/app.css">
+  <style>
+    body {
+      background: var(--bg);
+      min-height: 100vh;
+    }
+    
+    .header {
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: var(--text-inverse);
+      padding: var(--spacing-lg);
+      text-align: center;
+      box-shadow: var(--shadow-lg);
+    }
+    
+    .header h1 {
+      margin: 0;
+      font-size: var(--font-size-3xl);
+      font-weight: 700;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+    
+    .header p {
+      margin: var(--spacing-sm) 0 0 0;
+      opacity: 0.9;
+      font-size: var(--font-size-lg);
+    }
+    
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: var(--spacing-lg);
+    }
+    
+    /* 排行榜樣式 */
+    .leaderboard-section {
+      background: var(--card);
+      border-radius: var(--radius-lg);
+      padding: var(--spacing-lg);
+      box-shadow: var(--shadow-xl);
+      border: 1px solid var(--border);
+      margin-bottom: var(--spacing-lg);
+    }
+    
+    .leaderboard-title {
+      text-align: center;
+      margin-bottom: var(--spacing-lg);
+    }
+    
+    .leaderboard-title h2 {
+      font-size: var(--font-size-2xl);
+      font-weight: 700;
+      color: var(--text);
+      margin: 0 0 var(--spacing-sm) 0;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    .leaderboard-title p {
+      color: var(--text-light);
+      font-size: var(--font-size);
+      margin: 0;
+    }
+    
+    /* 排行榜項目 */
+    .leaderboard-item {
+      display: flex;
+      align-items: center;
+      padding: var(--spacing);
+      margin-bottom: var(--spacing-sm);
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
+      border-radius: var(--radius-md);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .leaderboard-item:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+      border-color: var(--primary);
+    }
+    
+    .leaderboard-item::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 4px;
+      height: 100%;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+    }
+    
+    /* 前三名特殊樣式 */
+    .leaderboard-item.rank-1 {
+      background: linear-gradient(135deg, rgba(255, 215, 0, 0.1) 0%, rgba(255, 193, 7, 0.05) 100%);
+      border-color: #ffd700;
+    }
+    
+    .leaderboard-item.rank-1::before {
+      background: linear-gradient(135deg, #ffd700, #ffc107);
+    }
+    
+    .leaderboard-item.rank-2 {
+      background: linear-gradient(135deg, rgba(192, 192, 192, 0.1) 0%, rgba(169, 169, 169, 0.05) 100%);
+      border-color: #c0c0c0;
+    }
+    
+    .leaderboard-item.rank-2::before {
+      background: linear-gradient(135deg, #c0c0c0, #a9a9a9);
+    }
+    
+    .leaderboard-item.rank-3 {
+      background: linear-gradient(135deg, rgba(205, 127, 50, 0.1) 0%, rgba(184, 115, 51, 0.05) 100%);
+      border-color: #cd7f32;
+    }
+    
+    .leaderboard-item.rank-3::before {
+      background: linear-gradient(135deg, #cd7f32, #b87333);
+    }
+    
+    /* 排名 */
+    .rank {
+      font-size: var(--font-size-xl);
+      font-weight: 700;
+      color: var(--text);
+      min-width: 40px;
+      text-align: center;
+      margin-right: var(--spacing);
+      position: relative;
+    }
+    
+    .rank-1 .rank {
+      color: #ffd700;
+      text-shadow: 0 2px 4px rgba(255, 215, 0, 0.3);
+    }
+    
+    .rank-2 .rank {
+      color: #c0c0c0;
+      text-shadow: 0 2px 4px rgba(192, 192, 192, 0.3);
+    }
+    
+    .rank-3 .rank {
+      color: #cd7f32;
+      text-shadow: 0 2px 4px rgba(205, 127, 50, 0.3);
+    }
+    
+    /* 皇冠樣式 */
+    .rank-1 .user-avatar::before {
+      content: '👑';
+      position: absolute;
+      top: -8px;
+      right: -8px;
+      font-size: 20px;
+      z-index: 10;
+      filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+      animation: crownGlow 4s ease-in-out infinite;
+    }
+    
+    @keyframes crownGlow {
+      0%, 100% { 
+        filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3)) drop-shadow(0 0 6px rgba(255, 215, 0, 0.4));
+      }
+      50% { 
+        filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3)) drop-shadow(0 0 12px rgba(255, 215, 0, 0.8));
+      }
+    }
+    
+    /* 用戶信息 */
+    .user-info {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: var(--spacing);
+    }
+    
+    .user-avatar {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-inverse);
+      font-weight: 700;
+      font-size: var(--font-size-lg);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      position: relative;
+    }
+    
+    .user-details {
+      flex: 1;
+    }
+    
+    .username {
+      font-size: var(--font-size-lg);
+      font-weight: 600;
+      color: var(--text);
+      margin: 0 0 4px 0;
+    }
+    
+    .display-name {
+      font-size: var(--font-size-sm);
+      color: var(--text-light);
+      margin: 0;
+    }
+    
+    /* 統計數據 */
+    .stats {
+      display: flex;
+      gap: var(--spacing-lg);
+      align-items: center;
+    }
+    
+    .stat-item {
+      text-align: center;
+    }
+    
+    .stat-value {
+      font-size: var(--font-size-lg);
+      font-weight: 700;
+      color: var(--text);
+      margin: 0;
+    }
+    
+    .stat-label {
+      font-size: var(--font-size-xs);
+      color: var(--text-light);
+      margin: 0;
+    }
+    
+    .account-value {
+      font-size: var(--font-size-xl);
+      font-weight: 700;
+      color: var(--primary);
+      text-shadow: 0 2px 4px rgba(34, 211, 238, 0.3);
+    }
+    
+    /* 展開/收起按鈕 */
+    .expand-button {
+      width: 100%;
+      padding: var(--spacing);
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: var(--text-inverse);
+      border: none;
+      border-radius: var(--radius-md);
+      font-size: var(--font-size);
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      margin-top: var(--spacing);
+    }
+    
+    .expand-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(34, 211, 238, 0.3);
+    }
+    
+    /* 加載狀態 */
+    .loading {
+      text-align: center;
+      padding: var(--spacing-xl);
+      color: var(--text-light);
+    }
+    
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid var(--border);
+      border-top: 4px solid var(--primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto var(--spacing);
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    /* 空狀態 */
+    .empty-state {
+      text-align: center;
+      padding: var(--spacing-xl);
+      color: var(--text-light);
+    }
+    
+    .empty-state h3 {
+      font-size: var(--font-size-xl);
+      margin: 0 0 var(--spacing) 0;
+    }
+    
+    .empty-state p {
+      margin: 0;
+    }
+    
+    /* 響應式設計 */
+    @media (max-width: 768px) {
+      .container {
+        padding: var(--spacing);
+      }
+      
+      .leaderboard-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--spacing-sm);
+      }
+      
+      .user-info {
+        width: 100%;
+      }
+      
+      .stats {
+        width: 100%;
+        justify-content: space-between;
+        gap: var(--spacing);
+      }
+      
+      .stat-item {
+        flex: 1;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      .stats {
+        flex-direction: column;
+        gap: var(--spacing-sm);
+      }
+      
+      .stat-item {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <h1>🏆 IG 帳號價值排行榜</h1>
+    <p>看看誰的 IG 帳號最有價值！</p>
+  </header>
+
+  <main class="container">
+    <div class="leaderboard-section">
+      <div class="leaderboard-title">
+        <h2>💎 價值排行榜</h2>
+        <p>基於 AI 深度分析的帳號商業價值排名</p>
+      </div>
+      
+      <div id="leaderboardContent">
+        <div class="loading">
+          <div class="spinner"></div>
+          <p>正在載入排行榜...</p>
+        </div>
+      </div>
+      
+      <button class="expand-button" id="expandButton" style="display: none;">
+        <span id="expandText">展開查看更多 (21-100名)</span>
+      </button>
+    </div>
+  </main>
+
+  <script>
+    // 模擬排行榜數據
+    const mockLeaderboardData = [
+      {
+        rank: 1,
+        username: "taylorswift",
+        displayName: "Taylor Swift",
+        followers: "282M",
+        accountValue: 9850000,
+        avatar: "TS"
+      },
+      {
+        rank: 2,
+        username: "cristiano",
+        displayName: "Cristiano Ronaldo",
+        followers: "631M",
+        accountValue: 9200000,
+        avatar: "CR"
+      },
+      {
+        rank: 3,
+        username: "therock",
+        displayName: "Dwayne Johnson",
+        followers: "395M",
+        accountValue: 8750000,
+        avatar: "DJ"
+      },
+      {
+        rank: 4,
+        username: "kyliejenner",
+        displayName: "Kylie Jenner",
+        followers: "399M",
+        accountValue: 8200000,
+        avatar: "KJ"
+      },
+      {
+        rank: 5,
+        username: "selenagomez",
+        displayName: "Selena Gomez",
+        followers: "429M",
+        accountValue: 7850000,
+        avatar: "SG"
+      },
+      {
+        rank: 6,
+        username: "kimkardashian",
+        displayName: "Kim Kardashian",
+        followers: "364M",
+        accountValue: 7500000,
+        avatar: "KK"
+      },
+      {
+        rank: 7,
+        username: "lionelmessi",
+        displayName: "Lionel Messi",
+        followers: "500M",
+        accountValue: 7200000,
+        avatar: "LM"
+      },
+      {
+        rank: 8,
+        username: "beyonce",
+        displayName: "Beyoncé",
+        followers: "319M",
+        accountValue: 6800000,
+        avatar: "B"
+      },
+      {
+        rank: 9,
+        username: "justinbieber",
+        displayName: "Justin Bieber",
+        followers: "293M",
+        accountValue: 6500000,
+        avatar: "JB"
+      },
+      {
+        rank: 10,
+        username: "arianagrande",
+        displayName: "Ariana Grande",
+        followers: "380M",
+        accountValue: 6200000,
+        avatar: "AG"
+      }
+    ];
+
+    // 生成更多數據 (11-100名)
+    function generateMoreData() {
+      const moreData = [];
+      for (let i = 11; i <= 100; i++) {
+        moreData.push({
+          rank: i,
+          username: `user${i}`,
+          displayName: `User ${i}`,
+          followers: Math.floor(Math.random() * 50) + "M",
+          accountValue: Math.floor(Math.random() * 5000000) + 1000000,
+          avatar: `U${i}`
+        });
+      }
+      return moreData;
+    }
+
+    // 格式化數字
+    function formatNumber(num) {
+      if (num >= 1000000) {
+        return (num / 1000000).toFixed(1) + 'M';
+      } else if (num >= 1000) {
+        return (num / 1000).toFixed(1) + 'K';
+      }
+      return num.toString();
+    }
+
+    // 渲染排行榜項目
+    function renderLeaderboardItem(item) {
+      const rankClass = item.rank <= 3 ? `rank-${item.rank}` : '';
+      
+      // 前三名使用emoji
+      let rankDisplay = item.rank;
+      if (item.rank === 1) rankDisplay = '🥇';
+      else if (item.rank === 2) rankDisplay = '🥈';
+      else if (item.rank === 3) rankDisplay = '🥉';
+      
+      return `
+        <div class="leaderboard-item ${rankClass}">
+          <div class="rank">${rankDisplay}</div>
+          <div class="user-info">
+            <div class="user-avatar">${item.avatar}</div>
+            <div class="user-details">
+              <div class="username">@${item.username}</div>
+              <div class="display-name">${item.displayName}</div>
+            </div>
+          </div>
+          <div class="stats">
+            <div class="stat-item">
+              <div class="stat-value">${item.followers}</div>
+              <div class="stat-label">粉絲數</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value account-value">$${formatNumber(item.accountValue)}</div>
+              <div class="stat-label">帳號價值</div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // 渲染排行榜
+    function renderLeaderboard(data, showAll = false) {
+      const content = document.getElementById('leaderboardContent');
+      const expandButton = document.getElementById('expandButton');
+      
+      if (data.length === 0) {
+        content.innerHTML = `
+          <div class="empty-state">
+            <h3>📊 暫無排行榜數據</h3>
+            <p>還沒有用戶進行過 IG 帳號價值分析</p>
+          </div>
+        `;
+        return;
+      }
+
+      const displayData = showAll ? data : data.slice(0, 20);
+      const html = displayData.map(item => renderLeaderboardItem(item)).join('');
+      
+      content.innerHTML = html;
+      
+      if (data.length > 20) {
+        expandButton.style.display = 'block';
+        expandButton.onclick = () => {
+          if (showAll) {
+            renderLeaderboard(data, false);
+            document.getElementById('expandText').textContent = '展開查看更多 (21-100名)';
+          } else {
+            renderLeaderboard(data, true);
+            document.getElementById('expandText').textContent = '收起排行榜';
+          }
+        };
+      }
+    }
+
+    // 初始化排行榜
+    function initLeaderboard() {
+      // 模擬API調用延遲
+      setTimeout(() => {
+        const allData = [...mockLeaderboardData, ...generateMoreData()];
+        renderLeaderboard(allData);
+      }, 1000);
+    }
+
+    // 頁面載入完成後初始化
+    document.addEventListener('DOMContentLoaded', initLeaderboard);
+  </script>
+</body>
+</html>
