@@ -1,0 +1,9 @@
+# Render 部署專用依賴列表
+# 使用固定版本避免構建衝突
+
+flask==3.0.3
+flask-cors==4.0.0
+pillow==10.3.0
+requests==2.31.0
+gunicorn==21.2.0
+python-dotenv==1.0.0

@@ -1,22 +1,10 @@
-# App V4 依賴列表
-# 安裝方式：pip install -r requirements.txt --break-system-packages
+# App V4 依賴列表 - Render 兼容版本
+# 核心依賴（必需）
+flask>=3.0.0
+flask-cors>=4.0.0
+pillow>=10.0.0
+requests>=2.31.0
+gunicorn>=21.0.0
 
-# Web Framework
-flask==3.0.0
-flask-cors==4.0.0
-
-# Image Processing
-pillow==10.1.0
-
-# HTTP Requests
-requests==2.31.0
-
-# 可選：環境變數管理
-python-dotenv==1.0.0
-
-# 可選：生產環境部署
-gunicorn==21.2.0
-
-# 可選：開發工具
-pytest==7.4.3
-black==23.12.1
+# 可選依賴
+python-dotenv>=1.0.0
