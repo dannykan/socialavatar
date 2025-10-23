@@ -1,1240 +1,854 @@
-<!doctype html>
-<html lang="zh-Hant">
+<!DOCTYPE html>
+<html lang="zh-TW">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>你的 IG 身價評估｜分析結果</title>
-  <link rel="stylesheet" href="/static/app.css">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  
-  <script type="module">
-    import { synthesizeAudience } from './audience_model.js';
-    import { synthesizeTravelSplit } from './travel_split_model.js';
-    import { getConfidenceBands } from './pricing_confidence_model.js';
-    import { computeBrandFit } from './brand_fit_model.js';
-    window._IG_Audience = { synthesizeAudience };
-    window._IG_Travel = { synthesizeTravelSplit };
-    window._IG_Pricing = { getConfidenceBands };
-    window._IG_BrandFit = { computeBrandFit };
-  </script>
-  <style>
-    body {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      min-height: 100vh;
-      padding: 20px 0;
-    }
-    
-    .header {
-      background: rgba(255,255,255,0.95);
-      backdrop-filter: blur(10px);
-      padding: 16px 24px;
-      border-radius: 12px;
-      margin: 0 auto 24px;
-      max-width: 900px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-    }
-    
-    .container {
-      max-width: 900px;
-      margin: 0 auto;
-      padding: 0 16px;
-    }
-    
-    .card {
-      background: white;
-      border-radius: 16px;
-      padding: 32px;
-      margin-bottom: 24px;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.12);
-    }
-    
-    /* 主價值卡 */
-    .value-hero {
-      text-align: center;
-      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-      color: white;
-      padding: 48px 32px;
-      border-radius: 20px;
-      margin-bottom: 24px;
-      position: relative;
-      overflow: hidden;
-    }
-    
-    .value-hero::before {
-      content: '';
-      position: absolute;
-      top: -50%;
-      right: -50%;
-      width: 200%;
-      height: 200%;
-      background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
-      animation: rotate 20s linear infinite;
-    }
-    
-    @keyframes rotate {
-      from { transform: rotate(0deg); }
-      to { transform: rotate(360deg); }
-    }
-    
-    .value-hero-content {
-      position: relative;
-      z-index: 1;
-    }
-    
-    .value-label {
-      font-size: 18px;
-      opacity: 0.9;
-      margin-bottom: 8px;
-      font-weight: 500;
-    }
-    
-    .value-amount {
-      font-size: 56px;
-      font-weight: 800;
-      margin: 16px 0;
-      text-shadow: 0 4px 12px rgba(0,0,0,0.2);
-      line-height: 1.1;
-    }
-    
-    .value-per {
-      font-size: 24px;
-      opacity: 0.95;
-    }
-    
-    .value-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 16px;
-      margin-top: 24px;
-    }
-    
-    .value-item {
-      background: rgba(255,255,255,0.2);
-      backdrop-filter: blur(10px);
-      padding: 16px;
-      border-radius: 12px;
-      border: 1px solid rgba(255,255,255,0.3);
-    }
-    
-    .value-item-label {
-      font-size: 14px;
-      opacity: 0.9;
-      margin-bottom: 8px;
-    }
-    
-    .value-item-amount {
-      font-size: 24px;
-      font-weight: 700;
-    }
-    
-    /* 類型展示 */
-    .type-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 12px;
-      background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
-      padding: 12px 24px;
-      border-radius: 50px;
-      margin-bottom: 16px;
-      font-size: 18px;
-      font-weight: 600;
-      color: #333;
-    }
-    
-    .type-emoji {
-      font-size: 28px;
-    }
-    
-    /* 價值組成 */
-    .breakdown-section {
-      margin-bottom: 32px;
-    }
-    
-    .breakdown-title {
-      font-size: 20px;
-      font-weight: 700;
-      margin-bottom: 16px;
-      color: #333;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    
-    .breakdown-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 16px;
-      background: #f8f9fa;
-      border-radius: 12px;
-      margin-bottom: 12px;
-    }
-    
-    .breakdown-label {
-      font-size: 16px;
-      color: #555;
-      flex: 1;
-    }
-    
-    .breakdown-sublabel {
-      font-size: 13px;
-      color: #888;
-      margin-top: 4px;
-    }
-    
-    .breakdown-value {
-      font-size: 20px;
-      font-weight: 700;
-      color: #f5576c;
-    }
-    
-    .multiplier-badge {
-      display: inline-block;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      padding: 6px 12px;
-      border-radius: 20px;
-      font-size: 14px;
-      font-weight: 600;
-      margin-left: 12px;
-    }
-    
-    /* 品質評分 */
-    .quality-grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 16px;
-    }
-    
-    .quality-item {
-      background: #f8f9fa;
-      padding: 20px;
-      border-radius: 12px;
-    }
-    
-    .quality-label {
-      font-size: 14px;
-      color: #666;
-      margin-bottom: 8px;
-    }
-    
-    .quality-bar {
-      height: 8px;
-      background: #e0e0e0;
-      border-radius: 4px;
-      overflow: hidden;
-      margin-bottom: 8px;
-    }
-    
-    .quality-fill {
-      height: 100%;
-      background: linear-gradient(90deg, #667eea, #764ba2);
-      transition: width 1s ease;
-    }
-    
-    .quality-score {
-      font-size: 20px;
-      font-weight: 700;
-      color: #667eea;
-    }
-    
-    /* 改進建議 */
-    .tips-list {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-    }
-    
-    .tip-item {
-      padding: 16px;
-      background: #f0f7ff;
-      border-left: 4px solid #667eea;
-      border-radius: 8px;
-      margin-bottom: 12px;
-      font-size: 15px;
-      color: #333;
-      line-height: 1.6;
-    }
-    
-    .tip-item::before {
-      content: '💡 ';
-      margin-right: 8px;
-    }
-    
-    /* 用戶資訊 */
-    .user-info {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      padding: 20px;
-      background: linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%);
-      border-radius: 12px;
-      margin-bottom: 24px;
-    }
-    
-    .user-avatar {
-      width: 64px;
-      height: 64px;
-      border-radius: 50%;
-      background: white;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 32px;
-    }
-    
-    .user-details h3 {
-      margin: 0 0 4px;
-      font-size: 20px;
-      color: #333;
-    }
-    
-    .user-handle {
-      color: #666;
-      font-size: 14px;
-    }
-    
-    .stats-row {
-      display: flex;
-      gap: 24px;
-      margin-top: 12px;
-    }
-    
-    .stat {
-      font-size: 13px;
-      color: #555;
-    }
-    
-    .stat strong {
-      font-weight: 700;
-      color: #333;
-      margin-right: 4px;
-    }
-    
-    /* 按鈕 */
-    .action-buttons {
-      display: flex;
-      gap: 12px;
-      margin-top: 24px;
-    }
-    
-    .btn-restart {
-      flex: 1;
-      padding: 14px 24px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      border: none;
-      border-radius: 12px;
-      font-size: 16px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: transform 0.2s;
-    }
-    
-    .btn-restart:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 20px rgba(102,126,234,0.3);
-    }
-    
-    /* 品牌契合度 */
-    .brand-fit-card .fit-row {
-      display: grid;
-      grid-template-columns: 140px 1fr 60px;
-      align-items: center;
-      gap: 10px;
-      padding: 10px 12px;
-      background: #f8f9fa;
-      border-radius: 10px;
-      margin-bottom: 10px;
-    }
-    .fit-label { font-size:14px; color:#555; }
-    .fit-bar { height:10px; background:#e6e6e6; border-radius:6px; overflow:hidden; }
-    .fit-fill { height:100%; width:0%; background: linear-gradient(90deg,#667eea,#764ba2); transition: width .8s ease; }
-    .fit-score { font-weight:700; color:#667eea; text-align:right; }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的 IG 帳號價值報告</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-    /* 風格雷達圖容器 */
-    .radar-wrap { background:#fff; border-radius:16px; padding:20px; }
-    .radar-sub { font-size:13px; color:#777; margin-top:6px; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
 
-    /* 品牌建議 chips */
-    .chips { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
-    .chip { padding:6px 12px; border-radius:999px; background:linear-gradient(135deg,#a8edea,#fed6e3); color:#333; font-size:13px; font-weight:600; }
+        .container {
+            max-width: 500px;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.98);
+            border-radius: 30px;
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            position: relative;
+        }
 
-    /* 建議清單 */
-    .brand-suggest li { padding:12px 14px; background:#f0fff6; border-left:4px solid #22c55e; border-radius:8px; margin-bottom:10px; }
+        /* Instagram 風格漸變頭部 */
+        .header {
+            background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+            padding: 40px 30px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
 
-    /* 受眾分析 */
-    .audience-grid { display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-bottom:16px; }
-    .aud-card { background:#f8f9fa; border-radius:12px; padding:16px; text-align:center; }
-    .aud-chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
-    .aud-chip { padding:4px 10px; border-radius:999px; background:linear-gradient(135deg,#e0c3fc,#8ec5fc); color:#333; font-size:12px; font-weight:500; }
+        .header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            animation: pulse 4s ease-in-out infinite;
+        }
 
-    /* 旅遊類別細分 */
-    .travel-split .split-row {
-      display: grid;
-      grid-template-columns: 120px 1fr 50px;
-      align-items: center;
-      gap: 10px;
-      padding: 8px 12px;
-      background: #f8f9fa;
-      border-radius: 8px;
-      margin-bottom: 8px;
-    }
-    .split-label { font-size:13px; color:#555; }
-    .split-bar { height:8px; background:#e6e6e6; border-radius:4px; overflow:hidden; }
-    .split-fill { height:100%; width:0%; background: linear-gradient(90deg,#667eea,#764ba2); transition: width .8s ease; }
-    .split-score { font-weight:600; color:#667eea; text-align:right; font-size:13px; }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+        }
 
-    /* 報價區間信心條 */
-    .conf-row {
-      display: grid;
-      grid-template-columns: 100px 1fr;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 16px;
-    }
-    .conf-label { font-size:14px; color:#555; font-weight:500; }
-    .conf-bar { 
-      height:12px; 
-      background:#f0f0f0; 
-      border-radius:6px; 
-      overflow:hidden; 
-      position:relative;
-    }
-    .conf-fill { 
-      height:100%; 
-      background: linear-gradient(90deg,#667eea,#764ba2); 
-      border-radius:6px;
-      transition: all .8s ease;
-    }
-    .conf-bounds { 
-      font-size:12px; 
-      color:#666; 
-      margin-top:4px; 
-      text-align:center;
-    }
+        .username {
+            color: white;
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            position: relative;
+            z-index: 1;
+        }
 
-    /* 響應式 */
-    @media (max-width: 768px) {
-      .value-amount {
-        font-size: 42px;
-      }
-      
-      .value-grid {
-        grid-template-columns: 1fr;
-      }
-      
-      .quality-grid {
-        grid-template-columns: 1fr;
-      }
-      
-      .card {
-        padding: 24px 20px;
-      }
+        .username::before {
+            content: '@';
+            opacity: 0.8;
+        }
 
-      .audience-grid {
-        grid-template-columns: 1fr;
-      }
+        .stats {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            color: white;
+            font-size: 13px;
+            margin-top: 15px;
+            position: relative;
+            z-index: 1;
+        }
 
-      .brand-fit-card .fit-row {
-        grid-template-columns: 120px 1fr 50px;
-      }
+        .stat-item {
+            text-align: center;
+        }
 
-      .travel-split .split-row {
-        grid-template-columns: 100px 1fr 45px;
-      }
+        .stat-number {
+            font-weight: 700;
+            font-size: 16px;
+            display: block;
+        }
 
-      .conf-row {
-        grid-template-columns: 80px 1fr;
-      }
-    }
-  </style>
+        .stat-label {
+            opacity: 0.9;
+            font-size: 11px;
+        }
+
+        /* 主要價值展示區 */
+        .value-section {
+            padding: 40px 30px 30px;
+            text-align: center;
+            background: linear-gradient(180deg, #fff 0%, #fafafa 100%);
+        }
+
+        .badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .value-title {
+            font-size: 16px;
+            color: #666;
+            margin-bottom: 15px;
+            font-weight: 500;
+        }
+
+        .total-value {
+            font-size: 64px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1.2;
+            margin-bottom: 10px;
+            animation: valueAppear 0.8s ease-out;
+        }
+
+        @keyframes valueAppear {
+            0% {
+                opacity: 0;
+                transform: scale(0.5);
+            }
+            60% {
+                transform: scale(1.1);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .value-subtitle {
+            font-size: 14px;
+            color: #999;
+            margin-bottom: 25px;
+        }
+
+        /* 人格類型卡片 */
+        .personality-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 20px;
+            padding: 25px;
+            margin: 0 30px 25px;
+            color: white;
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+        }
+
+        .personality-emoji {
+            font-size: 48px;
+            margin-bottom: 10px;
+            display: block;
+            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2));
+        }
+
+        .personality-name {
+            font-size: 22px;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .personality-en {
+            font-size: 13px;
+            opacity: 0.9;
+            font-style: italic;
+        }
+
+        .personality-confidence {
+            margin-top: 15px;
+            font-size: 12px;
+            opacity: 0.8;
+        }
+
+        /* AI 分析文字區塊（新增）*/
+        .analysis-section {
+            padding: 25px 30px;
+            background: white;
+        }
+
+        .analysis-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .analysis-text {
+            font-size: 14px;
+            line-height: 1.8;
+            color: #555;
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 15px;
+            border-left: 4px solid #667eea;
+        }
+
+        .analysis-text p {
+            margin-bottom: 15px;
+        }
+
+        .analysis-text p:last-child {
+            margin-bottom: 0;
+        }
+
+        /* 合作報價區塊 */
+        .pricing-section {
+            padding: 0 30px 30px;
+        }
+
+        .pricing-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .pricing-cards {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+
+        .price-card {
+            background: white;
+            border: 2px solid #f0f0f0;
+            border-radius: 15px;
+            padding: 15px 10px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .price-card:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.2);
+        }
+
+        .price-type {
+            font-size: 11px;
+            color: #999;
+            text-transform: uppercase;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .price-value {
+            font-size: 18px;
+            font-weight: 700;
+            color: #333;
+        }
+
+        /* 係數展示 */
+        .multipliers-section {
+            padding: 25px 30px;
+            background: #fafafa;
+        }
+
+        .multipliers-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .multiplier-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .multiplier-item {
+            background: white;
+            border-radius: 12px;
+            padding: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid #f0f0f0;
+        }
+
+        .multiplier-label {
+            font-size: 12px;
+            color: #666;
+            font-weight: 500;
+        }
+
+        .multiplier-value {
+            font-size: 16px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* 提升建議 */
+        .tips-section {
+            padding: 25px 30px;
+            background: white;
+        }
+
+        .tips-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .tip-item {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            border-radius: 8px;
+            padding: 12px 15px;
+            margin-bottom: 10px;
+            font-size: 13px;
+            color: #555;
+            line-height: 1.5;
+        }
+
+        .tip-item::before {
+            content: '💡 ';
+            margin-right: 5px;
+        }
+
+        /* 分享按鈕 */
+        .share-section {
+            padding: 25px 30px 35px;
+            text-align: center;
+            background: white;
+        }
+
+        .share-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .share-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 35px rgba(102, 126, 234, 0.5);
+        }
+
+        .share-button:active {
+            transform: translateY(0);
+        }
+
+        /* 底部署名 */
+        .footer {
+            padding: 20px;
+            text-align: center;
+            background: #f5f5f5;
+            font-size: 11px;
+            color: #999;
+        }
+
+        /* 響應式設計 */
+        @media (max-width: 480px) {
+            .container {
+                border-radius: 0;
+                box-shadow: none;
+            }
+
+            .total-value {
+                font-size: 52px;
+            }
+
+            .pricing-cards {
+                grid-template-columns: 1fr;
+            }
+
+            .multiplier-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Loading 動畫 */
+        .loading {
+            text-align: center;
+            padding: 60px 30px;
+            color: white;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
 </head>
 <body>
-  <header class="header">
-    <div><strong>💰 IG 身價評估</strong></div>
-    <button class="btn btn-ghost btn-sm" onclick="clearAndRestart()">重新評估</button>
-  </header>
+    <div class="container">
+        <!-- Loading 狀態 -->
+        <div id="loading" class="loading">
+            <div class="loading-spinner"></div>
+            <p>正在分析你的 IG 帳號...</p>
+        </div>
 
-  <main class="container">
-    <div id="err" class="status-error hidden"></div>
-    
-    <!-- 用戶資訊 -->
-    <div class="user-info">
-      <div class="user-avatar" id="userAvatar">👤</div>
-      <div class="user-details">
-        <h3 id="displayName">使用者</h3>
-        <div class="user-handle" id="username">@username</div>
-        <div class="stats-row">
-          <div class="stat"><strong id="followers">0</strong> 粉絲</div>
-          <div class="stat"><strong id="following">0</strong> 追蹤</div>
-          <div class="stat"><strong id="posts">0</strong> 貼文</div>
+        <!-- 結果展示（預設隱藏） -->
+        <div id="result" class="hidden">
+            <!-- Instagram 風格頭部 -->
+            <div class="header">
+                <div class="username" id="username">username</div>
+                <div class="stats">
+                    <div class="stat-item">
+                        <span class="stat-number" id="followers">0</span>
+                        <span class="stat-label">粉絲</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number" id="following">0</span>
+                        <span class="stat-label">追蹤</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number" id="posts">0</span>
+                        <span class="stat-label">貼文</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 主要價值展示 -->
+            <div class="value-section">
+                <div class="badge" id="follower-tier">評估中</div>
+                <div class="value-title">你的帳號總價值</div>
+                <div class="total-value" id="total-value">NT$ 0</div>
+                <div class="value-subtitle">基於 AI 多維度分析</div>
+            </div>
+
+            <!-- 人格類型卡片 -->
+            <div class="personality-card">
+                <span class="personality-emoji" id="personality-emoji">✨</span>
+                <div class="personality-name" id="personality-name">分析中...</div>
+                <div class="personality-en" id="personality-en">Analyzing...</div>
+                <div class="personality-confidence">
+                    信心度：<span id="personality-confidence">0</span>%
+                </div>
+            </div>
+
+            <!-- AI 專業分析（新增，僅當有 analysis_text 時顯示）-->
+            <div class="analysis-section" id="analysis-section" style="display:none;">
+                <div class="analysis-title">💼 專業估值分析</div>
+                <div class="analysis-text" id="analysis-text"></div>
+            </div>
+
+            <!-- 合作報價 -->
+            <div class="pricing-section">
+                <div class="pricing-title">💰 合作報價參考</div>
+                <div class="pricing-cards">
+                    <div class="price-card">
+                        <div class="price-type">貼文</div>
+                        <div class="price-value" id="post-value">NT$ 0</div>
+                    </div>
+                    <div class="price-card">
+                        <div class="price-type">限動</div>
+                        <div class="price-value" id="story-value">NT$ 0</div>
+                    </div>
+                    <div class="price-card">
+                        <div class="price-type">短影音</div>
+                        <div class="price-value" id="reels-value">NT$ 0</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 係數展示 -->
+            <div class="multipliers-section">
+                <div class="multipliers-title">📊 價值係數</div>
+                <div class="multiplier-grid" id="multipliers-grid">
+                    <!-- 將由 JS 動態生成 -->
+                </div>
+            </div>
+
+            <!-- 提升建議 -->
+            <div class="tips-section">
+                <div class="tips-title">💡 價值提升建議</div>
+                <div id="tips-container">
+                    <!-- 將由 JS 動態生成 -->
+                </div>
+            </div>
+
+            <!-- 分享按鈕 -->
+            <div class="share-section">
+                <button class="share-button" onclick="shareResult()">
+                    <span>📸</span>
+                    <span>分享我的帳號價值</span>
+                </button>
+            </div>
+
+            <!-- 底部 -->
+            <div class="footer">
+                Powered by IG Value Estimation System V5
+            </div>
         </div>
-      </div>
-    </div>
-    
-    <!-- 主價值卡 -->
-    <div class="value-hero">
-      <div class="value-hero-content">
-        <div class="type-badge" id="typeBadge">
-          <span class="type-emoji">🎨</span>
-          <span id="typeName">創作者</span>
-        </div>
-        <div class="value-label">你的發文價值</div>
-        <div class="value-amount">
-          NT$ <span id="postValue">0</span>
-        </div>
-        <div class="value-per">/ 篇</div>
-        
-        <div class="value-grid">
-          <div class="value-item">
-            <div class="value-item-label">🎬 Story</div>
-            <div class="value-item-amount">NT$ <span id="storyValue">0</span></div>
-          </div>
-          <div class="value-item">
-            <div class="value-item-label">📹 Reels</div>
-            <div class="value-item-amount">NT$ <span id="reelsValue">0</span></div>
-          </div>
-          <div class="value-item">
-            <div class="value-item-label">📦 月配合</div>
-            <div class="value-item-amount">NT$ <span id="monthlyValue">0</span></div>
-          </div>
-        </div>
-      </div>
-    </div>
-    
-    <!-- 價值組成分析 -->
-    <div class="card">
-      <div class="breakdown-section">
-        <h2 class="breakdown-title">📊 價值組成分析</h2>
-        
-        <div class="breakdown-item">
-          <div>
-            <div class="breakdown-label">基礎身價（粉絲數）</div>
-            <div class="breakdown-sublabel" id="followerTier">—</div>
-          </div>
-          <div class="breakdown-value">NT$ <span id="basePrice">0</span></div>
-        </div>
-        
-        <div class="breakdown-item">
-          <div>
-            <div class="breakdown-label">視覺品質加成</div>
-            <div class="breakdown-sublabel">色彩、構圖、後製品質</div>
-          </div>
-          <div>
-            <span class="multiplier-badge" id="visualMult">×1.0</span>
-          </div>
-        </div>
-        
-        <div class="breakdown-item">
-          <div>
-            <div class="breakdown-label">內容類型加成</div>
-            <div class="breakdown-sublabel" id="contentType">—</div>
-          </div>
-          <div>
-            <span class="multiplier-badge" id="contentMult">×1.0</span>
-          </div>
-        </div>
-        
-        <div class="breakdown-item">
-          <div>
-            <div class="breakdown-label">專業度加成</div>
-            <div class="breakdown-sublabel">Bio、發文規律、品牌識別</div>
-          </div>
-          <div>
-            <span class="multiplier-badge" id="profMult">×1.0</span>
-          </div>
-        </div>
-        
-        <div class="breakdown-item">
-          <div>
-            <div class="breakdown-label">粉絲品質加成</div>
-            <div class="breakdown-sublabel" id="followerQuality">—</div>
-          </div>
-          <div>
-            <span class="multiplier-badge" id="followerMult">×1.0</span>
-          </div>
-        </div>
-        
-        <div class="breakdown-item">
-          <div>
-            <div class="breakdown-label">風格獨特性加成</div>
-            <div class="breakdown-sublabel" id="styleSignature">—</div>
-          </div>
-          <div>
-            <span class="multiplier-badge" id="uniqueMult">×1.0</span>
-          </div>
-        </div>
-      </div>
-    </div>
-    
-    <!-- 品質評分 -->
-    <div class="card">
-      <h2 class="breakdown-title">⭐ 品質評分</h2>
-      <div class="quality-grid" id="qualityGrid">
-        <!-- JavaScript 動態生成 -->
-      </div>
     </div>
 
-    <!-- 風格雷達圖 -->
-    <div class="card">
-      <h2 class="breakdown-title">🧭 風格指數 Radar</h2>
-      <div class="radar-wrap">
-        <canvas id="styleRadar" height="220"></canvas>
-        <div class="radar-sub">以「真實度、時尚感、親和力、娛樂性、專業度」五軸評估帳號調性。</div>
-      </div>
-    </div>
-
-    <!-- 品牌契合度 -->
-    <div class="card brand-fit-card">
-      <h2 class="breakdown-title">🏷️ 品牌契合度</h2>
-      <div id="brandFitRows"></div>
-      <div class="chips" id="brandFitChips"></div>
-    </div>
-
-    <!-- 合作品牌建議 -->
-    <div class="card">
-      <h2 class="breakdown-title">🤝 合作品牌建議</h2>
-      <ul class="brand-suggest" id="brandSuggestList"></ul>
-    </div>
-
-    <!-- 受眾輪廓推測 -->
-    <div class="card">
-      <h2 class="breakdown-title">👥 受眾輪廓（推測）</h2>
-      <div class="audience-grid">
-        <div class="aud-card">
-          <canvas id="genderPie" height="160"></canvas>
-          <div class="radar-sub">以影像/文字調性推測性別占比。</div>
-        </div>
-        <div class="aud-card">
-          <canvas id="ageBar" height="160"></canvas>
-          <div class="radar-sub">年齡區間（18–24、25–34、35–44、45+）。</div>
-        </div>
-      </div>
-      <div style="margin-top:12px;">
-        <div class="quality-label">城市／風格偏好（推測）</div>
-        <div class="aud-chips" id="cityStyleChips"></div>
-      </div>
-    </div>
-
-    <!-- 旅遊類別細分 -->
-    <div class="card travel-split">
-      <h2 class="breakdown-title">🏨 旅遊類別細分</h2>
-      <div id="travelSplitRows"></div>
-    </div>
-
-    <!-- 報價區間（信心條） -->
-    <div class="card">
-      <h2 class="breakdown-title">📉 報價區間（信心條）</h2>
-      <div class="conf-row">
-        <div class="conf-label">貼文 Post</div>
-        <div>
-          <div class="conf-bar"><div id="postConf" class="conf-fill" style="left:0%; width:0%"></div></div>
-          <div id="postBounds" class="conf-bounds"></div>
-        </div>
-      </div>
-      <div class="conf-row">
-        <div class="conf-label">限動 Story</div>
-        <div>
-          <div class="conf-bar"><div id="storyConf" class="conf-fill" style="left:0%; width:0%"></div></div>
-          <div id="storyBounds" class="conf-bounds"></div>
-        </div>
-      </div>
-      <div class="conf-row">
-        <div class="conf-label">短片 Reels</div>
-        <div>
-          <div class="conf-bar"><div id="reelsConf" class="conf-fill" style="left:0%; width:0%"></div></div>
-          <div id="reelsBounds" class="conf-bounds"></div>
-        </div>
-      </div>
-      <div class="conf-row">
-        <div class="conf-label">月配合</div>
-        <div>
-          <div class="conf-bar"><div id="monthlyConf" class="conf-fill" style="left:0%; width:0%"></div></div>
-          <div id="monthlyBounds" class="conf-bounds"></div>
-        </div>
-      </div>
-      <div class="radar-sub">說明：依視覺品質、專業度、內容類型與粉絲品質推估 ±(10%–35%) 的不確定性區間。</div>
-    </div>
-    
-    <!-- 價值陳述 -->
-    <div class="card">
-      <h2 class="breakdown-title">💬 你的價值定位</h2>
-      <p style="font-size: 16px; line-height: 1.8; color: #333;" id="valueStatement">
-        載入中...
-      </p>
-    </div>
-    
-    <!-- 改進建議 -->
-    <div class="card">
-      <h2 class="breakdown-title">📈 價值提升建議</h2>
-      <ul class="tips-list" id="improvementTips">
-        <!-- JavaScript 動態生成 -->
-      </ul>
-    </div>
-    
-    <div class="action-buttons">
-      <button class="btn-restart" onclick="clearAndRestart()">
-        🔄 重新評估
-      </button>
-    </div>
-  </main>
-
-  <script type="module">
-    import { initializeApp, getApps } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-    import { getAuth, signOut } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
-    import { getFirestore, doc, deleteDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
-
-    // 防止返回
-    (function() {
-      if (window.history && window.history.pushState) {
-        window.history.pushState(null, null, window.location.href);
-        window.addEventListener('popstate', function() {
-          window.history.pushState(null, null, window.location.href);
-          if (confirm('⚠️ 無法返回上一頁\n\n若要重新評估，請點擊「重新評估」。')) {
-            clearAndRestart();
-          }
-        });
-      }
-    })();
-
-    function formatNumber(num) {
-      return num.toLocaleString('zh-TW');
-    }
-
-    function destroyAllCharts() {
-      // 銷毀所有圖表實例
-      if (window.styleRadarChart) {
-        window.styleRadarChart.destroy();
-        window.styleRadarChart = null;
-      }
-      if (window.genderPieChart) {
-        window.genderPieChart.destroy();
-        window.genderPieChart = null;
-      }
-      if (window.ageBarChart) {
-        window.ageBarChart.destroy();
-        window.ageBarChart = null;
-      }
-    }
-
-    function fillUI(data) {
-      console.log('Filling UI with data:', data);
-      
-      // 清理現有圖表實例
-      destroyAllCharts();
-      
-      // 基本資訊
-      document.getElementById('displayName').textContent = data.display_name || '使用者';
-      document.getElementById('username').textContent = data.username ? '@' + data.username : '—';
-      document.getElementById('followers').textContent = formatNumber(data.followers || 0);
-      document.getElementById('following').textContent = formatNumber(data.following || 0);
-      document.getElementById('posts').textContent = formatNumber(data.posts || 0);
-      
-      // 類型
-      const type = data.primary_type || {};
-      document.getElementById('typeBadge').innerHTML = `
-        <span class="type-emoji">${type.emoji || '🎨'}</span>
-        <span>${type.name_zh || '創作者'}</span>
-      `;
-      
-      // 頭像 emoji
-      document.getElementById('userAvatar').textContent = type.emoji || '👤';
-      
-      // 價值
-      const value = data.value_estimation || {};
-      document.getElementById('postValue').textContent = formatNumber(value.post_value || 0);
-      document.getElementById('storyValue').textContent = formatNumber(value.story_value || 0);
-      document.getElementById('reelsValue').textContent = formatNumber(value.reels_value || 0);
-      document.getElementById('monthlyValue').textContent = formatNumber(value.monthly_package || 0);
-      
-      // 價值組成
-      document.getElementById('basePrice').textContent = formatNumber(value.base_price || 0);
-      document.getElementById('followerTier').textContent = 
-        `你的級別：${value.follower_tier || '素人'}（${formatNumber(data.followers || 0)} 粉絲）`;
-      
-      const mult = value.multipliers || {};
-      document.getElementById('visualMult').textContent = '×' + (mult.visual || 1.0);
-      document.getElementById('contentMult').textContent = '×' + (mult.content || 1.0);
-      document.getElementById('profMult').textContent = '×' + (mult.professional || 1.0);
-      document.getElementById('followerMult').textContent = '×' + (mult.follower || 1.0);
-      document.getElementById('uniqueMult').textContent = '×' + (mult.unique || 1.0);
-      
-      // 內容類型
-      const analysis = data.analysis || {};
-      const contentType = analysis.content_type || {};
-      const topic = contentType.primary || '生活';
-      document.getElementById('contentType').textContent = topic;
-      
-      // 粉絲品質
-      document.getElementById('followerQuality').textContent = 
-        `粉絲/追蹤比 = ${(data.followers / (data.following || 1)).toFixed(1)}（${value.follower_quality || '標準'}）`;
-      
-      // 風格簽名
-      const uniqueness = analysis.uniqueness || {};
-      document.getElementById('styleSignature').textContent = uniqueness.style_signature || '—';
-      
-      // 品質評分
-      const visual = analysis.visual_quality || {};
-      const qualityItems = [
-        { label: '色彩和諧度', score: visual.color_harmony || 5 },
-        { label: '構圖專業度', score: visual.composition || 5 },
-        { label: '後製品質', score: visual.editing || 5 },
-        { label: '整體美感', score: visual.overall || 5 }
-      ];
-      
-      const qualityGrid = document.getElementById('qualityGrid');
-      qualityGrid.innerHTML = '';
-      
-      qualityItems.forEach(item => {
-        const div = document.createElement('div');
-        div.className = 'quality-item';
-        div.innerHTML = `
-          <div class="quality-label">${item.label}</div>
-          <div class="quality-bar">
-            <div class="quality-fill" style="width: ${item.score * 10}%"></div>
-          </div>
-          <div class="quality-score">${item.score.toFixed(1)} / 10</div>
-        `;
-        qualityGrid.appendChild(div);
-      });
-
-      // ---- Radar Style Index ----
-      const style = (analysis.style_index || {});
-      const radarData = [
-        style.authenticity ?? Math.min(10, (visual.overall || 6) * 0.9 + 1.5),
-        style.fashion ?? (visual.color_harmony || 6) * 0.9,
-        style.affinity ?? (mult.follower >= 1.5 ? 7.5 : 6.2),
-        style.entertainment ?? (contentType.primary?.includes('旅遊') || contentType.primary?.includes('生活') ? 7.8 : 6.0),
-        style.professional ?? (mult.professional ? 6 + (mult.professional-1)*4 : 6.2),
-      ].map(v => Math.max(3, Math.min(9.8, Number(v))));
-
-      const ctx = document.getElementById('styleRadar');
-      if (ctx && window.Chart) {
-        // 銷毀現有的圖表實例
-        if (window.styleRadarChart) {
-          window.styleRadarChart.destroy();
-        }
-        
-        window.styleRadarChart = new Chart(ctx, {
-          type: 'radar',
-          data: {
-            labels: ['真實度','時尚感','親和力','娛樂性','專業度'],
-            datasets: [{
-              label: '風格指數',
-              data: radarData
-            }]
-          },
-          options: {
-            responsive: true,
-            scales: { r: { suggestedMin: 0, suggestedMax: 10, ticks: { stepSize: 2 } } },
-            plugins: { legend: { display: false } }
-          }
-        });
-      }
-
-      // ---- Brand Fit ----
-      const bf = window._IG_BrandFit?.computeBrandFit({
-        topic,
-        visual,
-        multipliers: mult
-      }) || { scores: [], suggested: [] };
-
-      const rows = document.getElementById('brandFitRows');
-      const chips = document.getElementById('brandFitChips');
-      rows.innerHTML = ''; chips.innerHTML = '';
-
-      (bf.scores || []).forEach(item => {
-        const row = document.createElement('div');
-        row.className = 'fit-row';
-        row.innerHTML = `
-          <div class="fit-label">${item.label}</div>
-          <div class="fit-bar"><div class="fit-fill" style="width:${item.score}%"></div></div>
-          <div class="fit-score">${item.score}%</div>`;
-        rows.appendChild(row);
-      });
-
-      (bf.suggested || []).forEach(t => {
-        const chip = document.createElement('div');
-        chip.className = 'chip';
-        chip.textContent = t;
-        chips.appendChild(chip);
-      });
-
-      // ---- Collaboration Suggestions ----
-      const suggest = document.getElementById('brandSuggestList');
-      suggest.innerHTML = '';
-
-      function addSuggest(title, body) {
-        const li = document.createElement('li');
-        li.innerHTML = `<strong>${title}</strong><br>${body}`;
-        suggest.appendChild(li);
-      }
-
-      const tier = (value.follower_tier || '').toString();
-      const postVal = Number(value.post_value || 0);
-      const storyVal = Number(value.story_value || 0);
-      const reelsVal = Number(value.reels_value || 0);
-
-      addSuggest('旅宿 2天1夜 住宿交換 + 內容授權',
-        `以 Reels + 貼文 + 2-3 組 Story，換取平日入住（或折抵金額 NT$ ${(postVal*0.6).toLocaleString('zh-TW')}），建議加購二次曝光（加價 NT$ ${(storyVal*0.5).toLocaleString('zh-TW')}）。`);
-
-      addSuggest('餐飲試吃＋短影音套餐',
-        `1 Reels + 1 Story 精選（永久），建議報價 NT$ ${(reelsVal*0.85).toLocaleString('zh-TW')}，目標投放於商圈微型品牌。`);
-
-      addSuggest('生活家電體驗＋月配合',
-        `每月 1 貼文 + 2 Story，月費 NT$ ${(Math.max(15000, postVal*0.4+storyVal*0.6)).toLocaleString('zh-TW')}，含基礎素材授權（30天）。`);
-
-      if (postVal > 60000) {
-        addSuggest('品牌大使（季度）',
-          `每季 2 貼文 + 3 Reels + 6 Story，季度費用約 NT$ ${(postVal*3 + reelsVal*2).toLocaleString('zh-TW')}，含品牌頁面露出與官網素材。`);
-      }
-
-      // ---- Audience Synthesis ----
-      const audSynth = window._IG_Audience?.synthesizeAudience({
-        topic,
-        visual,
-        mult,
-        analysis
-      }) || { male_ratio:0.5, age_dist:[0.25,0.45,0.2,0.1], city_styles:['台北都會','生活機能'] };
-
-      const male = audSynth.male_ratio;
-      const female = audSynth.female_ratio;
-      const ageDist = audSynth.age_dist;
-
-      if (window.Chart) {
-        const gctx = document.getElementById('genderPie');
-        if (gctx) {
-          // 銷毀現有的性別圓餅圖實例
-          if (window.genderPieChart) {
-            window.genderPieChart.destroy();
-          }
-          
-          window.genderPieChart = new Chart(gctx, {
-            type:'doughnut',
-            data:{ labels:['男性','女性'], datasets:[{ data:[Math.round(male*100), Math.round(female*100)] }] },
-            options:{ plugins:{ legend:{ position:'bottom' } } }
-          });
+    <script>
+        // 格式化數字（加千分位）
+        function formatNumber(num) {
+            return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
         }
 
-        const actx = document.getElementById('ageBar');
-        if (actx) {
-          // 銷毀現有的年齡長條圖實例
-          if (window.ageBarChart) {
-            window.ageBarChart.destroy();
-          }
-          
-          window.ageBarChart = new Chart(actx, {
-            type:'bar',
-            data:{
-              labels:['18–24','25–34','35–44','45+'],
-              datasets:[{ label:'占比(%)', data: ageDist.map(x=>Math.round(x*100)) }]
-            },
-            options:{ plugins:{ legend:{ display:false } }, scales:{ y:{ suggestedMax: 60 } } }
-          });
+        // 格式化金額
+        function formatPrice(price) {
+            if (price >= 10000) {
+                return `NT$ ${(price / 10000).toFixed(1)}萬`;
+            }
+            return `NT$ ${formatNumber(price)}`;
         }
-      }
 
-      // City style chips
-      const chipEl = document.getElementById('cityStyleChips');
-      if (chipEl) {
-        chipEl.innerHTML = '';
-        (audSynth.city_styles || []).forEach(name => {
-          const d = document.createElement('div');
-          d.className = 'aud-chip';
-          d.textContent = name;
-          chipEl.appendChild(d);
-        });
-      }
-
-      // ---- Travel Split ----
-      const tsRows = document.getElementById('travelSplitRows');
-      if (tsRows) {
-        tsRows.innerHTML = '';
-        const ts = window._IG_Travel?.synthesizeTravelSplit({ topic, visual, uniqueness, analysis }) ||
-                   { city_hotel:72, resort:75, design_hotel:70 };
-        const items = [
-          {label:'城市飯店', v: ts.city_hotel},
-          {label:'度假村', v: ts.resort},
-          {label:'設計旅店', v: ts.design_hotel},
-        ];
-        items.forEach(it => {
-          const row = document.createElement('div');
-          row.className = 'split-row';
-          row.innerHTML = `
-            <div class="split-label">${it.label}</div>
-            <div class="split-bar"><div class="split-fill" style="width:${it.v}%"></div></div>
-            <div class="split-score">${it.v}%</div>`;
-          tsRows.appendChild(row);
-        });
-      }
-
-      // ---- Pricing Confidence Bands ----
-      function setBounds(idFill, idText, center, pct){
-        const lo = Math.max(0, Math.round(center*(1-pct)));
-        const hi = Math.round(center*(1+pct));
-        const total = hi==0?1:hi;
-        const left = (lo/total)*100;
-        const width = ((hi-lo)/total)*100;
-        const fill = document.getElementById(idFill);
-        const txt = document.getElementById(idText);
-        if (fill) { fill.style.left = left+'%'; fill.style.width = width+'%'; }
-        if (txt) { txt.textContent = `估計區間：NT$ ${lo.toLocaleString('zh-TW')} ~ NT$ ${hi.toLocaleString('zh-TW')}（±${Math.round(pct*100)}%）`; }
-      }
-
-      const bands = window._IG_Pricing?.getConfidenceBands({
-        value,
-        visual,
-        mult,
-        contentPrimary: contentType.primary || ''
-      }) || { post:0.2, story:0.22, reels:0.25, monthly:0.15 };
-
-      setBounds('postConf','postBounds', Number(value.post_value||0), bands.post);
-      setBounds('storyConf','storyBounds', Number(value.story_value||0), bands.story);
-      setBounds('reelsConf','reelsBounds', Number(value.reels_value||0), bands.reels);
-      setBounds('monthlyConf','monthlyBounds', Number(value.monthly_package||0), bands.monthly);
-      
-      // 價值陳述
-      document.getElementById('valueStatement').textContent = 
-        data.value_statement || '正在分析你的獨特價值...';
-      
-      // 改進建議
-      const tips = data.improvement_tips || [];
-      const tipsList = document.getElementById('improvementTips');
-      tipsList.innerHTML = '';
-      
-      if (tips.length > 0) {
-        tips.forEach(tip => {
-          const li = document.createElement('li');
-          li.className = 'tip-item';
-          li.textContent = tip;
-          tipsList.appendChild(li);
-        });
-      } else {
-        tipsList.innerHTML = '<li class="tip-item">目前沒有建議，你的帳號已經很棒了！</li>';
-      }
-    }
-
-    async function loadResult() {
-      const saved = sessionStorage.getItem('sa_result');
-      if (saved) {
-        try {
-          const data = JSON.parse(saved);
-          if (data && data.ok) {
-            fillUI(data);
-            return;
-          }
-        } catch {}
-      }
-      
-      // Fallback: 從 debug endpoint
-      try {
-        const r = await fetch('/debug/last_ai?ts=' + Date.now());
-        if (r.ok) {
-          const j = await r.json();
-          let parsed = null;
-          try {
-            parsed = JSON.parse(j.text || j.raw || '{}');
-          } catch {}
-          if (parsed && parsed.ok) {
-            fillUI(parsed);
-            return;
-          }
-        }
-      } catch {}
-      
-      // 如果沒有找到真實數據，顯示示例數據用於演示
-      console.log('沒有找到真實分析結果，顯示示例數據');
-      showDemoModeNotice();
-      const demoData = createDemoData();
-      fillUI(demoData);
-    }
-
-    function showDemoModeNotice() {
-      // 在頁面頂部顯示演示模式提示
-      const notice = document.createElement('div');
-      notice.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        background: linear-gradient(135deg, #ff6b6b, #ffa500);
-        color: white;
-        padding: 12px;
-        text-align: center;
-        font-weight: bold;
-        z-index: 1000;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-      `;
-      notice.innerHTML = `
-        🎭 演示模式：正在顯示示例數據。要查看真實分析結果，請先上傳你的 IG 資料進行分析。
-        <button onclick="this.parentElement.remove()" style="margin-left: 10px; background: rgba(255,255,255,0.2); border: none; color: white; padding: 4px 8px; border-radius: 4px; cursor: pointer;">✕</button>
-      `;
-      document.body.insertBefore(notice, document.body.firstChild);
-      
-      // 調整頁面頂部間距
-      document.body.style.paddingTop = '60px';
-    }
-
-    function createDemoData() {
-      return {
-        ok: true,
-        display_name: "Danny TJ Kan | 🏀🦁🔥🐼",
-        username: "dannytjkan",
-        followers: 10100,
-        following: 909,
-        posts: 181,
-        primary_type: {
-          emoji: "🍜",
-          name_zh: "生活記錄者"
-        },
-        value_estimation: {
-          post_value: 55721,
-          story_value: 22288,
-          reels_value: 72437,
-          monthly_package: 222884,
-          base_price: 12000,
-          follower_tier: "意見領袖",
-          multipliers: {
-            visual: 1.5,
-            content: 1.0,
-            professional: 1.59,
-            follower: 1.5,
-            unique: 1.3
-          },
-          follower_quality: "高影響力"
-        },
-        analysis: {
-          content_type: {
-            primary: "旅遊美食"
-          },
-          visual_quality: {
-            color_harmony: 7.5,
-            composition: 7.0,
-            editing: 7.8,
-            overall: 7.5
-          },
-          uniqueness: {
-            style_signature: "隨性生活紀錄"
-          },
-          style_index: {
-            authenticity: 8.2,
-            fashion: 6.8,
-            affinity: 7.5,
-            entertainment: 7.9,
-            professional: 6.5
-          }
-        },
-        value_statement: "捕捉生活中的每一刻，展現真實而隨性的日常故事。",
-        improvement_tips: [
-          "增加專業攝影作品以提升視覺吸引力",
-          "使用 Hashtags 增加曝光率",
-          "嘗試發佈短影片以吸引更多互動",
-          "考慮與其他內容創作者合作以擴大影響力"
-        ]
-      };
-    }
-
-    window.clearAndRestart = async function() {
-      console.log('clearAndRestart 函數被調用');
-      
-      if (!confirm('確定要清除所有資料並重新開始？')) {
-        console.log('用戶取消清除操作');
-        return;
-      }
-      
-      console.log('開始清除資料...');
-      
-      try {
-        const config = {
-          apiKey: "AIzaSyBI2-4yEwzxvYOvui9FZiGAzCE22OhKmU8",
-          authDomain: "social-avatar-d13c8.firebaseapp.com",
-          projectId: "social-avatar-d13c8",
-          storageBucket: "social-avatar-d13c8.appspot.com",
-          messagingSenderId: "280598358339",
-          appId: "1:280598358339:web:214a0d4ca53793163367f6"
+        // 係數標籤映射
+        const multiplierLabels = {
+            'visual': '視覺品質',
+            'content': '內容類型',
+            'professional': '專業程度',
+            'follower': '粉絲品質',
+            'unique': '風格獨特',
+            'engagement': '互動潛力',
+            'niche': '利基專注',
+            'audience': '受眾價值',
+            'cross_platform': '跨平台'
         };
 
-        console.log('初始化 Firebase...');
-        const app = getApps().length ? getApps()[0] : initializeApp(config);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        
-        console.log('檢查用戶狀態...');
-        
-        let uidToDelete = null;
-        
-        // 首先嘗試從 sessionStorage 獲取 UID（最可靠的方式）
-        const savedResult = sessionStorage.getItem('sa_result');
-        if (savedResult) {
-          try {
-            const parsed = JSON.parse(savedResult);
-            uidToDelete = parsed.user?.uid;
-            if (uidToDelete) {
-              console.log('從 sessionStorage 找到 UID:', uidToDelete);
+        // 計算帳號市場價值（參考真實市場行情）
+        function calculateAccountValue(data) {
+            const followers = data.followers || 0;
+            const value = data.value_estimation || {};
+            const multipliers = value.multipliers || {};
+            
+            // === 第一步：計算基礎每粉價值（根據粉絲規模） ===
+            let basePerFollower;
+            
+            if (followers < 1000) {
+                basePerFollower = 1.5;          // 素人：1.5元/粉
+            } else if (followers < 5000) {
+                basePerFollower = 2;            // 新星：2元/粉
+            } else if (followers < 10000) {
+                basePerFollower = 3;            // 潛力股：3元/粉
+            } else if (followers < 50000) {
+                basePerFollower = 4;            // 微網紅：4元/粉
+            } else if (followers < 100000) {
+                basePerFollower = 5;            // 意見領袖：5元/粉
+            } else if (followers < 300000) {
+                basePerFollower = 4;            // 網紅級：4元/粉（邊際遞減）
+            } else {
+                basePerFollower = 3;            // 名人級：3元/粉（邊際遞減）
             }
-          } catch (error) {
-            console.log('解析 sessionStorage 資料時出錯:', error);
-          }
+            
+            // === 第二步：計算品質係數（基於AI分析的各項係數） ===
+            
+            // 獲取各項係數
+            const visual = multipliers.visual || 1.0;
+            const content = multipliers.content || 1.0;
+            const professional = multipliers.professional || 1.0;
+            const follower = multipliers.follower || 1.0;
+            const unique = multipliers.unique || 1.0;
+            const engagement = multipliers.engagement || 1.0;
+            const niche = multipliers.niche || 1.0;
+            const audience = multipliers.audience || 1.0;
+            const crossPlatform = multipliers.cross_platform || 1.0;
+            
+            // 計算綜合品質分數（加權平均，而非乘積）
+            const qualityScore = (
+                visual * 0.15 +           // 視覺品質 15%
+                content * 0.15 +          // 內容類型 15%
+                engagement * 0.20 +       // 互動潛力 20%（最重要）
+                niche * 0.15 +            // 利基專注 15%
+                audience * 0.15 +         // 受眾價值 15%
+                professional * 0.10 +     // 專業程度 10%
+                unique * 0.05 +           // 風格獨特 5%
+                follower * 0.03 +         // 粉絲品質 3%
+                crossPlatform * 0.02      // 跨平台 2%
+            );
+            
+            // 品質係數範圍：0.6x ~ 2.0x
+            const qualityMultiplier = Math.max(0.6, Math.min(qualityScore, 2.0));
+            
+            // === 第三步：計算最終帳號價值 ===
+            const accountValue = Math.floor(followers * basePerFollower * qualityMultiplier);
+            
+            return accountValue;
         }
-        
-        // 如果沒有從 sessionStorage 獲取到，嘗試從 Firebase Auth
-        if (!uidToDelete) {
-          console.log('從 sessionStorage 未找到 UID，嘗試從 Firebase Auth 獲取...');
-          
-          // 等待 Firebase Auth 初始化
-          await new Promise((resolve) => {
-            const unsubscribe = auth.onAuthStateChanged((user) => {
-              unsubscribe();
-              resolve(user);
-            });
-          });
-          
-          const user = auth.currentUser;
-          if (user) {
-            uidToDelete = user.uid;
-            console.log('從 Firebase Auth 找到 UID:', uidToDelete);
-          } else {
-            console.log('Firebase Auth 中也沒有找到用戶');
-          }
-        }
-        
-        // 執行 Firestore 刪除
-        if (uidToDelete) {
-          console.log('準備刪除 Firestore 資料，UID:', uidToDelete);
-          try {
-            await deleteDoc(doc(db, 'users', uidToDelete));
-            console.log('Firestore 資料已刪除');
-          } catch (error) {
-            console.log('刪除 Firestore 資料時出錯:', error);
-            // 即使刪除失敗也繼續執行其他清理操作
-          }
-        } else {
-          console.log('無法獲取 UID，跳過 Firestore 刪除');
-        }
-        
-        console.log('清除本地儲存...');
-        sessionStorage.clear();
-        localStorage.clear();
-        
-        console.log('登出用戶...');
-        await signOut(auth).catch((error) => {
-          console.log('登出時出錯:', error);
-        });
-        
-        console.log('所有資料已清除');
-        alert('✅ 已清除所有資料');
-        location.replace('/static/landing.html');
-      } catch (e) {
-        console.error('清除資料時發生錯誤:', e);
-        alert('清除失敗：' + e.message);
-      }
-    };
 
-    window.addEventListener('DOMContentLoaded', loadResult);
-  </script>
+        // 渲染結果
+        function renderResult(data) {
+            // 基本資訊
+            document.getElementById('username').textContent = data.username || 'username';
+            document.getElementById('followers').textContent = formatNumber(data.followers || 0);
+            document.getElementById('following').textContent = formatNumber(data.following || 0);
+            document.getElementById('posts').textContent = formatNumber(data.posts || 0);
+
+            // 粉絲級別
+            const value = data.value_estimation || {};
+            document.getElementById('follower-tier').textContent = value.follower_tier || '評估中';
+
+            // 帳號市場價值（優先使用 AI 估算的價格，否則使用前端計算）
+            let accountValue;
+            if (value.account_value_min && value.account_value_max) {
+                // V5：使用 AI 給的價格區間（取中間值）
+                accountValue = Math.floor((value.account_value_min + value.account_value_max) / 2);
+            } else {
+                // V4：前端計算
+                accountValue = calculateAccountValue(data);
+            }
+            
+            const totalValueEl = document.getElementById('total-value');
+            
+            // 數字動畫效果
+            let currentValue = 0;
+            const increment = accountValue / 50;
+            const timer = setInterval(() => {
+                currentValue += increment;
+                if (currentValue >= accountValue) {
+                    currentValue = accountValue;
+                    clearInterval(timer);
+                }
+                totalValueEl.textContent = formatPrice(Math.floor(currentValue));
+            }, 20);
+
+            // 人格類型
+            const personality = data.primary_type || {};
+            document.getElementById('personality-emoji').textContent = personality.emoji || '✨';
+            document.getElementById('personality-name').textContent = personality.name_zh || '分析中';
+            document.getElementById('personality-en').textContent = personality.name_en || 'Analyzing';
+            document.getElementById('personality-confidence').textContent = Math.round((personality.confidence || 0) * 100);
+
+            // AI 分析文字（V5 新增，如果有的話才顯示）
+            if (data.analysis_text && data.analysis_text.trim()) {
+                const analysisSection = document.getElementById('analysis-section');
+                const analysisText = document.getElementById('analysis-text');
+                
+                // 將換行轉換為段落
+                const paragraphs = data.analysis_text.trim().split('\n\n').filter(p => p.trim());
+                analysisText.innerHTML = paragraphs.map(p => `<p>${p}</p>`).join('');
+                
+                analysisSection.style.display = 'block';
+            }
+
+            // === 計算合作報價 ===
+            let postPrice, storyPrice, reelsPrice;
+            
+            // 優先使用 AI 估算的價格（V5）
+            if (value.post_value && value.story_value && value.reels_value) {
+                postPrice = value.post_value;
+                storyPrice = value.story_value;
+                reelsPrice = value.reels_value;
+            } else {
+                // 降級使用前端計算（V4）
+                const followers = data.followers || 0;
+                const multipliers = value.multipliers || {};
+                
+                // 基礎報價計算（每千粉價值）
+                let basePricePerK;
+                if (followers < 1000) {
+                    basePricePerK = 300;
+                } else if (followers < 5000) {
+                    basePricePerK = 500;
+                } else if (followers < 10000) {
+                    basePricePerK = 600;
+                } else if (followers < 50000) {
+                    basePricePerK = 700;
+                } else if (followers < 100000) {
+                    basePricePerK = 800;
+                } else if (followers < 300000) {
+                    basePricePerK = 700;
+                } else {
+                    basePricePerK = 600;
+                }
+                
+                // 計算品質係數
+                const visual = multipliers.visual || 1.0;
+                const content = multipliers.content || 1.0;
+                const professional = multipliers.professional || 1.0;
+                const follower = multipliers.follower || 1.0;
+                const unique = multipliers.unique || 1.0;
+                const engagement = multipliers.engagement || 1.0;
+                const niche = multipliers.niche || 1.0;
+                const audience = multipliers.audience || 1.0;
+                const crossPlatform = multipliers.cross_platform || 1.0;
+                
+                const qualityScore = (
+                    visual * 0.15 +
+                    content * 0.15 +
+                    engagement * 0.20 +
+                    niche * 0.15 +
+                    audience * 0.15 +
+                    professional * 0.10 +
+                    unique * 0.05 +
+                    follower * 0.03 +
+                    crossPlatform * 0.02
+                );
+                
+                const qualityMultiplier = Math.max(0.6, Math.min(qualityScore, 2.0));
+                
+                const basePostPrice = (followers / 1000) * basePricePerK * qualityMultiplier;
+                postPrice = Math.floor(basePostPrice);
+                storyPrice = Math.floor(postPrice * 0.4);
+                reelsPrice = Math.floor(postPrice * 1.5);
+            }
+            
+            // 顯示報價
+            document.getElementById('post-value').textContent = formatPrice(postPrice);
+            document.getElementById('story-value').textContent = formatPrice(storyPrice);
+            document.getElementById('reels-value').textContent = formatPrice(reelsPrice);
+
+            // 係數
+            const multipliers = value.multipliers || {};
+            const multipliersGrid = document.getElementById('multipliers-grid');
+            multipliersGrid.innerHTML = '';
+
+            Object.keys(multiplierLabels).forEach(key => {
+                if (multipliers[key]) {
+                    const item = document.createElement('div');
+                    item.className = 'multiplier-item';
+                    item.innerHTML = `
+                        <span class="multiplier-label">${multiplierLabels[key]}</span>
+                        <span class="multiplier-value">${multipliers[key]}×</span>
+                    `;
+                    multipliersGrid.appendChild(item);
+                }
+            });
+
+            // 提升建議
+            const tips = data.improvement_tips || [];
+            const tipsContainer = document.getElementById('tips-container');
+            tipsContainer.innerHTML = '';
+
+            tips.forEach(tip => {
+                const tipItem = document.createElement('div');
+                tipItem.className = 'tip-item';
+                tipItem.textContent = tip;
+                tipsContainer.appendChild(tipItem);
+            });
+
+            // 顯示結果，隱藏 loading
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('result').classList.remove('hidden');
+        }
+
+        // 分享功能
+        function shareResult() {
+            // 如果支援 Web Share API
+            if (navigator.share) {
+                const username = document.getElementById('username').textContent;
+                const totalValue = document.getElementById('total-value').textContent;
+                
+                navigator.share({
+                    title: `我的 IG 帳號價值報告`,
+                    text: `我的 @${username} 帳號價值：${totalValue}！快來測測你的帳號值多少 💰`,
+                    url: window.location.href
+                }).catch(err => console.log('分享取消或失敗:', err));
+            } else {
+                // 降級方案：複製連結
+                alert('請截圖分享你的結果！\n\n提示：可以長按螢幕截圖 📸');
+            }
+        }
+
+        // 模擬數據（測試用）
+        const mockData = {
+            "ok": true,
+            "username": "foodie_taipei",
+            "display_name": "台北美食探索者",
+            "followers": 12500,
+            "following": 850,
+            "posts": 342,
+            "primary_type": {
+                "id": "type_5",
+                "name_zh": "生活記錄者",
+                "name_en": "Everyday Chronicler",
+                "emoji": "🍜",
+                "confidence": 0.85
+            },
+            "value_estimation": {
+                "base_price": 12000,
+                "follower_tier": "意見領袖",
+                "follower_quality": "有吸引力",
+                "account_value_min": 60000,      // AI 估算：6-10萬
+                "account_value_max": 100000,
+                "account_value_reasoning": "粉絲互動良好，內容垂直度高，適合美食品牌合作",
+                "multipliers": {
+                    "visual": 1.5,
+                    "content": 1.8,
+                    "professional": 1.2,
+                    "follower": 1.2,
+                    "unique": 1.3,
+                    "engagement": 1.25,
+                    "niche": 1.4,
+                    "audience": 1.6,
+                    "cross_platform": 1.15
+                },
+                "post_value": 9000,        // 更新：9千（合理範圍）
+                "story_value": 3600,       // 更新：Post 的 40%
+                "reels_value": 13500       // 更新：Post 的 150%
+            },
+            "improvement_tips": [
+                "增加與粉絲互動的 Story 內容",
+                "建立固定發文時段提升粉絲黏性",
+                "嘗試加入簡短的美食小知識",
+                "考慮開設 YouTube 頻道擴大影響力"
+            ]
+        };
+
+        // 頁面載入時
+        window.addEventListener('DOMContentLoaded', () => {
+            // 從 URL 參數或 localStorage 獲取數據
+            // 這裡先用模擬數據展示
+            setTimeout(() => {
+                renderResult(mockData);
+            }, 1500);
+        });
+    </script>
 </body>
 </html>

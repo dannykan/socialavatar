@@ -1,25 +1,31 @@
-# 📊 IG Value Estimation System V4
+# 📊 IG Value Estimation System V5
 
 > 專業的 Instagram 帳號商業價值評估系統
 > 
-> ✨ **V4 新增 4 個核心商業係數**，讓估值更精準、更符合市場實況！
+> ✨ **V5 新增開放式 AI 分析**，提供更自然、更專業的帳號估值體驗！
 
 ---
 
 ## 🎯 核心特色
 
-### V4 新增係數
+### V5 核心變革
+1. **💬 開放式 AI 分析** - 提供自然語言專業分析
+   - 像真正的 KOL 經紀人一樣分析帳號價值
+   
+2. **💰 帳號市場價值** - 直接估算帳號買賣價格
+   - 基於真實市場行情進行估值
+   
+3. **🧠 智能 JSON 提取** - 從自然語言中提取結構化數據
+   - 更靈活的 AI 回應格式
+   
+4. **📝 分析文字展示** - 在前端顯示專業分析內容
+   - 讓用戶了解估值邏輯和依據
+
+### V4 既有係數
 1. **🎯 互動潛力係數** (0.8x - 1.5x)
-   - 分析 Bio 的互動引導、表情符號密度、內容可評論性
-   
 2. **🎨 利基專注度係數** (0.9x - 1.6x)
-   - 評估主題一致性、垂直領域專注程度
-   
 3. **👥 受眾價值係數** (0.8x - 1.8x)
-   - 根據內容類型推估受眾消費力
-   
 4. **🌐 跨平台影響力係數** (0.95x - 1.4x)
-   - 分析是否有 YouTube、TikTok 等外連
 
 ### 既有功能
 - ✅ AI 視覺分析（GPT-4 Vision）
@@ -44,6 +50,7 @@
 |--------|------|
 | `README.md` | 本文件，專案總覽 |
 | `QUICK_START.md` | 快速開始指南 |
+| `V5_UPGRADE_NOTES.md` | V5 版本詳細說明 |
 | `V4_UPGRADE_NOTES.md` | V4 版本詳細說明 |
 
 ---
@@ -86,13 +93,19 @@ python test_api.py profile.jpg post1.jpg post2.jpg
 - 常見問題排解
 - 生產環境部署建議
 
+### 📊 V5 功能說明
+閱讀 **[V5_UPGRADE_NOTES.md](V5_UPGRADE_NOTES.md)** 獲得：
+- 開放式 AI 分析的詳細說明
+- 帳號市場價值估算邏輯
+- 智能 JSON 提取技術
+- 實戰案例分析
+- 與 V4 的差異對比
+
 ### 📊 V4 功能說明
 閱讀 **[V4_UPGRADE_NOTES.md](V4_UPGRADE_NOTES.md)** 獲得：
 - 4 個新係數的詳細說明
 - 完整的計算邏輯
 - API 回應格式變更
-- 實戰案例分析
-- 與 V3 的差異對比
 
 ---
 
@@ -107,14 +120,13 @@ GET /health
 ```json
 {
   "status": "ok",
-  "version": "v4",
-  "model": "gpt-4o-mini",
+  "version": "v5",
+  "model": "gpt-4o",
   "ai_enabled": true,
   "new_features": [
-    "engagement_potential",
-    "niche_focus",
-    "audience_value",
-    "cross_platform"
+    "open_ended_analysis",
+    "natural_language_valuation",
+    "contextual_reasoning"
   ]
 }
 ```
@@ -132,14 +144,17 @@ POST /bd/analyze
 ```json
 {
   "ok": true,
-  "version": "v4",
+  "version": "v5",
   "username": "foodie_taipei",
   "followers": 12500,
+  "analysis_text": "這個美食帳號展現出良好的商業潛力...",
   "value_estimation": {
-    "post_value": 45600,
-    "story_value": 18240,
-    "reels_value": 59280,
-    "monthly_package": 182400,
+    "account_value_min": 60000,
+    "account_value_max": 100000,
+    "account_value_reasoning": "粉絲互動良好，內容垂直度高",
+    "post_value": 9000,
+    "story_value": 3600,
+    "reels_value": 13500,
     "multipliers": {
       "visual": 1.5,
       "content": 1.8,
@@ -152,12 +167,7 @@ POST /bd/analyze
       "cross_platform": 1.15
     }
   },
-  "analysis": {
-    "engagement_potential": {...},
-    "niche_focus": {...},
-    "audience_value": {...},
-    "cross_platform": {...}
-  }
+  "analysis": {...}
 }
 ```
 
@@ -360,13 +370,21 @@ server {
 
 ## 📊 版本歷史
 
-### V4 (2025-10-23) - Current
-- ✨ 新增互動潛力係數
-- ✨ 新增利基專注度係數
-- ✨ 新增受眾價值係數
-- ✨ 新增跨平台影響力係數
-- 🔧 優化 AI Prompt
-- 📚 完整文檔
+### V5 (2025-10-23) - Current
+- ✨ 新增開放式 AI 分析
+- ✨ 新增帳號市場價值估算
+- ✨ 新增智能 JSON 提取
+- ✨ 新增分析文字展示
+- 🔧 優化 AI 模型配置
+- 📚 完善用戶體驗
+
+### V4
+- ✅ 互動潛力係數
+- ✅ 利基專注度係數
+- ✅ 受眾價值係數
+- ✅ 跨平台影響力係數
+- ✅ 優化 AI Prompt
+- ✅ 完整文檔
 
 ### V3
 - ✅ 視覺品質係數
@@ -383,7 +401,8 @@ server {
 ### 推薦閱讀順序
 1. 📖 **README.md**（本文件）- 了解專案概況
 2. 🚀 **QUICK_START.md** - 快速上手部署
-3. 📊 **V4_UPGRADE_NOTES.md** - 深入理解新功能
+3. 📊 **V5_UPGRADE_NOTES.md** - 深入理解 V5 新功能
+4. 📊 **V4_UPGRADE_NOTES.md** - 了解 V4 係數系統
 
 ### 進階主題
 - [ ] 自定義係數權重
