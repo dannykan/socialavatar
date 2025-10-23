@@ -1158,49 +1158,6 @@
         }
 
         // 模擬數據（測試用）
-        const mockData = {
-            "ok": true,
-            "username": "foodie_taipei",
-            "display_name": "台北美食探索者",
-            "followers": 12500,
-            "following": 850,
-            "posts": 342,
-            "primary_type": {
-                "id": "type_5",
-                "name_zh": "生活記錄者",
-                "name_en": "Everyday Chronicler",
-                "emoji": "🍜",
-                "confidence": 0.85
-            },
-            "value_estimation": {
-                "base_price": 12000,
-                "follower_tier": "意見領袖",
-                "follower_quality": "有吸引力",
-                "account_value_min": 60000,      // AI 估算：6-10萬
-                "account_value_max": 100000,
-                "account_value_reasoning": "粉絲互動良好，內容垂直度高，適合美食品牌合作",
-                "multipliers": {
-                    "visual": 1.5,
-                    "content": 1.8,
-                    "professional": 1.2,
-                    "follower": 1.2,
-                    "unique": 1.3,
-                    "engagement": 1.25,
-                    "niche": 1.4,
-                    "audience": 1.6,
-                    "cross_platform": 1.15
-                },
-                "post_value": 9000,        // 更新：9千（合理範圍）
-                "story_value": 3600,       // 更新：Post 的 40%
-                "reels_value": 13500       // 更新：Post 的 150%
-            },
-            "improvement_tips": [
-                "增加與粉絲互動的 Story 內容",
-                "建立固定發文時段提升粉絲黏性",
-                "嘗試加入簡短的美食小知識",
-                "考慮開設 YouTube 頻道擴大影響力"
-            ]
-        };
 
         // 從 URL 參數、sessionStorage 或 localStorage 獲取數據
         function getAnalysisData() {
@@ -1278,11 +1235,10 @@
                     renderResult(analysisData);
                 }, 2000);
             } else {
-                console.log('Using mock data - no real analysis data found');
-                // 沒有數據，使用假資料進行展示
-                setTimeout(() => {
-                    renderResult(mockData);
-                }, 2000);
+                console.log('No analysis data found - redirecting to upload page');
+                // 沒有數據，重定向到上傳頁面
+                alert('沒有找到分析數據，請重新上傳截圖進行分析。');
+                window.location.href = '/static/upload.html';
             }
         });
   </script>
