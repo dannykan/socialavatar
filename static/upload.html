@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>上傳 IG 截圖｜價值分析</title>
+  <title>上傳 IG 截圖｜人格分析</title>
   <link rel="stylesheet" href="/static/app.css">
   <style>
     body {
@@ -76,326 +76,112 @@
     
     .preview-container {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-      gap: 16px;
-      margin-top: 20px;
-      min-height: 60px;
-      border: 2px dashed rgba(34, 211, 238, 0.3);
-      border-radius: 12px;
-      padding: 20px;
-      background: linear-gradient(135deg, rgba(34, 211, 238, 0.05) 0%, rgba(168, 85, 247, 0.05) 100%);
-      transition: all 0.3s ease;
-    }
-    
-    .preview-container:hover {
-      border-color: rgba(34, 211, 238, 0.5);
-      background: linear-gradient(135deg, rgba(34, 211, 238, 0.08) 0%, rgba(168, 85, 247, 0.08) 100%);
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      gap: var(--spacing);
+      margin-top: var(--spacing);
+      min-height: 50px;
+      border: 1px dashed var(--border-light);
+      border-radius: var(--radius);
+      padding: var(--spacing-sm);
     }
     
     .preview-container:empty::before {
-      content: "📸 選擇圖片後會在這裡顯示預覽";
+      content: "選擇圖片後會在這裡顯示預覽";
       color: var(--muted);
-      font-size: 14px;
+      font-size: var(--font-size-xs);
       text-align: center;
       display: flex;
       align-items: center;
       justify-content: center;
-      height: 60px;
-      font-weight: 500;
+      height: 50px;
     }
     
     .preview-item {
       position: relative;
-      border-radius: 12px;
+      border-radius: var(--radius);
       overflow: hidden;
-      background: white;
-      border: 2px solid #e5e7eb;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-      transition: all 0.3s ease;
-    }
-    
-    .preview-item:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-      border-color: #22d3ee;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
     }
     
     .preview-image {
       width: 100%;
-      height: 140px;
+      height: 120px;
       object-fit: cover;
-      transition: transform 0.3s ease;
-    }
-    
-    .preview-item:hover .preview-image {
-      transform: scale(1.05);
     }
     
     .preview-remove {
       position: absolute;
-      top: 8px;
-      right: 8px;
-      background: linear-gradient(135deg, #ef4444, #dc2626);
+      top: 4px;
+      right: 4px;
+      background: rgba(239, 68, 68, 0.9);
       color: white;
       border: none;
       border-radius: 50%;
-      width: 28px;
-      height: 28px;
-      min-width: 28px;
-      min-height: 28px;
+      width: 24px;
+      height: 24px;
+      min-width: 24px;
+      min-height: 24px;
       display: flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      font-size: 14px;
+      font-size: 12px;
       font-weight: bold;
       line-height: 1;
       padding: 0;
       margin: 0;
       box-sizing: border-box;
       flex-shrink: 0;
-      box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
-      transition: all 0.2s ease;
-    }
-    
-    .preview-remove:hover {
-      transform: scale(1.1);
-      box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
     }
     
     .preview-filename {
-      padding: 12px;
-      font-size: 12px;
-      color: #6b7280;
+      padding: var(--spacing-sm);
+      font-size: var(--font-size-xs);
+      color: var(--muted);
       text-align: center;
       word-break: break-all;
-      background: #f9fafb;
-      border-top: 1px solid #e5e7eb;
-      font-weight: 500;
     }
     
-    /* 按鈕區域樣式 */
-    .grid {
+    .action-buttons {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: var(--spacing);
       margin-top: var(--spacing-lg);
     }
     
-    /* 重新設計為鏈接樣式 - 不使用按鈕 */
-    .container {
-      max-width: 480px;
-      margin: 0 auto;
+    .action-buttons .btn {
+      width: 100%;
+      font-size: var(--font-size-sm);
+      padding: 14px 20px;
+      min-height: 48px;
+      font-weight: 600;
+      border-radius: var(--radius-md);
     }
     
-    /* 動作鏈接容器 */
-    .action-links {
-      margin-top: var(--spacing-lg);
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
+    .action-buttons .btn-primary {
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      color: var(--text-inverse);
+      box-shadow: 0 4px 15px rgba(34, 211, 238, 0.3);
+      border: none;
     }
     
-    /* 主要動作鏈接 */
-    .action-link.primary {
-      display: inline-block;
-      padding: 8px 16px;
-      background: linear-gradient(135deg, #22d3ee, #a855f7);
-      color: white;
-      text-decoration: none;
-      border-radius: 8px;
-      font-size: 14px;
-      font-weight: 500;
-      text-align: center;
-      transition: all 0.2s ease;
-      box-shadow: 0 2px 8px rgba(34, 211, 238, 0.2);
-    }
-    
-    .action-link.primary:hover {
+    .action-buttons .btn-primary:hover {
       transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba(34, 211, 238, 0.3);
-      background: linear-gradient(135deg, #06b6d4, #9333ea);
+      box-shadow: 0 6px 20px rgba(34, 211, 238, 0.4);
+      filter: brightness(1.05);
     }
     
-    /* 次要動作鏈接 */
-    .action-link.secondary {
-      display: inline-block;
-      padding: 6px 12px;
+    .action-buttons .btn-ghost {
       background: transparent;
       color: var(--text);
-      text-decoration: none;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      font-size: 13px;
-      font-weight: 400;
-      text-align: center;
-      transition: all 0.2s ease;
+      border: 1px solid var(--border-light);
     }
     
-    .action-link.secondary:hover {
-      background: var(--bg-light);
+    .action-buttons .btn-ghost:hover {
+      background: rgba(255, 255, 255, 0.05);
       border-color: var(--primary);
-      color: var(--primary);
-    }
-    
-    /* 範例圖片區域樣式 */
-    .example-section {
-      margin-bottom: var(--spacing-lg);
-      padding: var(--spacing);
-      background: linear-gradient(135deg, rgba(34, 211, 238, 0.05) 0%, rgba(168, 85, 247, 0.05) 100%);
-      border-radius: var(--radius-md);
-      border: 1px solid rgba(34, 211, 238, 0.2);
-    }
-    
-    .example-title {
-      font-size: var(--font-size-lg);
-      font-weight: 600;
-      color: var(--text);
-      margin-bottom: var(--spacing);
-      text-align: center;
-    }
-    
-    .example-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: var(--spacing);
-    }
-    
-    .example-item {
-      text-align: center;
-      padding: var(--spacing-sm);
-      border-radius: var(--radius-md);
-      transition: all 0.3s ease;
-    }
-    
-    .example-item.correct {
-      background: linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(16, 185, 129, 0.1) 100%);
-      border: 1px solid rgba(34, 197, 94, 0.3);
-    }
-    
-    .example-item.incorrect {
-      background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(220, 38, 38, 0.1) 100%);
-      border: 1px solid rgba(239, 68, 68, 0.3);
-    }
-    
-    .example-label {
-      font-size: var(--font-size-sm);
-      font-weight: 600;
-      margin-bottom: var(--spacing-xs);
-    }
-    
-    .example-item.correct .example-label {
-      color: #10b981;
-    }
-    
-    .example-item.incorrect .example-label {
-      color: #ef4444;
-    }
-    
-    .example-image {
-      margin-bottom: var(--spacing-xs);
-    }
-    
-    .example-image img {
-      width: 100%;
-      max-width: 150px;
-      height: auto;
-      border-radius: var(--radius-sm);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-      border: 2px solid rgba(255, 255, 255, 0.2);
-      object-fit: cover;
-      aspect-ratio: 3/4;
-    }
-    
-    .example-desc {
-      font-size: var(--font-size-xs);
-      color: var(--text-light);
-      line-height: 1.4;
-    }
-    
-    @media (max-width: 640px) {
-      .example-grid {
-        grid-template-columns: 1fr;
-        gap: var(--spacing-sm);
-      }
-      
-      .example-image img {
-        max-width: 100px;
-      }
-    }
-    
-    /* 貼文範例區域樣式 */
-    .posts-example-section {
-      margin-bottom: var(--spacing-lg);
-      padding: var(--spacing);
-      background: linear-gradient(135deg, rgba(34, 211, 238, 0.05) 0%, rgba(168, 85, 247, 0.05) 100%);
-      border-radius: var(--radius-md);
-      border: 1px solid rgba(34, 211, 238, 0.2);
-    }
-    
-    .posts-example-title {
-      font-size: var(--font-size-lg);
-      font-weight: 600;
-      color: var(--text);
-      margin-bottom: var(--spacing);
-      text-align: center;
-    }
-    
-    .posts-example-grid {
-      display: flex;
-      justify-content: center;
-    }
-    
-    .posts-example-item {
-      text-align: center;
-      padding: var(--spacing-sm);
-      border-radius: var(--radius-md);
-      background: linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(16, 185, 129, 0.1) 100%);
-      border: 1px solid rgba(34, 197, 94, 0.3);
-    }
-    
-    .posts-example-label {
-      font-size: var(--font-size-sm);
-      font-weight: 600;
-      margin-bottom: var(--spacing-xs);
-      color: #10b981;
-    }
-    
-    .posts-example-images {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 12px;
-      margin-bottom: var(--spacing-xs);
-      justify-items: center;
-    }
-    
-    .posts-example-image {
-      width: 90px;
-      height: 90px;
-    }
-    
-    .posts-example-image img {
-      width: 100%;
-      height: 100%;
-      border-radius: var(--radius-sm);
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      object-fit: cover;
-    }
-    
-    .posts-example-desc {
-      font-size: var(--font-size-xs);
-      color: var(--text-light);
-      line-height: 1.4;
-    }
-    
-    @media (max-width: 640px) {
-      .posts-example-images {
-        grid-template-columns: repeat(3, 1fr);
-        gap: 8px;
-      }
-      
-      .posts-example-image {
-        width: 75px;
-        height: 75px;
-      }
+      transform: translateY(-1px);
     }
     
     /* Loading Overlay */
@@ -416,53 +202,6 @@
     
     .loading-overlay.show {
       display: flex;
-    }
-
-    /* 錯誤框樣式 */
-    .error-box {
-      background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(220, 38, 38, 0.1) 100%);
-      color: #fca5a5;
-      border: 2px solid rgba(239, 68, 68, 0.3);
-      border-radius: 12px;
-      padding: 20px;
-      margin-top: 20px;
-      box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
-      animation: errorShake 0.5s ease-in-out;
-    }
-
-    @keyframes errorShake {
-      0%, 100% { transform: translateX(0); }
-      25% { transform: translateX(-5px); }
-      75% { transform: translateX(5px); }
-    }
-
-    .hidden {
-      display: none;
-    }
-
-    /* 警示訊息樣式 */
-    .alert-message {
-      background: linear-gradient(135deg, rgba(34, 211, 238, 0.1) 0%, rgba(168, 85, 247, 0.1) 100%);
-      border: 2px solid rgba(34, 211, 238, 0.3);
-      border-radius: 12px;
-      padding: 16px 20px;
-      margin-bottom: 24px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      box-shadow: 0 4px 12px rgba(34, 211, 238, 0.1);
-    }
-
-    .alert-icon {
-      font-size: 20px;
-      flex-shrink: 0;
-    }
-
-    .alert-text {
-      color: var(--text);
-      font-size: 14px;
-      font-weight: 500;
-      line-height: 1.5;
     }
     
     .loading-spinner {
@@ -543,19 +282,24 @@
     
     @media (max-width: 768px) {
       .preview-remove {
-        width: 32px;
-        height: 32px;
-        font-size: 16px;
+        width: 28px;
+        height: 28px;
       }
       
       .preview-image {
-        height: 160px;
+        height: 140px;
       }
       
       .preview-container {
-        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-        gap: 20px;
-        padding: 24px;
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      }
+    }
+    
+    @media (max-width: 768px) {
+      .action-buttons .btn {
+        padding: 16px 20px;
+        font-size: var(--font-size);
+        min-height: 52px;
       }
     }
     
@@ -571,78 +315,85 @@
       .page-description {
         font-size: var(--font-size);
       }
+      
+      .action-buttons .btn {
+        padding: 16px 24px;
+        font-size: var(--font-size-lg);
+        min-height: 56px;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      .action-buttons .btn {
+        padding: 14px 20px;
+        font-size: var(--font-size);
+        min-height: 52px;
+      }
     }
   </style>
 </head>
 <body>
   <header class="header">
-    <div><strong>IG 價值分析</strong></div>
+    <div><strong>IG 人格分析</strong></div>
     <div class="user-badge" id="userBadge">載入中...</div>
   </header>
 
   <main class="container">
-    <!-- 警示訊息移到最上方 -->
-    <div class="alert-message">
-      <div class="alert-icon">💡</div>
-      <div class="alert-text">上傳截圖後，你的帳號價值分析結果會永久保存。</div>
-    </div>
-
-    <h1 class="page-title">📊 上傳你的 IG 截圖</h1>
+    <h1 class="page-title">上傳你的 IG 截圖</h1>
     <p class="page-description">
-      我們會透過 AI 深度分析你的 IG 社群帳號價值，提供專業的市場估值與社群定位分析。<br>
-      <strong>只需一步：</strong><br>
-      上傳 IG 個人頁截圖，AI 會自動分析帳號價值
+      我們會透過 AI 分析你的 IG 風格，給你一個專屬的社群人格類型。<br>
+      <strong>只需兩步：</strong><br>
+      ① 上傳 IG 個人頁截圖（必填）<br>
+      ② 可選上傳 1～6 張貼文縮圖，幫助 AI 更準確分析
     </p>
 
     <div class="card upload-section">
       <div class="form-group">
         <label class="form-label">📸 IG 個人頁截圖（必填）</label>
-        
-        <!-- 範例圖片區域 -->
-        <div class="example-section">
-          <div class="example-title">📋 截圖範例</div>
-          <div class="example-grid">
-            <div class="example-item correct">
-              <div class="example-label">✅ 正確範例</div>
-              <div class="example-image">
-                <img src="/static/examples/correct-example.jpg" alt="正確範例 - Instagram個人頁面截圖" />
-              </div>
-              <div class="example-desc">包含完整個人資訊：用戶名、粉絲數、追蹤數、貼文數、個人簡介、精選動態、貼文網格</div>
-            </div>
-            <div class="example-item incorrect">
-              <div class="example-label">❌ 錯誤範例</div>
-              <div class="example-image">
-                <img src="/static/examples/incorrect-example.jpg" alt="錯誤範例 - Instagram動態消息頁面" />
-              </div>
-              <div class="example-desc">這是動態消息頁面，缺少個人資訊，不適合用於帳號價值分析</div>
-            </div>
-          </div>
-        </div>
-        
         <div class="file-upload">
           <input id="profile" type="file" accept="image/*" required />
           <div>
-            <div style="font-size: 32px; margin-bottom: 12px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));">📱</div>
-            <div style="font-size: 16px; font-weight: 600; margin-bottom: 4px;">點擊選擇 IG 個人頁截圖</div>
-            <div style="font-size: 12px; opacity: 0.7;">支援 JPG、PNG 格式</div>
+            <div style="font-size: 24px; margin-bottom: 8px;">📱</div>
+            <div>點擊選擇 IG 個人頁截圖</div>
           </div>
         </div>
-        <p class="upload-hint">💡 請確保截圖包含：用戶名、Bio、粉絲數/追蹤數/貼文數、九宮格縮圖，這些資訊將用於精準的帳號價值評估</p>
+        <p class="upload-hint">💡 請確保截圖包含：用戶名、Bio、粉絲數/追蹤數/貼文數、九宮格縮圖</p>
         <div class="preview-container" id="profilePreview"></div>
       </div>
     </div>
 
+    <div class="card upload-section">
+      <div class="form-group">
+        <label class="form-label">🖼️ 貼文縮圖（選填，可多選）</label>
+        <div class="file-upload">
+          <input id="posts" type="file" accept="image/*" multiple />
+          <div>
+            <div style="font-size: 24px; margin-bottom: 8px;">📷</div>
+            <div>點擊選擇貼文縮圖（可多選）</div>
+            <div style="font-size: 12px; opacity: 0.7; margin-top: 4px;">最多 6 張，系統會自動壓縮</div>
+          </div>
+        </div>
+        <p class="upload-hint">💡 提供更多貼文可以讓 AI 更準確判斷你的風格類型</p>
+        <div class="preview-container" id="postsPreview"></div>
+      </div>
+    </div>
 
-    <div class="action-links">
-      <a href="#" class="action-link primary" onclick="startAnalyze(); return false;">
-        🚀 開始分析我的 IG 價值
-      </a>
-      <a href="/static/landing.html" class="action-link secondary">
-        ← 返回首頁
+    <div class="action-buttons">
+      <button class="btn btn-primary" onclick="startAnalyze()">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+        </svg>
+        開始分析我的 IG 風格
+      </button>
+      <a class="btn btn-ghost" href="/static/landing.html">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M19 12H5M12 19l-7-7 7-7"/>
+        </svg>
+        返回首頁
       </a>
     </div>
 
-    <div id="err" class="error-box hidden"></div>
+    <div id="err" class="status-error hidden"></div>
   </main>
 
   <!-- Loading Overlay -->
@@ -666,7 +417,7 @@
         </div>
         <div class="loading-step" id="step4">
           <div class="loading-step-icon">4</div>
-          <span>生成 IG 社群帳號價值報告</span>
+          <span>生成人格類型卡</span>
         </div>
       </div>
     </div>
@@ -772,45 +523,75 @@
       }
     }
 
-    // 簡化的分析函數
     window.startAnalyze = async function() {
-      const screenshot = document.getElementById('profile').files[0];
-      
-      if (!screenshot) {
-        alert('請先上傳 IG 截圖');
+      const errBox = document.getElementById('err');
+      errBox.style.display = 'none';
+
+      const profile = document.getElementById('profile').files[0];
+      if (!profile) {
+        alert('請先上傳 IG 個人頁截圖');
         return;
       }
 
       showLoading();
 
       const form = new FormData();
-      form.append('screenshot', screenshot);
+      form.append('profile', profile);
+      Array.from(document.getElementById('posts').files).slice(0, 6).forEach(f => form.append('posts', f));
 
       try {
-        const res = await fetch('/api/analyze', { method: 'POST', body: form });
-        
-        if (!res.ok) {
-          const errorData = await res.json();
-          throw new Error(errorData.error || '分析失敗');
+        updateStep(1, 'active');
+        await authReady;
+        if (!currentAuthUser) throw new Error('未登入，請先回首頁登入帳號');
+        updateStep(1, 'completed');
+
+        updateStep(2, 'active');
+        const res = await fetch('/bd/analyze', { method: 'POST', body: form });
+        if (!res.ok) throw new Error(`伺服器錯誤（${res.status}）`);
+        updateStep(2, 'completed');
+
+        updateStep(3, 'active');
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || 'server error');
+        updateStep(3, 'completed');
+
+        updateStep(4, 'active');
+        data.user = {
+          uid: currentAuthUser.uid,
+          email: currentAuthUser.email,
+          displayName: currentAuthUser.displayName,
+          photoURL: currentAuthUser.photoURL
+        };
+        data.timestamp = new Date().toISOString();
+
+        try {
+          sessionStorage.setItem('user', JSON.stringify(data.user));
+        } catch {}
+
+        try {
+          await setDoc(doc(db, 'users', currentAuthUser.uid), {
+            uid: currentAuthUser.uid,
+            email: currentAuthUser.email,
+            hasAnalysis: true,
+            latestAnalysis: data,
+            updatedAt: serverTimestamp()
+          });
+        } catch (e) {
+          console.error('Firestore save failed:', e);
         }
 
-        // 取得純文字回答
-        const answer = await res.text();
+        sessionStorage.setItem('sa_result', JSON.stringify(data));
+        sessionStorage.setItem('analysis_submitted', 'true');
         
-        // 儲存結果
-        sessionStorage.setItem('ai_answer', JSON.stringify({
-          question: "此 IG 帳號如果要賣掉的話值多少錢，為什麼？怎麼精算出來的？",
-          answer: answer,
-          timestamp: new Date().toISOString()
-        }));
+        updateStep(4, 'completed');
         
-        // 跳轉到結果頁
-        window.location.href = '/static/result.html';
+        setTimeout(() => window.location.replace('/static/loading.html'), 800);
 
       } catch (e) {
-        console.error(e);
-        alert(e.message);
+        console.error('Analysis failed:', e);
         document.getElementById('loadingOverlay').classList.remove('show');
+        errBox.textContent = e.message || '網路錯誤';
+        errBox.style.display = 'block';
       }
     };
   </script>

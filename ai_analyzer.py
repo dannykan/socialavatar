@@ -39,7 +39,7 @@ class PromptBuilder:
     """Prompt 構建器 - 固定問題"""
     
     # 固定的問題（可以在這裡修改）
-    DEFAULT_QUESTION = "此 IG 帳號如果要賣掉的話值多少錢，為什麼？怎麼精算出來的？Post 和 Reels 應該怎麼計價？"
+    DEFAULT_QUESTION = "請分析這個 Instagram 帳號的商業價值和影響力，包括內容品質、粉絲互動、品牌潛力等面向，並提供具體的評估指標和建議。"
     
     @staticmethod
     def build_analysis_prompt(question: str = None) -> str:
@@ -79,6 +79,149 @@ class ResponseCleaner:
         cleaned = cleaned.replace("```markdown", "").replace("```", "")
         
         return cleaned.strip()
+
+
+class DataExtractor:
+    """從 AI 回應中提取結構化數據"""
+    
+    @staticmethod
+    def extract_metrics(analysis_text: str) -> dict:
+        """
+        從分析文本中提取商業指標
+        
+        Args:
+            analysis_text: AI 的分析回應文本
+            
+        Returns:
+            包含提取的指標的字典
+        """
+        import re
+        
+        metrics = {
+            "followers": None,
+            "engagement_rate": None,
+            "engagement_percentage": None,
+            "likes": [],
+            "content_quality": None,
+            "brand_potential": None,
+            "income_potential": {
+                "min_per_post": None,
+                "max_per_post": None,
+                "avg_per_post": None,
+                "monthly_posts": None,
+                "monthly_income": None
+            },
+            "recommendations": [],
+            "raw_text": analysis_text
+        }
+        
+        # 提取粉絲數
+        followers_match = re.search(r'(\d+(?:,\d+)*(?:\.\d+)?)\s*K', analysis_text)
+        if followers_match:
+            followers_str = followers_match.group(1).replace(',', '')
+            try:
+                followers_val = float(followers_str)
+                metrics["followers"] = int(followers_val * 1000) if 'K' in analysis_text[followers_match.start():followers_match.end()] else int(followers_val)
+            except:
+                pass
+        
+        # 提取互動率（更多的變體）
+        engagement_match = re.search(r'互動率[：:]\s*([0-9.]+)%', analysis_text)
+        if not engagement_match:
+            engagement_match = re.search(r'互動率約為\s*([0-9.]+)%', analysis_text)
+        if not engagement_match:
+            engagement_match = re.search(r'([0-9.]+)%[，,]?\s*(?:的)?互動率', analysis_text)
+        
+        if engagement_match:
+            try:
+                metrics["engagement_percentage"] = float(engagement_match.group(1))
+                metrics["engagement_rate"] = float(engagement_match.group(1)) / 100
+            except:
+                pass
+        
+        # 提取點讚數（更多的變體）
+        likes_matches = re.findall(r'(\d+(?:,\d+)*)\s*(?:點讚|👍|likes)', analysis_text)
+        for like in likes_matches[:5]:  # 最多提取 5 個
+            try:
+                metrics["likes"].append(int(like.replace(',', '')))
+            except:
+                pass
+        
+        # 如果找不到點讚數，嘗試找到數字後跟"、"的模式
+        if not metrics["likes"]:
+            likes_matches = re.findall(r'點讚數為\s*([0-9,]+)(?:、|，)', analysis_text)
+            for like in likes_matches[:5]:
+                try:
+                    metrics["likes"].append(int(like.replace(',', '')))
+                except:
+                    pass
+        
+        # 提取內容品質評估
+        quality_match = re.search(r'照片品質[：:]\s*([^。\n]+)', analysis_text)
+        if quality_match:
+            metrics["content_quality"] = quality_match.group(1).strip()
+        
+        # 提取品牌潛力
+        brand_match = re.search(r'(?:品牌潛力|潛在合作機會)[：:]\s*([^。\n]+)', analysis_text)
+        if brand_match:
+            metrics["brand_potential"] = brand_match.group(1).strip()
+        
+        # 提取收入潛力
+        income_min_match = re.search(r'NT\$(\d+(?:,\d+)*)\s*至\s*NT\$(\d+(?:,\d+)*)', analysis_text)
+        if income_min_match:
+            try:
+                metrics["income_potential"]["min_per_post"] = int(income_min_match.group(1).replace(',', ''))
+                metrics["income_potential"]["max_per_post"] = int(income_min_match.group(2).replace(',', ''))
+                metrics["income_potential"]["avg_per_post"] = (
+                    metrics["income_potential"]["min_per_post"] + 
+                    metrics["income_potential"]["max_per_post"]
+                ) // 2
+            except:
+                pass
+        
+        # 提取平均合作費用和月收入
+        avg_income_match = re.search(r'平均每篇合作費用為\s*NT\$(\d+(?:,\d+)*)', analysis_text)
+        if avg_income_match:
+            try:
+                metrics["income_potential"]["avg_per_post"] = int(avg_income_match.group(1).replace(',', ''))
+            except:
+                pass
+        
+        monthly_income_match = re.search(r'月收入約為\s*NT\$(\d+(?:,\d+)*)', analysis_text)
+        if monthly_income_match:
+            try:
+                metrics["income_potential"]["monthly_income"] = int(monthly_income_match.group(1).replace(',', ''))
+            except:
+                pass
+        
+        # 提取建議（改進的模式）
+        suggestions_section = re.search(r'(?:###\s*)?(?:建議|推薦)[：:]?(.*?)(?:$|這些評估|---)', analysis_text, re.DOTALL)
+        if suggestions_section:
+            suggestions_text = suggestions_section.group(1)
+            # 首先嘗試找到帶有編號、標題和描述的項目
+            suggestions = re.findall(r'[0-9]+\.\s*\*?\*?([^：:。\n]+)\*?\*?[：:]\s*([^。\n]+)', suggestions_text)
+            if suggestions:
+                metrics["recommendations"] = [
+                    f"{title.strip().replace('**', '')}: {desc.strip()}" 
+                    for title, desc in suggestions
+                ]
+            else:
+                # 如果沒找到完整的標題:描述，嘗試只找項目標題
+                suggestions = re.findall(r'[0-9]+\.\s*\*?\*?([^。\n：]+)', suggestions_text)
+                if suggestions:
+                    metrics["recommendations"] = [
+                        s.strip().replace('**', '') 
+                        for s in suggestions if s.strip()
+                    ]
+                else:
+                    # 最後的嘗試：找所有以數字和句號開頭的行
+                    suggestions = re.findall(r'^\s*[0-9]+\.\s*(.+?)$', suggestions_text, re.MULTILINE)
+                    metrics["recommendations"] = [
+                        s.strip().replace('**', '') 
+                        for s in suggestions if s.strip()
+                    ]
+        
+        return metrics
 
 
 class OpenAIAnalyzer:

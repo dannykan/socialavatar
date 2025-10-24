@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IG 帳號價值分析結果</title>
+    <title>我的 IG 帳號價值報告</title>
     <style>
         * {
             margin: 0;
@@ -16,222 +16,1207 @@
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
 
         .container {
-            max-width: 800px;
-            margin: 0 auto;
+            max-width: 500px;
+            width: 100%;
             background: rgba(255, 255, 255, 0.98);
-            border-radius: 20px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+            border-radius: 30px;
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            position: relative;
+            margin: 0 auto;
+        }
+
+        /* Instagram 風格漸變頭部 */
+        .header {
+            background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+            padding: 40px 30px;
+            text-align: center;
+            position: relative;
             overflow: hidden;
         }
 
-        .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        .header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            animation: pulse 4s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+        }
+
+        .username {
             color: white;
-            padding: 30px;
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            position: relative;
+            z-index: 1;
+        }
+
+        .username::before {
+            content: '@';
+            opacity: 0.8;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            color: white;
+            font-size: 13px;
+            margin-top: 15px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .stat-item {
             text-align: center;
         }
 
-        .header h1 {
-            font-size: 28px;
+        .stat-number {
             font-weight: 700;
+            font-size: 16px;
+            display: block;
+        }
+
+        .stat-label {
+            opacity: 0.9;
+            font-size: 11px;
+        }
+
+        /* 主要價值展示區 */
+        .value-section {
+            padding: 15px 20px;
+            text-align: center;
+            background: linear-gradient(180deg, #fff 0%, #fafafa 100%);
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 0px;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .value-title {
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .total-value {
+            font-size: 48px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1.1;
+            margin-bottom: 5px;
+            animation: valueAppear 0.8s ease-out;
+        }
+
+        @keyframes valueAppear {
+            0% {
+                opacity: 0;
+                transform: scale(0.5);
+            }
+            60% {
+                transform: scale(1.1);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .value-subtitle {
+            font-size: 12px;
+            color: #999;
+            margin-bottom: 0px;
+        }
+
+        /* 整合的帳號資訊卡片 */
+        .account-info-card {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 20px;
+            padding: 18px;
+            margin: 12px 20px;
+            color: white;
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+        }
+
+        .account-badges {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 12px;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+        }
+
+        .tier-badge {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            font-size: 12px;
+            padding: 6px 15px;
+            display: none;  /* 隱藏原始的小 badge */
+        }
+
+        .personality-badge {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            font-size: 12px;
+            padding: 6px 15px;
+            margin-bottom: 0px;
+        }
+
+        .personality-details {
+            display: none;
+        }
+
+        .personality-emoji {
+            display: none;
+        }
+
+        .personality-info {
+            display: none;
+        }
+
+        .personality-name {
+            display: none;
+        }
+
+        .personality-en {
+            display: none;
+        }
+
+        .personality-confidence {
+            display: none;
+        }
+
+        /* 新增：等級詳情樣式（用原來的 personality-details 樣式） */
+        .tier-details {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 0;
+        }
+
+        .tier-emoji {
+            font-size: 32px;
+            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2));
+            display: none;
+        }
+
+        .tier-info {
+            flex: 1;
+        }
+
+        .tier-name {
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 0px;
+        }
+
+        .tier-en {
+            font-size: 12px;
+            opacity: 0.9;
+            font-style: italic;
             margin-bottom: 8px;
         }
 
-        .header p {
-            opacity: 0.9;
+
+        /* AI 分析文字區塊（新增）*/
+        .analysis-section {
+            padding: 25px 30px;
+            background: white;
+        }
+
+        .analysis-title {
             font-size: 16px;
-        }
-
-        .result-card {
-            padding: 40px;
-        }
-
-        .question-section {
-            margin-bottom: 30px;
-            padding-bottom: 20px;
-            border-bottom: 2px solid #f0f0f0;
-        }
-
-        .question-label {
-            font-size: 14px;
-            color: #666;
-            font-weight: 600;
-            margin-bottom: 12px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .question-text {
-            font-size: 18px;
+            font-weight: 700;
             color: #333;
-            font-weight: 600;
-            line-height: 1.5;
+            margin-bottom: 15px;
+            text-align: center;
         }
 
-        .answer-section {
-            margin-bottom: 30px;
-        }
-
-        .answer-label {
+        .analysis-text {
             font-size: 14px;
-            color: #666;
-            font-weight: 600;
-            margin-bottom: 12px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .answer-text {
-            font-size: 16px;
-            color: #333;
             line-height: 1.8;
-            white-space: pre-wrap;
+            color: #555;
             background: #f8f9fa;
             padding: 20px;
-            border-radius: 12px;
+            border-radius: 15px;
             border-left: 4px solid #667eea;
         }
 
-        .actions {
-            display: flex;
-            gap: 15px;
-            margin-top: 30px;
+        .analysis-text p {
+            margin-bottom: 15px;
         }
 
-        .btn {
-            flex: 1;
-            padding: 12px 24px;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-decoration: none;
+        .analysis-text p:last-child {
+            margin-bottom: 0;
+        }
+
+        /* 合作報價區塊 */
+        .pricing-section {
+            padding: 15px 20px;
+            background: white;
+        }
+
+        .pricing-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 12px;
             text-align: center;
-            display: inline-block;
         }
 
-        .btn-primary {
+        .pricing-cards {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+
+        .price-card {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 15px;
+            padding: 12px 15px;
+            text-align: center;
+            flex: 1;
+            max-width: 100px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .price-card:hover {
+            border-color: #667eea;
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.15);
+        }
+
+        .price-type {
+            font-size: 11px;
+            color: #999;
+            margin-bottom: 6px;
+            font-weight: 500;
+        }
+
+        .price-value {
+            font-size: 16px;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        /* 係數展示 */
+        .multipliers-section {
+            padding: 25px 30px;
+            background: #fafafa;
+        }
+
+        .multipliers-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .multiplier-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .multiplier-item {
+            background: white;
+            border-radius: 12px;
+            padding: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid #f0f0f0;
+        }
+
+        .multiplier-label {
+            font-size: 12px;
+            color: #666;
+            font-weight: 500;
+        }
+
+        .multiplier-value {
+            font-size: 16px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* 提升建議 */
+        .tips-section {
+            padding: 25px 30px;
+            background: white;
+        }
+
+        .tips-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .tip-item {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            border-radius: 8px;
+            padding: 12px 15px;
+            margin-bottom: 10px;
+            font-size: 13px;
+            color: #555;
+            line-height: 1.5;
+        }
+
+        .tip-item::before {
+            content: '💡 ';
+            margin-right: 5px;
+        }
+
+        /* 分享按鈕 */
+        .share-section {
+            padding: 25px 30px 35px;
+            text-align: center;
+            background: white;
+        }
+
+        .share-button {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
         }
 
-        .btn-primary:hover {
+        .share-button:hover {
             transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 15px 35px rgba(102, 126, 234, 0.5);
         }
 
-        .btn-secondary {
-            background: #f8f9fa;
-            color: #666;
-            border: 1px solid #e0e0e0;
+        .share-button:active {
+            transform: translateY(0);
         }
 
-        .btn-secondary:hover {
-            background: #e9ecef;
-            transform: translateY(-1px);
-        }
-
-        .loading {
+        /* 底部署名 */
+        .footer {
+            padding: 20px;
             text-align: center;
-            padding: 40px;
-            color: #666;
+            background: #f5f5f5;
+            font-size: 11px;
+            color: #999;
         }
 
-        .spinner {
-            width: 40px;
-            height: 40px;
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #667eea;
+        /* 響應式設計 */
+        @media (max-width: 480px) {
+            .container {
+                border-radius: 0;
+                box-shadow: none;
+            }
+
+            .total-value {
+                font-size: 52px;
+            }
+
+            .account-badges {
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .personality-details {
+                flex-direction: column;
+                text-align: center;
+                gap: 10px;
+            }
+
+            .pricing-cards {
+                grid-template-columns: 1fr;
+            }
+
+            .multiplier-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .pricing-section {
+                margin: 0 20px 25px;
+                padding: 20px;
+            }
+        }
+
+        /* Loading 動畫 */
+        .loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            padding: 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            z-index: 9999;
+            overflow: hidden;
+        }
+
+        /* 背景裝飾元素 */
+        .loading::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -20%;
+            width: 500px;
+            height: 500px;
+            background: rgba(255, 255, 255, 0.1);
             border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 20px;
+            animation: float 6s ease-in-out infinite;
+        }
+
+        .loading::after {
+            content: '';
+            position: absolute;
+            bottom: -30%;
+            left: -10%;
+            width: 400px;
+            height: 400px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 50%;
+            animation: float 8s ease-in-out infinite reverse;
+        }
+
+        .loading-card {
+            background: white;
+            border-radius: 30px;
+            padding: 50px 40px;
+            width: 100%;
+            max-width: 450px;
+            box-shadow: 0 30px 80px rgba(0, 0, 0, 0.25);
+            text-align: center;
+            position: relative;
+            z-index: 10;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .loading-spinner {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 25px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .loading-spinner::before {
+            content: '';
+            position: absolute;
+            width: 80px;
+            height: 80px;
+            border: 4px solid #f0f0f0;
+            border-top: 4px solid #667eea;
+            border-right: 4px solid #764ba2;
+            border-radius: 50%;
+            animation: spin 1.2s cubic-bezier(0.4, 0.0, 0.2, 1) infinite;
+        }
+
+        .loading-spinner::after {
+            content: '';
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            border: 2px solid transparent;
+            border-bottom: 2px solid rgba(102, 126, 234, 0.3);
+            border-radius: 50%;
+            animation: spin 2s linear infinite reverse;
+        }
+
+        .loading-text {
+            font-size: 16px;
+            color: #333;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+            width: 100%;
+        }
+
+        .loading-subtitle {
+            font-size: 13px;
+            color: #999;
+            font-weight: 400;
+            letter-spacing: 0.3px;
+            margin-top: 8px;
+            width: 100%;
+        }
+
+        .loading-progress {
+            width: 100%;
+            height: 3px;
+            background: #f0f0f0;
+            border-radius: 2px;
+            margin-top: 18px;
+            overflow: hidden;
+        }
+
+        .loading-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            border-radius: 2px;
+            animation: progress 2s ease-in-out infinite;
+        }
+
+        .loading-dots {
+            display: inline-block;
+            animation: dots 1.4s steps(4, end) infinite;
         }
 
         @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            to { transform: rotate(360deg); }
         }
 
-        @media (max-width: 768px) {
-            .container {
-                margin: 10px;
-                border-radius: 15px;
-            }
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-30px); }
+        }
 
-            .result-card {
-                padding: 20px;
-            }
+        @keyframes dots {
+            0%, 20% { content: ''; }
+            40% { content: '·'; }
+            60% { content: '··'; }
+            80%, 100% { content: '···'; }
+        }
 
-            .actions {
-                flex-direction: column;
-            }
+        @keyframes progress {
+            0% { width: 0%; }
+            50% { width: 100%; }
+            100% { width: 0%; }
+        }
 
-            .btn {
-                width: 100%;
-            }
+        .hidden {
+            display: none;
+        }
+
+        /* 新增：帳號信息區塊樣式 */
+        .account-header {
+            padding: 0;
+            background: white;
+            color: #333;
+        }
+
+        .account-name {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 3px;
+            padding: 12px 20px 8px 20px;
+        }
+
+        .account-username {
+            font-size: 20px;
+            font-weight: 700;
+            color: #000;
+        }
+
+        .account-display-name {
+            font-size: 12px;
+            color: #666;
+            font-weight: 500;
+        }
+
+        .account-stats {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-top: 15px;
+        }
+
+        /* 統計區塊 */
+        .account-stats-block {
+            display: flex;
+            gap: 0;
+            padding: 0;
+            background: white;
+            border-top: 1px solid #f0f0f0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .stat-item-block {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex: 1;
+            padding: 10px;
+            border-right: 1px solid #f0f0f0;
+        }
+
+        .stat-item-block:last-child {
+            border-right: none;
+        }
+
+        .stat-number-block {
+            font-size: 16px;
+            font-weight: 700;
+            color: #000;
+        }
+
+        .stat-label-block {
+            font-size: 10px;
+            color: #999;
+            margin-top: 3px;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <h1>🤖 AI 分析結果</h1>
-            <p>基於你的 IG 截圖進行的專業價值分析</p>
+        <!-- Loading 狀態 -->
+        <div id="loading" class="loading">
+            <div class="loading-card">
+                <div class="loading-spinner"></div>
+                <p class="loading-text">
+                    正在分析你的 IG 帳號
+                    <span class="loading-dots">···</span>
+                </p>
+                <p class="loading-subtitle">利用 AI 進行全面評估</p>
+                <div class="loading-progress">
+                    <div class="loading-progress-bar"></div>
+                </div>
+            </div>
         </div>
 
-        <div class="result-card">
-            <div class="question-section">
-                <div class="question-label">🤔 分析問題</div>
-                <div class="question-text" id="question"></div>
+        <!-- 結果展示（預設隱藏） -->
+        <div id="result" class="hidden">
+            <!-- Instagram 風格頭部（隱藏）-->
+            <div class="header" style="display: none;">
+                <div class="username" id="username">username</div>
+                <div class="stats">
+                    <div class="stat-item">
+                        <span class="stat-number" id="followers">0</span>
+                        <span class="stat-label">粉絲</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number" id="following">0</span>
+                        <span class="stat-label">追蹤</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number" id="posts">0</span>
+                        <span class="stat-label">貼文</span>
+                    </div>
+                </div>
             </div>
-            
-            <div class="answer-section">
-                <div class="answer-label">💡 AI 分析結果</div>
-                <div class="answer-text" id="answer"></div>
+
+            <!-- 帳號信息（新增置頂） -->
+            <div class="account-header">
+                <div class="account-name">
+                    <div class="account-username" id="username-top">@username</div>
+                    <div class="account-display-name" id="display-name">顯示名稱</div>
+                </div>
+                <div class="account-stats-block">
+                    <div class="stat-item-block">
+                        <span class="stat-number-block" id="followers-count">0</span>
+                        <span class="stat-label-block">粉絲</span>
+                    </div>
+                    <div class="stat-item-block">
+                        <span class="stat-number-block" id="following-count">0</span>
+                        <span class="stat-label-block">追蹤</span>
+                    </div>
+                    <div class="stat-item-block">
+                        <span class="stat-number-block" id="posts-count">0</span>
+                        <span class="stat-label-block">貼文</span>
+                    </div>
+                </div>
             </div>
-            
-            <div class="actions">
-                <button class="btn btn-primary" onclick="shareResult()">📤 分享結果</button>
-                <a href="/static/upload.html" class="btn btn-secondary">🔄 重新分析</a>
+
+            <!-- 人格類型卡片（上移）-->
+            <div class="account-info-card" style="background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);">
+                <div class="account-badges">
+                    <div class="badge personality-badge" id="personality-type">分析中...</div>
+                </div>
+                <div class="tier-details">
+                    <span class="tier-emoji" id="tier-emoji">🎬</span>
+                    <div class="tier-info">
+                        <div class="tier-name" id="tier-name">Celebrity Influencer</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 主要價值展示 -->
+            <div class="value-section">
+                <div class="value-title">你的帳號總價值</div>
+                <div class="total-value" id="total-value">NT$ 0</div>
+                <div class="value-subtitle">基於 AI 智能評估</div>
+            </div>
+
+            <!-- AI 專業分析（新增，僅當有 analysis_text 時顯示）-->
+            <div class="analysis-section" id="analysis-section" style="display:none;">
+                <div class="analysis-title">💡 評估分析詳情</div>
+                <div class="analysis-text" id="analysis-text"></div>
+            </div>
+
+            <!-- 合作報價（整合到價值展示區） -->
+            <div class="pricing-section">
+                <div class="pricing-title">💰 合作報價參考</div>
+                <div class="pricing-cards">
+                    <div class="price-card">
+                        <div class="price-type">貼文</div>
+                        <div class="price-value" id="post-value">NT$ 0</div>
+                    </div>
+                    <div class="price-card">
+                        <div class="price-type">限動</div>
+                        <div class="price-value" id="story-value">NT$ 0</div>
+                    </div>
+                    <div class="price-card">
+                        <div class="price-type">短影音</div>
+                        <div class="price-value" id="reels-value">NT$ 0</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 係數展示 -->
+            <div class="multipliers-section">
+                <div class="multipliers-title">📊 價值係數</div>
+                <div class="multiplier-grid" id="multipliers-grid">
+                    <!-- 將由 JS 動態生成 -->
+                </div>
+            </div>
+
+            <!-- 提升建議 -->
+            <div class="tips-section">
+                <div class="tips-title">💡 價值提升建議</div>
+                <div id="tips-container">
+                    <!-- 將由 JS 動態生成 -->
+                </div>
+            </div>
+
+            <!-- 分享按鈕 -->
+            <div class="share-section">
+                <button class="share-button" onclick="shareResult()">
+                    <span>📸</span>
+                    <span>分享我的帳號價值</span>
+                </button>
+            </div>
+
+            <!-- 底部 -->
+            <div class="footer">
+                Powered by IG Value Estimation System V5
             </div>
         </div>
     </div>
 
     <script>
-        window.addEventListener('DOMContentLoaded', () => {
-            const data = JSON.parse(sessionStorage.getItem('ai_answer') || '{}');
+        // 格式化數字（加千分位）
+        function formatNumber(num) {
+            return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        }
+
+        // 格式化金額
+        function formatPrice(price) {
+            if (price >= 10000) {
+                return `NT$ ${(price / 10000).toFixed(1)}萬`;
+            }
+            return `NT$ ${formatNumber(price)}`;
+        }
+
+        // 係數標籤映射
+        const multiplierLabels = {
+            'visual': '視覺品質',
+            'content': '內容類型',
+            'professional': '專業程度',
+            'follower': '粉絲品質',
+            'unique': '風格獨特',
+            'engagement': '互動潛力',
+            'niche': '利基專注',
+            'audience': '受眾價值',
+            'cross_platform': '跨平台'
+        };
+
+        // 計算帳號市場價值（參考真實市場行情）
+        function calculateAccountValue(data) {
+            const followers = data.followers || 0;
+            const value = data.value_estimation || {};
+            const multipliers = value.multipliers || {};
             
-            if (!data.answer) {
-                alert('沒有分析結果，請重新分析');
-                window.location.href = '/static/upload.html';
-                return;
+            // === 第一步：計算基礎每粉價值（根據粉絲規模） ===
+            let basePerFollower;
+            
+            if (followers < 1000) {
+                basePerFollower = 1.2;          // 素人：1.2元/粉
+            } else if (followers < 5000) {
+                basePerFollower = 2;            // 新星：2元/粉
+            } else if (followers < 10000) {
+                basePerFollower = 3;            // 潛力股：3元/粉
+            } else if (followers < 50000) {
+                basePerFollower = 3.5;          // 微網紅：3.5元/粉
+            } else if (followers < 100000) {
+                basePerFollower = 4;            // 意見領袖：4元/粉
+            } else if (followers < 300000) {
+                basePerFollower = 3.5;          // 網紅級：3.5元/粉（邊際遞減）
+            } else {
+                basePerFollower = 2.5;          // 名人級：2.5元/粉（邊際遞減）
             }
             
-            document.getElementById('question').textContent = data.question;
-            document.getElementById('answer').textContent = data.answer;
-        });
+            // === 第二步：計算品質係數（基於AI分析的各項係數） ===
+            
+            // 獲取各項係數
+            const visual = multipliers.visual || 1.0;
+            const content = multipliers.content || 1.0;
+            const professional = multipliers.professional || 1.0;
+            const follower = multipliers.follower || 1.0;
+            const unique = multipliers.unique || 1.0;
+            const engagement = multipliers.engagement || 1.0;
+            const niche = multipliers.niche || 1.0;
+            const audience = multipliers.audience || 1.0;
+            const crossPlatform = multipliers.cross_platform || 1.0;
+            
+            // 計算綜合品質分數（加權平均，而非乘積）
+            const qualityScore = (
+                visual * 0.12 +           // 視覺品質 12%
+                content * 0.15 +          // 內容類型 15%
+                engagement * 0.18 +       // 互動潛力 18%
+                niche * 0.15 +            // 利基專注 15%
+                audience * 0.18 +         // 受眾價值 18%（提升）
+                professional * 0.10 +     // 專業程度 10%
+                unique * 0.05 +           // 風格獨特 5%
+                follower * 0.03 +         // 粉絲品質 3%
+                crossPlatform * 0.04      // 跨平台 4%（提升）
+            );
+            
+            // 品質係數範圍：0.7x ~ 1.8x（Alpha 方案）
+            const qualityMultiplier = Math.max(0.7, Math.min(qualityScore, 1.8));
+            
+            // === 第三步：計算最終帳號價值 ===
+            const accountValue = Math.floor(followers * basePerFollower * qualityMultiplier);
+            
+            return accountValue;
+        }
 
+        // 渲染結果
+        function renderResult(data) {
+            // 基本資訊
+            document.getElementById('username').textContent = data.username || 'username';
+            document.getElementById('username-top').textContent = data.username || 'username';
+            document.getElementById('display-name').textContent = data.display_name || '顯示名稱';
+            document.getElementById('followers').textContent = formatNumber(data.followers || 0);
+            document.getElementById('followers-count').textContent = formatNumber(data.followers || 0);
+            document.getElementById('following').textContent = formatNumber(data.following || 0);
+            document.getElementById('following-count').textContent = formatNumber(data.following || 0);
+            document.getElementById('posts').textContent = formatNumber(data.posts || 0);
+            document.getElementById('posts-count').textContent = formatNumber(data.posts || 0);
+
+            // 粉絲級別和人格類型
+            const value = data.value_estimation || {};
+            const personality = data.primary_type || {};
+            
+            // 調試：檢查 personality 數據
+            console.log('Personality data:', personality);
+            console.log('Value data:', value);
+            console.log('Follower tier from API:', value.follower_tier);
+            
+            // 提取並顯示等級詳情（emoji + 文字）
+            const tierString = value.follower_tier || '🎬 Celebrity Influencer（明星級影響者）';
+            // 簡單的方式：取第一個字符作為emoji，然後去掉它
+            let tierEmoji = '🎬';
+            let tierText = tierString;
+            
+            // 如果字符串以emoji開頭，提取它
+            const firstChar = tierString.charAt(0);
+            if (firstChar && /[\p{Emoji}]/u.test(firstChar)) {
+                tierEmoji = firstChar;
+                tierText = tierString.substring(1).trim();
+            }
+            
+            document.getElementById('tier-emoji').textContent = tierEmoji;
+            document.getElementById('tier-name').textContent = tierText;
+            
+            // 更新人格類型徽章（帶默認值）
+            const personalityName = personality.name_zh || personality.reasoning || '生活記錄者';
+            document.getElementById('personality-type').textContent = personalityName;
+
+            // 帳號市場價值（使用前端統一計算公式）
+            let accountValue;
+            let postPrice, storyPrice, reelsPrice;  // ← 在 block 外定義
+            // 方案 1：完全使用前端計算公式（禁用 API 報價）
+            // 帳號總價值計算
+            accountValue = calculateAccountValue(data);
+            
+            // 帳號總價值動畫顯示
+            const totalValueEl = document.getElementById('total-value');
+            let currentValue = 0;
+            const increment = accountValue / 50;
+            const timer = setInterval(() => {
+                currentValue += increment;
+                if (currentValue >= accountValue) {
+                    currentValue = accountValue;
+                    clearInterval(timer);
+                }
+                totalValueEl.textContent = formatPrice(Math.floor(currentValue));
+            }, 20);
+            
+            // 前端統一計算所有報價
+            {
+                // 降級使用前端計算（V4）
+                const followers = data.followers || 0;
+                const multipliers = value.multipliers || {};
+                
+                // 基礎報價計算（每千粉價值）- 提高一倍版本
+                let basePricePerK;
+                if (followers < 1000) {
+                    basePricePerK = 100;          // ÷5 (500→100)
+                } else if (followers < 5000) {
+                    basePricePerK = 160;          // ÷5 (800→160)
+                } else if (followers < 10000) {
+                    basePricePerK = 220;          // ÷5 (1100→220)
+                } else if (followers < 50000) {
+                    basePricePerK = 260;          // ÷5 (1300→260)
+                } else if (followers < 100000) {
+                    basePricePerK = 300;          // ÷5 (1500→300)
+                } else if (followers < 300000) {
+                    basePricePerK = 260;          // ÷5 (1300→260)
+                } else {
+                    basePricePerK = 220;          // ÷5 (1100→220)
+                }
+                
+                // 計算品質係數
+                const visual = multipliers.visual || 1.0;
+                const content = multipliers.content || 1.0;
+                const professional = multipliers.professional || 1.0;
+                const follower = multipliers.follower || 1.0;
+                const unique = multipliers.unique || 1.0;
+                const engagement = multipliers.engagement || 1.0;
+                const niche = multipliers.niche || 1.0;
+                const audience = multipliers.audience || 1.0;
+                const crossPlatform = multipliers.cross_platform || 1.0;
+                
+                const qualityScore = (
+                    visual * 0.15 +
+                    content * 0.15 +
+                    engagement * 0.20 +
+                    niche * 0.15 +
+                    audience * 0.15 +
+                    professional * 0.10 +
+                    unique * 0.05 +
+                    follower * 0.03 +
+                    crossPlatform * 0.02
+                );
+                
+                const qualityMultiplier = Math.max(0.6, Math.min(qualityScore, 1.8));
+                
+                const basePostPrice = (followers / 1000) * basePricePerK * qualityMultiplier;
+                postPrice = Math.floor(basePostPrice);
+                storyPrice = Math.floor(postPrice * 0.3);
+                reelsPrice = Math.floor(postPrice * 1.2);
+            }
+            
+            // 顯示報價
+            document.getElementById('post-value').textContent = formatPrice(postPrice);
+            document.getElementById('story-value').textContent = formatPrice(storyPrice);
+            document.getElementById('reels-value').textContent = formatPrice(reelsPrice);
+
+            // 係數
+            const multipliers = value.multipliers || {};
+            const multipliersGrid = document.getElementById('multipliers-grid');
+            multipliersGrid.innerHTML = '';
+
+            Object.keys(multiplierLabels).forEach(key => {
+                if (multipliers[key]) {
+                    const item = document.createElement('div');
+                    item.className = 'multiplier-item';
+                    item.innerHTML = `
+                        <span class="multiplier-label">${multiplierLabels[key]}</span>
+                        <span class="multiplier-value">${multipliers[key]}×</span>
+                    `;
+                    multipliersGrid.appendChild(item);
+                }
+            });
+
+            // 提升建議
+            const tips = data.improvement_tips || [];
+            const tipsContainer = document.getElementById('tips-container');
+            tipsContainer.innerHTML = '';
+
+            tips.forEach(tip => {
+                const tipItem = document.createElement('div');
+                tipItem.className = 'tip-item';
+                tipItem.textContent = tip;
+                tipsContainer.appendChild(tipItem);
+            });
+
+            // 顯示結果，隱藏 loading
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('result').classList.remove('hidden');
+        }
+
+        // 分享功能
         function shareResult() {
-            const answer = document.getElementById('answer').textContent;
+            // 如果支援 Web Share API
             if (navigator.share) {
+                const username = document.getElementById('username').textContent;
+                const totalValue = document.getElementById('total-value').textContent;
+                
                 navigator.share({
-                    title: 'IG 帳號價值分析',
-                    text: answer.substring(0, 200) + '...'
-                });
+                    title: `我的 IG 帳號價值報告`,
+                    text: `我的 @${username} 帳號價值：${totalValue}！快來測測你的帳號值多少 💰`,
+                    url: window.location.href
+                }).catch(err => console.log('分享取消或失敗:', err));
             } else {
-                // 複製到剪貼板
-                navigator.clipboard.writeText(answer).then(() => {
-                    alert('分析結果已複製到剪貼板！');
-                }).catch(() => {
-                    alert('請截圖分享結果！');
-                });
+                // 降級方案：複製連結
+                alert('請截圖分享你的結果！\n\n提示：可以長按螢幕截圖 📸');
             }
         }
+
+        // 模擬數據（測試用）
+        const mockData = {
+            "ok": true,
+            "username": "foodie_taipei",
+            "display_name": "台北美食探索者",
+            "followers": 12500,
+            "following": 850,
+            "posts": 342,
+            "primary_type": {
+                "id": "type_5",
+                "name_zh": "生活記錄者",
+                "name_en": "Everyday Chronicler",
+                "emoji": "🍜",
+                "confidence": 0.85
+            },
+            "value_estimation": {
+                "base_price": 12000,
+                "follower_tier": "意見領袖",
+                "follower_quality": "有吸引力",
+                "account_value_min": 60000,      // AI 估算：6-10萬
+                "account_value_max": 100000,
+                "account_value_reasoning": "粉絲互動良好，內容垂直度高，適合美食品牌合作",
+                "multipliers": {
+                    "visual": 1.5,
+                    "content": 1.8,
+                    "professional": 1.2,
+                    "follower": 1.2,
+                    "unique": 1.3,
+                    "engagement": 1.25,
+                    "niche": 1.4,
+                    "audience": 1.6,
+                    "cross_platform": 1.15
+                },
+                "post_value": 9000,        // 更新：9千（合理範圍）
+                "story_value": 3600,       // 更新：Post 的 40%
+                "reels_value": 13500       // 更新：Post 的 150%
+            },
+            "improvement_tips": [
+                "增加與粉絲互動的 Story 內容",
+                "建立固定發文時段提升粉絲黏性",
+                "嘗試加入簡短的美食小知識",
+                "考慮開設 YouTube 頻道擴大影響力"
+            ]
+        };
+
+        // 從 URL 參數、sessionStorage 或 localStorage 獲取數據
+        function getAnalysisData() {
+            // 1. 嘗試從 URL 參數獲取
+            const urlParams = new URLSearchParams(window.location.search);
+            const dataParam = urlParams.get('data');
+            
+            if (dataParam) {
+                try {
+                    return JSON.parse(decodeURIComponent(dataParam));
+                } catch (e) {
+                    console.error('Failed to parse URL data:', e);
+                }
+            }
+            
+            // 2. 嘗試從 sessionStorage 獲取（upload.html 存儲的地方）
+            const sessionData = sessionStorage.getItem('sa_result');
+            if (sessionData) {
+                try {
+                    return JSON.parse(sessionData);
+                } catch (e) {
+                    console.error('Failed to parse session data:', e);
+                }
+            }
+            
+            // 3. 嘗試從 localStorage 獲取
+            const storedData = localStorage.getItem('ig_analysis_result');
+            if (storedData) {
+                try {
+                    return JSON.parse(storedData);
+                } catch (e) {
+                    console.error('Failed to parse stored data:', e);
+                }
+            }
+            
+            // 4. 如果都沒有，返回 null（顯示錯誤或重定向）
+            return null;
+        }
+
+        // 頁面載入時
+        window.addEventListener('DOMContentLoaded', () => {
+            const analysisData = getAnalysisData();
+            
+            if (analysisData && analysisData.ok) {
+                // 使用真實的分析數據
+                setTimeout(() => {
+                    renderResult(analysisData);
+                }, 1500);
+            } else {
+                // 沒有數據，顯示錯誤或重定向到上傳頁面
+                document.getElementById('loading').innerHTML = `
+                    <div class="loading-spinner"></div>
+                    <p>未找到分析結果</p>
+                    <p style="margin-top: 20px; font-size: 14px;">
+                        <a href="/static/upload.html" style="color: white; text-decoration: underline;">
+                            點此重新上傳圖片進行分析
+                        </a>
+                    </p>
+                `;
+            }
+        });
     </script>
 </body>
 </html>
