@@ -590,9 +590,8 @@
     <h1 class="page-title">📊 上傳你的 IG 截圖</h1>
     <p class="page-description">
       我們會透過 AI 深度分析你的 IG 社群帳號價值，提供專業的市場估值與社群定位分析。<br>
-      <strong>只需兩步：</strong><br>
-      ① 上傳 IG 個人頁截圖（必填）<br>
-      ② 可選上傳 1～6 張貼文縮圖，讓 AI 更準確評估你的帳號價值
+      <strong>只需一步：</strong><br>
+      上傳 IG 個人頁截圖，AI 會自動分析帳號價值
     </p>
 
     <div class="card upload-section">
@@ -633,44 +632,6 @@
       </div>
     </div>
 
-    <div class="card upload-section">
-      <div class="form-group">
-        <label class="form-label">🖼️ 貼文縮圖（選填，可多選）</label>
-        
-        <!-- 貼文範例區域 -->
-        <div class="posts-example-section">
-          <div class="posts-example-title">📋 貼文範例</div>
-          <div class="posts-example-grid">
-            <div class="posts-example-item">
-              <div class="posts-example-label">✅ 正確範例</div>
-              <div class="posts-example-images">
-                <div class="posts-example-image">
-                  <img src="/static/examples/IMG_3826.jpg" alt="貼文範例1" />
-                </div>
-                <div class="posts-example-image">
-                  <img src="/static/examples/IMG_3827.jpg" alt="貼文範例2" />
-                </div>
-                <div class="posts-example-image">
-                  <img src="/static/examples/IMG_3828.jpg" alt="貼文範例3" />
-                </div>
-              </div>
-              <div class="posts-example-desc">任何IG個人頁圖片都可以，AI會自動分析內容風格</div>
-            </div>
-          </div>
-        </div>
-        
-        <div class="file-upload">
-          <input id="posts" type="file" accept="image/*" multiple />
-          <div>
-            <div style="font-size: 32px; margin-bottom: 12px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));">📷</div>
-            <div style="font-size: 16px; font-weight: 600; margin-bottom: 4px;">點擊選擇貼文縮圖（可多選）</div>
-            <div style="font-size: 12px; opacity: 0.7;">最多 6 張，系統會自動壓縮</div>
-          </div>
-        </div>
-        <p class="upload-hint">💡 提供更多貼文可以讓 AI 更準確評估你的內容風格與商業價值潛力</p>
-        <div class="preview-container" id="postsPreview"></div>
-      </div>
-    </div>
 
     <div class="action-links">
       <a href="#" class="action-link primary" onclick="startAnalyze(); return false;">
@@ -811,109 +772,45 @@
       }
     }
 
+    // 簡化的分析函數
     window.startAnalyze = async function() {
-      const errBox = document.getElementById('err');
-      errBox.style.display = 'none';
-
-      const profile = document.getElementById('profile').files[0];
-      if (!profile) {
-        alert('請先上傳 IG 個人頁截圖');
+      const screenshot = document.getElementById('profile').files[0];
+      
+      if (!screenshot) {
+        alert('請先上傳 IG 截圖');
         return;
       }
 
       showLoading();
 
       const form = new FormData();
-      form.append('profile', profile);
-      Array.from(document.getElementById('posts').files).slice(0, 6).forEach(f => form.append('posts', f));
-      
-      // 添加用戶ID用於儲存頭像
-      if (currentAuthUser && currentAuthUser.uid) {
-        form.append('user_id', currentAuthUser.uid);
-      }
+      form.append('screenshot', screenshot);
 
       try {
-        updateStep(1, 'active');
-        await authReady;
-        if (!currentAuthUser) throw new Error('未登入，請先回首頁登入帳號');
-        updateStep(1, 'completed');
-
-        updateStep(2, 'active');
-        const res = await fetch('/bd/analyze', { method: 'POST', body: form });
+        const res = await fetch('/api/analyze', { method: 'POST', body: form });
+        
         if (!res.ok) {
-          // 嘗試解析錯誤訊息
-          let errorMessage = `伺服器錯誤（${res.status}）`;
-          try {
-            const errorData = await res.json();
-            if (errorData.error) {
-              errorMessage = errorData.error;
-            }
-          } catch (e) {
-            // 如果無法解析 JSON，使用預設錯誤訊息
-          }
-          throw new Error(errorMessage);
-        }
-        updateStep(2, 'completed');
-
-        updateStep(3, 'active');
-        const data = await res.json();
-        if (!data.ok) throw new Error(data.error || '分析失敗，請重試');
-        updateStep(3, 'completed');
-
-        updateStep(4, 'active');
-        data.user = {
-          uid: currentAuthUser.uid,
-          email: currentAuthUser.email,
-          displayName: currentAuthUser.displayName,
-          photoURL: currentAuthUser.photoURL
-        };
-        data.timestamp = new Date().toISOString();
-
-        try {
-          sessionStorage.setItem('user', JSON.stringify(data.user));
-        } catch {}
-
-        try {
-          await setDoc(doc(db, 'users', currentAuthUser.uid), {
-            uid: currentAuthUser.uid,
-            email: currentAuthUser.email,
-            hasAnalysis: true,
-            latestAnalysis: data,
-            updatedAt: serverTimestamp()
-          });
-        } catch (e) {
-          console.error('Firestore save failed:', e);
+          const errorData = await res.json();
+          throw new Error(errorData.error || '分析失敗');
         }
 
-        sessionStorage.setItem('sa_result', JSON.stringify(data));
-        sessionStorage.setItem('analysis_submitted', 'true');
+        // 取得純文字回答
+        const answer = await res.text();
         
-        updateStep(4, 'completed');
+        // 儲存結果
+        sessionStorage.setItem('ai_answer', JSON.stringify({
+          question: "此 IG 帳號如果要賣掉的話值多少錢，為什麼？怎麼精算出來的？",
+          answer: answer,
+          timestamp: new Date().toISOString()
+        }));
         
-        setTimeout(() => window.location.replace('/static/loading.html'), 800);
+        // 跳轉到結果頁
+        window.location.href = '/static/result.html';
 
       } catch (e) {
-        console.error('Analysis failed:', e);
+        console.error(e);
+        alert(e.message);
         document.getElementById('loadingOverlay').classList.remove('show');
-        
-        // 顯示友善的錯誤訊息
-        const errorMessage = e.message || '網路錯誤';
-        errBox.innerHTML = `
-          <div style="display: flex; align-items: center; gap: 12px;">
-            <div style="font-size: 24px;">⚠️</div>
-            <div>
-              <div style="font-weight: 600; margin-bottom: 4px;">分析失敗</div>
-              <div style="font-size: 14px; opacity: 0.9;">${errorMessage}</div>
-            </div>
-          </div>
-        `;
-        errBox.style.display = 'block';
-        
-        // 重置步驟狀態
-        updateStep(1, 'pending');
-        updateStep(2, 'pending');
-        updateStep(3, 'pending');
-        updateStep(4, 'pending');
       }
     };
   </script>
