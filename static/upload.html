@@ -3,24 +3,24 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>上傳 IG 截圖｜人格分析</title>
+  <title>上傳 IG 截圖｜IG社群價值分析</title>
   <link rel="stylesheet" href="/static/app.css">
   <style>
     body {
-      background: var(--bg);
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
       min-height: 100vh;
     }
     
     .header {
-      padding: var(--spacing) var(--spacing-md);
-      border-bottom: 1px solid var(--border);
-      background: var(--bg);
+      padding: 16px 24px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(15, 23, 42, 0.8);
       position: sticky;
       top: 0;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      backdrop-filter: blur(8px);
+      backdrop-filter: blur(12px);
       z-index: 100;
     }
     
@@ -44,56 +44,250 @@
     }
     
     .container {
-      max-width: 760px;
+      max-width: 800px;
       margin: 0 auto;
-      padding: var(--spacing-lg);
+      padding: 24px;
     }
     
     .page-title {
-      margin: 0 0 var(--spacing);
-      font-size: var(--font-size-2xl);
+      margin: 0 0 12px;
+      font-size: 28px;
       font-weight: 700;
-      color: var(--text);
+      color: #ffffff;
+      text-align: center;
+      line-height: 1.3;
     }
     
     .page-description {
-      opacity: 0.8;
-      margin-bottom: var(--spacing-lg);
-      font-size: var(--font-size-lg);
-      line-height: 1.6;
+      opacity: 0.9;
+      margin-bottom: 28px;
+      font-size: 16px;
+      line-height: 1.5;
+      color: #cbd5e1;
+      text-align: center;
+    }
+    
+    .card {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 20px;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
     }
     
     .upload-section {
-      margin-bottom: var(--spacing-lg);
+      margin-bottom: 20px;
+    }
+    
+    .form-group .form-label {
+      display: block;
+      font-size: 15px;
+      font-weight: 600;
+      color: #ffffff;
+      margin-bottom: 6px !important;
+      line-height: 1.4;
     }
     
     .upload-hint {
-      font-size: var(--font-size-xs);
+      font-size: 13px;
       opacity: 0.8;
-      margin-top: var(--spacing-sm);
-      color: var(--muted);
+      margin-top: 4px;
+      color: #94a3b8;
+      line-height: 1.4;
     }
     
-    .preview-container {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-      gap: var(--spacing);
-      margin-top: var(--spacing);
-      min-height: 50px;
-      border: 1px dashed var(--border-light);
-      border-radius: var(--radius);
-      padding: var(--spacing-sm);
+    .form-group.posts-section {
+      margin-top: 28px;
     }
     
-    .preview-container:empty::before {
-      content: "選擇圖片後會在這裡顯示預覽";
-      color: var(--muted);
-      font-size: var(--font-size-xs);
+    .file-upload {
+      border: 2px dashed rgba(255, 255, 255, 0.2);
+      border-radius: 12px;
+      padding: 28px;
       text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      background: rgba(255, 255, 255, 0.02);
+      position: relative;
+      min-height: 220px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .file-upload:hover {
+      border-color: #22d3ee;
+      background: rgba(34, 211, 238, 0.05);
+      transform: translateY(-2px);
+    }
+    
+    .file-upload input[type="file"] {
+      display: none;
+    }
+    
+    .file-upload.has-preview {
+      padding: 0;
+      border: 2px solid #22d3ee;
+      background: rgba(34, 211, 238, 0.1);
+    }
+    
+    .upload-preview {
+      width: 100%;
+      height: 220px;
+      object-fit: contain;
+      border-radius: 10px;
+      position: relative;
+      background: rgba(0, 0, 0, 0.1);
+    }
+    
+    .upload-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
       display: flex;
       align-items: center;
       justify-content: center;
-      height: 50px;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      border-radius: 10px;
+    }
+    
+    .file-upload:hover .upload-overlay {
+      opacity: 1;
+    }
+    
+    .upload-actions {
+      display: flex;
+      gap: 12px;
+    }
+    
+    .upload-action-btn {
+      background: rgba(255, 255, 255, 0.9);
+      color: #1e293b;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .upload-action-btn:hover {
+      background: white;
+      transform: translateY(-1px);
+    }
+    
+    .upload-action-btn.danger {
+      background: rgba(239, 68, 68, 0.9);
+      color: white;
+    }
+    
+    .upload-action-btn.danger:hover {
+      background: #ef4444;
+    }
+    
+    .posts-upload-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: flex-start;
+    }
+    
+    .posts-preview {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      flex: 1;
+    }
+    
+    .add-posts-btn {
+      border: 2px dashed rgba(255, 255, 255, 0.2);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.02);
+      color: #cbd5e1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      flex-shrink: 0;
+      min-height: 220px;
+      width: 100%;
+    }
+    
+    .add-posts-btn.has-posts {
+      width: 70px;
+      height: 70px;
+      min-height: 70px;
+      border-radius: 8px;
+    }
+    
+    .add-posts-btn:hover {
+      border-color: #22d3ee;
+      background: rgba(34, 211, 238, 0.05);
+      color: #22d3ee;
+      transform: translateY(-2px);
+    }
+    
+    .post-preview-item {
+      position: relative;
+      width: 70px;
+      height: 70px;
+      border-radius: 8px;
+      overflow: hidden;
+      background: rgba(0, 0, 0, 0.1);
+      border: 2px solid rgba(255, 255, 255, 0.1);
+      flex-shrink: 0;
+    }
+    
+    .post-preview-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    
+    .post-remove-btn {
+      position: absolute;
+      top: 3px;
+      right: 3px;
+      background: #ef4444;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 18px;
+      height: 18px;
+      font-size: 11px;
+      font-weight: bold;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+      opacity: 0.9;
+      z-index: 10;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+    }
+    
+    .post-preview-item:hover .post-remove-btn {
+      opacity: 1;
+      transform: scale(1.1);
+    }
+    
+    .post-remove-btn:hover {
+      background: #ef4444;
+      transform: scale(1.1);
+    }
+    
+    .preview-container {
+      display: none;
     }
     
     .preview-item {
@@ -146,17 +340,22 @@
     .action-buttons {
       display: grid;
       grid-template-columns: 1fr;
-      gap: var(--spacing);
-      margin-top: var(--spacing-lg);
+      gap: 12px;
+      margin-top: 20px;
     }
     
     .action-buttons .btn {
       width: 100%;
-      font-size: var(--font-size-sm);
-      padding: 14px 20px;
-      min-height: 48px;
-      font-weight: 600;
-      border-radius: var(--radius-md);
+      font-size: 14px;
+      padding: 8px 16px;
+      height: 36px;
+      font-weight: 500;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.2s ease;
     }
     
     .action-buttons .btn-primary {
@@ -182,6 +381,230 @@
       background: rgba(255, 255, 255, 0.05);
       border-color: var(--primary);
       transform: translateY(-1px);
+    }
+    
+    .action-buttons .btn .icon {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+    }
+    
+    /* Examples Section Styles */
+    .examples-section {
+      margin-bottom: 24px;
+    }
+    
+    .examples-title {
+      font-size: 20px;
+      font-weight: 600;
+      margin: 0 0 6px 0;
+      color: #ffffff;
+      text-align: center;
+      line-height: 1.3;
+    }
+    
+    .examples-title.section-title {
+      margin-top: 24px;
+      margin-bottom: 12px;
+    }
+    
+    .examples-description {
+      opacity: 0.9;
+      margin-bottom: 20px;
+      font-size: 14px;
+      line-height: 1.4;
+      color: #cbd5e1;
+      text-align: center;
+    }
+    
+    .examples-description.section-description {
+      margin-bottom: 24px;
+    }
+    
+    .examples-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    
+    .example-with-info {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      align-items: stretch;
+      margin-bottom: 20px;
+    }
+    
+    .example-info {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 18px;
+    }
+    
+    .info-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #ffffff;
+      margin: 0 0 12px 0;
+      line-height: 1.3;
+    }
+    
+    .info-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    
+    .info-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+      padding: 6px 0;
+    }
+    
+    .info-icon {
+      font-size: 18px;
+      width: 20px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+    
+    .info-text {
+      color: #cbd5e1;
+      font-size: 13px;
+      line-height: 1.4;
+    }
+    
+    .example-single {
+      display: flex;
+      justify-content: center;
+      align-items: stretch;
+    }
+    
+    .example-single .example-item {
+      max-width: 280px;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .example-item {
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      overflow: hidden;
+      background: rgba(255, 255, 255, 0.03);
+      transition: all 0.3s ease;
+    }
+    
+    .example-item:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3);
+    }
+    
+    .example-header {
+      padding: 16px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.05);
+    }
+    
+    .example-badge {
+      display: inline-block;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    
+    .example-badge.correct {
+      background: rgba(34, 197, 94, 0.1);
+      color: #10b981;
+      border: 1px solid rgba(34, 197, 94, 0.3);
+    }
+    
+    .example-badge.incorrect {
+      background: rgba(239, 68, 68, 0.1);
+      color: #ef4444;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+    
+    .example-image {
+      padding: 14px;
+      text-align: center;
+      background: rgba(255, 255, 255, 0.02);
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .example-image img {
+      max-width: 100%;
+      max-height: 180px;
+      width: auto;
+      height: auto;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      object-fit: contain;
+    }
+    
+    .example-description {
+      padding: 16px;
+      font-size: 14px;
+      line-height: 1.5;
+      color: #cbd5e1;
+    }
+    
+    .example-description strong {
+      color: #ffffff;
+      display: block;
+      margin-bottom: 8px;
+    }
+    
+    /* Additional Examples Styles */
+    .additional-examples {
+      margin-top: 24px;
+      padding-top: 24px;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .additional-examples-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin: 0 0 16px 0;
+      color: #ffffff;
+      text-align: center;
+    }
+    
+    .additional-examples-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    
+    .additional-example-item {
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      overflow: hidden;
+      background: rgba(255, 255, 255, 0.03);
+      transition: all 0.3s ease;
+      aspect-ratio: 1;
+    }
+    
+    .additional-example-item:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+    }
+    
+    .additional-example-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
     }
     
     /* Loading Overlay */
@@ -290,16 +713,83 @@
         height: 140px;
       }
       
+      .upload-preview {
+        height: 180px;
+      }
+      
+      .file-upload {
+        min-height: 180px;
+        padding: 20px;
+      }
+      
       .preview-container {
         grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      }
+      
+      .examples-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+      }
+      
+      .example-with-info {
+        grid-template-columns: 1fr;
+        gap: 16px;
+      }
+      
+      .example-info {
+        padding: 14px;
+      }
+      
+      .example-single .example-item {
+        max-width: 100%;
+        max-height: 300px;
+      }
+      
+      .example-image img {
+        max-height: 150px;
+      }
+      
+      .additional-examples-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+      
+      .additional-example-item {
+        aspect-ratio: 1;
+      }
+      
+      .additional-example-item img {
+        height: 100%;
+      }
+      
+      .posts-upload-container {
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+      }
+      
+      .posts-preview {
+        justify-content: center;
+        gap: 8px;
+      }
+      
+      .add-posts-btn {
+        width: 100%;
+        min-height: 180px;
+      }
+      
+      .add-posts-btn.has-posts {
+        width: 70px;
+        height: 70px;
+        min-height: 70px;
       }
     }
     
     @media (max-width: 768px) {
       .action-buttons .btn {
-        padding: 16px 20px;
-        font-size: var(--font-size);
-        min-height: 52px;
+        height: 40px;
+        font-size: 14px;
+        padding: 10px 16px;
       }
     }
     
@@ -317,64 +807,129 @@
       }
       
       .action-buttons .btn {
-        padding: 16px 24px;
-        font-size: var(--font-size-lg);
-        min-height: 56px;
+        height: 42px;
+        font-size: 14px;
+        padding: 10px 16px;
       }
     }
     
     @media (max-width: 480px) {
       .action-buttons .btn {
-        padding: 14px 20px;
-        font-size: var(--font-size);
-        min-height: 52px;
+        height: 38px;
+        font-size: 13px;
+        padding: 8px 14px;
       }
     }
   </style>
 </head>
 <body>
   <header class="header">
-    <div><strong>IG 人格分析</strong></div>
+    <div><strong>IG 社群價值分析</strong></div>
     <div class="user-badge" id="userBadge">載入中...</div>
   </header>
 
   <main class="container">
     <h1 class="page-title">上傳你的 IG 截圖</h1>
     <p class="page-description">
-      我們會透過 AI 分析你的 IG 風格，給你一個專屬的社群人格類型。<br>
+      我們會透過 AI 分析你的 IG 風格，給你一個專屬的社群價值評估。<br>
       <strong>只需兩步：</strong><br>
       ① 上傳 IG 個人頁截圖（必填）<br>
       ② 可選上傳 1～6 張貼文縮圖，幫助 AI 更準確分析
     </p>
 
-    <div class="card upload-section">
+    <!-- 第一個區塊：正確範例 + IG個人頁截圖 -->
+    <div class="card">
+      <h3 class="examples-title">👤 IG個人頁面截圖範例</h3>
+      <p class="examples-description">請參考以下範例，確保上傳正確的截圖格式</p>
+      
+      <div class="example-with-info">
+        <div class="example-info">
+          <h4 class="info-title">包含完整資訊：</h4>
+          <ul class="info-list">
+            <li class="info-item">
+              <span class="info-icon">👤</span>
+              <span class="info-text">用戶名與個人簡介</span>
+            </li>
+            <li class="info-item">
+              <span class="info-icon">📊</span>
+              <span class="info-text">粉絲數、追蹤數、貼文數</span>
+            </li>
+            <li class="info-item">
+              <span class="info-icon">🖼️</span>
+              <span class="info-text">九宮格貼文縮圖</span>
+            </li>
+            <li class="info-item">
+              <span class="info-icon">⭐</span>
+              <span class="info-text">精選動態（如有）</span>
+            </li>
+          </ul>
+        </div>
+        <div class="example-single">
+          <div class="example-item correct">
+            <div class="example-header">
+              <span class="example-badge correct">✅ 正確範例</span>
+            </div>
+            <div class="example-image">
+              <img src="/static/examples/correct-example.jpg" alt="正確範例" />
+            </div>
+          </div>
+        </div>
+      </div>
+      
       <div class="form-group">
-        <label class="form-label">📸 IG 個人頁截圖（必填）</label>
-        <div class="file-upload">
+        <label class="form-label">📸 IG 個人頁截圖上傳（必填）</label>
+        <div class="file-upload" id="profileUpload" onclick="document.getElementById('profile').click()">
           <input id="profile" type="file" accept="image/*" required />
-          <div>
+          <div class="upload-content" id="profileContent">
             <div style="font-size: 24px; margin-bottom: 8px;">📱</div>
             <div>點擊選擇 IG 個人頁截圖</div>
           </div>
+          <img class="upload-preview" id="profilePreview" style="display: none;" />
+          <div class="upload-overlay" id="profileOverlay" style="display: none;">
+            <div class="upload-actions">
+              <button class="upload-action-btn" onclick="event.stopPropagation(); document.getElementById('profile').click()">重新選擇</button>
+              <button class="upload-action-btn danger" onclick="event.stopPropagation(); removeProfile()">移除</button>
+            </div>
+          </div>
         </div>
         <p class="upload-hint">💡 請確保截圖包含：用戶名、Bio、粉絲數/追蹤數/貼文數、九宮格縮圖</p>
-        <div class="preview-container" id="profilePreview"></div>
       </div>
     </div>
 
-    <div class="card upload-section">
-      <div class="form-group">
-        <label class="form-label">🖼️ 貼文縮圖（選填，可多選）</label>
-        <div class="file-upload">
-          <input id="posts" type="file" accept="image/*" multiple />
-          <div>
-            <div style="font-size: 24px; margin-bottom: 8px;">📷</div>
-            <div>點擊選擇貼文縮圖（可多選）</div>
-            <div style="font-size: 12px; opacity: 0.7; margin-top: 4px;">最多 6 張，系統會自動壓縮</div>
-          </div>
+    <!-- 第二個區塊：更多範例參考 + 貼文縮圖 -->
+    <div class="card">
+      <h3 class="examples-title section-title">🖼️ 貼文縮圖範例</h3>
+      <p class="examples-description section-description">參考以下範例，選擇適合的貼文縮圖</p>
+      
+      <div class="additional-examples-grid">
+        <div class="additional-example-item">
+          <img src="/static/examples/IMG_3826.jpg" alt="範例1" />
+        </div>
+        <div class="additional-example-item">
+          <img src="/static/examples/IMG_3827.jpg" alt="範例2" />
+        </div>
+        <div class="additional-example-item">
+          <img src="/static/examples/IMG_3828.jpg" alt="範例3" />
+        </div>
+      </div>
+      
+      <div class="form-group posts-section">
+        <label class="form-label" style="margin-bottom: 6px !important;">🖼️ 貼文縮圖上傳（選填，可多選，最多6張）</label>
+        <div class="posts-upload-container">
+          <div class="posts-preview" id="postsPreview"></div>
+          <button class="add-posts-btn" id="addPostsBtn" onclick="document.getElementById('posts').click()">
+            <div class="add-posts-content">
+              <div style="font-size: 24px; margin-bottom: 8px;">📷</div>
+              <div>點擊選擇貼文縮圖（可多選）</div>
+              <div style="font-size: 12px; opacity: 0.7; margin-top: 4px;">最多 6 張，系統會自動壓縮</div>
+            </div>
+            <div class="add-posts-simple" style="display: none;">
+              <div style="font-size: 24px;">➕</div>
+            </div>
+          </button>
+          <input id="posts" type="file" accept="image/*" multiple style="display: none;" />
         </div>
         <p class="upload-hint">💡 提供更多貼文可以讓 AI 更準確判斷你的風格類型</p>
-        <div class="preview-container" id="postsPreview"></div>
       </div>
     </div>
 
@@ -383,7 +938,7 @@
         <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
         </svg>
-        開始分析我的 IG 風格
+        開始分析我的 IG 社群價值
       </button>
       <a class="btn btn-ghost" href="/static/landing.html">
         <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -401,7 +956,7 @@
     <div class="loading-spinner"></div>
     <div class="loading-content">
       <h2 class="loading-title">AI 分析中，請稍候…</h2>
-      <p class="loading-description">我們正在分析你的 IG 風格與色彩基因，這需要 10-20 秒。</p>
+      <p class="loading-description">我們正在分析你的 IG 社群價值與商業潛力，這需要 10-20 秒。</p>
       <div class="loading-progress">
         <div class="loading-step" id="step1">
           <div class="loading-step-icon">1</div>
@@ -413,11 +968,11 @@
         </div>
         <div class="loading-step" id="step3">
           <div class="loading-step-icon">3</div>
-          <span>AI 分析視覺風格</span>
+          <span>AI 分析社群價值</span>
         </div>
         <div class="loading-step" id="step4">
           <div class="loading-step-icon">4</div>
-          <span>生成人格類型卡</span>
+          <span>生成價值分析報告</span>
         </div>
       </div>
     </div>
@@ -475,38 +1030,98 @@
       }
     });
 
-    function createImagePreview(file, containerId, index = null) {
-      const container = document.getElementById(containerId);
-      if (!container) return;
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const div = document.createElement('div');
-        div.className = 'preview-item';
-        div.setAttribute('data-index', index !== null ? index : 'single');
-        div.innerHTML = `<img src="${e.target.result}" class="preview-image"><button class="preview-remove" onclick="removePreview('${containerId}', this)">×</button><div class="preview-filename">${file.name}</div>`;
-        container.appendChild(div);
-      };
-      reader.readAsDataURL(file);
-    }
-    
-    window.removePreview = function(containerId, btn) {
-      btn.parentElement.remove();
-      if (containerId === 'profilePreview') {
-        document.getElementById('profile').value = '';
+    // 處理IG個人頁截圖上傳
+    document.getElementById('profile').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const uploadArea = document.getElementById('profileUpload');
+          const preview = document.getElementById('profilePreview');
+          const content = document.getElementById('profileContent');
+          const overlay = document.getElementById('profileOverlay');
+          
+          preview.src = e.target.result;
+          preview.style.display = 'block';
+          content.style.display = 'none';
+          overlay.style.display = 'flex';
+          uploadArea.classList.add('has-preview');
+        };
+        reader.readAsDataURL(file);
       }
+    });
+    
+    // 處理貼文縮圖上傳
+    document.getElementById('posts').addEventListener('change', (e) => {
+      const files = Array.from(e.target.files);
+      if (files.length > 0) {
+        const preview = document.getElementById('postsPreview');
+        const addBtn = document.getElementById('addPostsBtn');
+        const currentCount = preview.children.length;
+        
+        // 檢查是否超過6張限制
+        if (currentCount + files.length > 6) {
+          alert('最多只能上傳6張貼文縮圖');
+          return;
+        }
+        
+        files.forEach((file, index) => {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const div = document.createElement('div');
+            div.className = 'post-preview-item';
+            div.setAttribute('data-index', currentCount + index);
+            div.innerHTML = `
+              <img src="${e.target.result}" />
+              <button class="post-remove-btn" onclick="removePostPreview(this)">×</button>
+            `;
+            preview.appendChild(div);
+          };
+          reader.readAsDataURL(file);
+        });
+        
+        // 如果有圖片了，切換按鈕樣式
+        if (currentCount + files.length > 0) {
+          addBtn.classList.add('has-posts');
+          addBtn.querySelector('.add-posts-content').style.display = 'none';
+          addBtn.querySelector('.add-posts-simple').style.display = 'flex';
+        }
+        
+        // 清空input，允許重複選擇
+        e.target.value = '';
+      }
+    });
+    
+    // 移除IG個人頁截圖
+    window.removeProfile = function() {
+      const uploadArea = document.getElementById('profileUpload');
+      const preview = document.getElementById('profilePreview');
+      const content = document.getElementById('profileContent');
+      const overlay = document.getElementById('profileOverlay');
+      const input = document.getElementById('profile');
+      
+      preview.style.display = 'none';
+      content.style.display = 'block';
+      overlay.style.display = 'none';
+      uploadArea.classList.remove('has-preview');
+      input.value = '';
     };
     
-    document.getElementById('profile').addEventListener('change', (e) => {
-      const container = document.getElementById('profilePreview');
-      container.innerHTML = '';
-      if (e.target.files[0]) createImagePreview(e.target.files[0], 'profilePreview');
-    });
-    
-    document.getElementById('posts').addEventListener('change', (e) => {
-      const container = document.getElementById('postsPreview');
-      container.innerHTML = '';
-      Array.from(e.target.files).forEach((f, i) => createImagePreview(f, 'postsPreview', i));
-    });
+    // 移除單個貼文預覽
+    window.removePostPreview = function(button) {
+      const item = button.parentElement;
+      const preview = document.getElementById('postsPreview');
+      const addBtn = document.getElementById('addPostsBtn');
+      
+      item.remove();
+      
+      // 如果沒有圖片了，恢復按鈕樣式
+      if (preview.children.length === 0) {
+        addBtn.classList.remove('has-posts');
+        addBtn.querySelector('.add-posts-content').style.display = 'flex';
+        addBtn.querySelector('.add-posts-simple').style.display = 'none';
+      }
+    };
 
     function showLoading() {
       const overlay = document.getElementById('loadingOverlay');

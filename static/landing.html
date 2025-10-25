@@ -1111,6 +1111,28 @@
           return;
         } else if (error.code === 'auth/network-request-failed') {
           errorMessage = '網路連線失敗，請檢查網路後重試。';
+        } else if (error.code === 'auth/unauthorized-domain') {
+          errorMessage = `
+            <div style="text-align: left;">
+              <strong style="font-size: 16px;">🔒 本地開發環境設定</strong>
+              <br><br>
+              <strong>需要在 Firebase Console 添加授權網域：</strong>
+              <br><br>
+              <div style="background: rgba(59, 130, 246, 0.1); padding: 12px; border-radius: 8px; margin: 8px 0; font-size: 13px;">
+                1️⃣ 前往 <a href="https://console.firebase.google.com" target="_blank" style="color: #60a5fa;">Firebase Console</a><br>
+                2️⃣ 開啟專案：<strong>social-avatar-d13c8</strong><br>
+                3️⃣ 進入 <strong>Authentication → Settings → Authorized domains</strong><br>
+                4️⃣ 點擊「Add domain」添加：<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;• <code style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 3px;">127.0.0.1</code><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;• <code style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 3px;">localhost</code><br>
+                5️⃣ 保存後重新整理此頁面
+              </div>
+              <br>
+              <div style="text-align: center; background: rgba(34, 197, 94, 0.1); padding: 8px; border-radius: 8px;">
+                💡 <strong>正式環境不需要此設定</strong>
+              </div>
+            </div>
+          `;
         } else {
           errorMessage = `Facebook 登入失敗：${error.message}`;
         }
@@ -1206,6 +1228,28 @@
           return;
         } else if (error.code === 'auth/network-request-failed') {
           errorMessage = '網路連線失敗，請檢查網路後重試。';
+        } else if (error.code === 'auth/unauthorized-domain') {
+          errorMessage = `
+            <div style="text-align: left;">
+              <strong style="font-size: 16px;">🔒 本地開發環境設定</strong>
+              <br><br>
+              <strong>需要在 Firebase Console 添加授權網域：</strong>
+              <br><br>
+              <div style="background: rgba(59, 130, 246, 0.1); padding: 12px; border-radius: 8px; margin: 8px 0; font-size: 13px;">
+                1️⃣ 前往 <a href="https://console.firebase.google.com" target="_blank" style="color: #60a5fa;">Firebase Console</a><br>
+                2️⃣ 開啟專案：<strong>social-avatar-d13c8</strong><br>
+                3️⃣ 進入 <strong>Authentication → Settings → Authorized domains</strong><br>
+                4️⃣ 點擊「Add domain」添加：<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;• <code style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 3px;">127.0.0.1</code><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;• <code style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 3px;">localhost</code><br>
+                5️⃣ 保存後重新整理此頁面
+              </div>
+              <br>
+              <div style="text-align: center; background: rgba(34, 197, 94, 0.1); padding: 8px; border-radius: 8px;">
+                💡 <strong>正式環境不需要此設定</strong>
+              </div>
+            </div>
+          `;
         } else {
           errorMessage = `Google 登入失敗：${error.message}`;
         }
