@@ -852,9 +852,37 @@
     </div>
 
     <script>
-        // 格式化數字（加千分位）
+        // 格式化數字（縮寫顯示）
         function formatNumber(num) {
-            return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+            // 如果已經是縮寫格式（包含 K 或 M），直接返回
+            const numStr = num.toString();
+            if (numStr.includes('K') || numStr.includes('M')) {
+                return numStr;
+            }
+            
+            // 轉換為數字
+            const numValue = parseInt(num);
+            
+            // 10,000 以下顯示原數字
+            if (numValue < 10000) {
+                return numValue.toString();
+            }
+            
+            // 10,000 以上轉換為 K
+            if (numValue >= 10000 && numValue < 1000000) {
+                const kValue = (numValue / 1000).toFixed(1);
+                // 移除末尾的 .0
+                return kValue.endsWith('.0') ? kValue.slice(0, -2) + 'K' : kValue + 'K';
+            }
+            
+            // 1,000,000 以上轉換為 M
+            if (numValue >= 1000000) {
+                const mValue = (numValue / 1000000).toFixed(1);
+                // 移除末尾的 .0
+                return mValue.endsWith('.0') ? mValue.slice(0, -2) + 'M' : mValue + 'M';
+            }
+            
+            return numValue.toString();
         }
 
         // 格式化金額
