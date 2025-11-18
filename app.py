@@ -12,6 +12,8 @@ import secrets
 from datetime import datetime, timedelta
 from urllib.parse import urlencode, urljoin
 import requests
+import firebase_admin
+from firebase_admin import credentials, auth as firebase_auth
 from flask import Flask, request, jsonify, send_from_directory, redirect
 from flask_cors import CORS
 from PIL import Image
@@ -49,6 +51,7 @@ GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
 FACEBOOK_CLIENT_ID = os.getenv('FACEBOOK_CLIENT_ID')
 FACEBOOK_CLIENT_SECRET = os.getenv('FACEBOOK_CLIENT_SECRET')
 FACEBOOK_API_VERSION = os.getenv('FACEBOOK_API_VERSION', 'v18.0')
+FIREBASE_SERVICE_ACCOUNT = os.getenv('FIREBASE_SERVICE_ACCOUNT')
 
 # 初始化 AI 分析器
 analyzer = None
@@ -68,6 +71,7 @@ if DATABASE_URL.startswith('sqlite'):
 engine = create_engine(DATABASE_URL, **engine_kwargs)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 Base = declarative_base()
+firebase_app = None
 
 class User(Base):
     __tablename__ = "users"
@@ -129,6 +133,32 @@ def init_db():
         print(f"[DB] ❌ 初始化失敗: {e}")
 
 init_db()
+
+def init_firebase():
+    global firebase_app
+    if not FIREBASE_SERVICE_ACCOUNT:
+        print("[Firebase] ⚠️ 未設定 FIREBASE_SERVICE_ACCOUNT，略過 Firebase 初始化")
+        return None
+    if firebase_app:
+        return firebase_app
+    try:
+        cred_source = FIREBASE_SERVICE_ACCOUNT.strip()
+        if cred_source.startswith('{'):
+            cred_data = json.loads(cred_source)
+            cred = credentials.Certificate(cred_data)
+        else:
+            if not os.path.exists(cred_source):
+                raise FileNotFoundError(f"找不到 Firebase 憑證檔案: {cred_source}")
+            cred = credentials.Certificate(cred_source)
+        firebase_app = firebase_admin.initialize_app(cred)
+        print("[Firebase] ✅ 初始化成功")
+        return firebase_app
+    except Exception as e:
+        print(f"[Firebase] ❌ 初始化失敗: {e}")
+        firebase_app = None
+        return None
+
+init_firebase()
 
 def init_analyzer():
     """初始化 AI 分析器"""
@@ -394,6 +424,18 @@ def get_authenticated_user(required=False):
     finally:
         session.close()
 
+def verify_firebase_token(id_token):
+    if not firebase_app:
+        raise AuthError("firebase_not_configured", 500)
+    try:
+        return firebase_auth.verify_id_token(id_token, app=firebase_app)
+    except firebase_auth.ExpiredIdTokenError:
+        raise AuthError("firebase_token_expired", 401)
+    except firebase_auth.InvalidIdTokenError:
+        raise AuthError("firebase_token_invalid", 401)
+    except Exception:
+        raise AuthError("firebase_token_verification_failed", 401)
+
 # -----------------------------------------------------------------------------
 # User Prompt Builder (Safe Version)
 # -----------------------------------------------------------------------------
@@ -516,6 +558,28 @@ def login_user():
 def get_me():
     user = get_authenticated_user(required=True)
     return jsonify({"ok": True, "user": user})
+
+@app.route('/api/auth/firebase-login', methods=['POST'])
+def firebase_login():
+    if not firebase_app:
+        return jsonify({"ok": False, "error": "firebase_not_configured"}), 500
+    data = request.get_json() or {}
+    id_token = (data.get("id_token") or "").strip()
+    if not id_token:
+        raise AuthError("missing_id_token", 400)
+    decoded = verify_firebase_token(id_token)
+    provider = decoded.get("firebase", {}).get("sign_in_provider", "firebase")
+    provider_id = decoded.get("uid")
+    if not provider_id:
+        raise AuthError("firebase_uid_missing", 400)
+    profile = {
+        "email": decoded.get("email"),
+        "display_name": decoded.get("name"),
+        "avatar_url": decoded.get("picture"),
+        "username": decoded.get("email") or decoded.get("name") or provider_id
+    }
+    token, user, new_user = login_with_provider(provider, provider_id, profile)
+    return jsonify({"ok": True, "token": token, "user": user, "new_user": new_user})
 
 # -----------------------------------------------------------------------------
 # OAuth Routes
