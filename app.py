@@ -8,8 +8,11 @@ IG Value Estimation System V5
 import os
 import json
 import re
+import secrets
 from datetime import datetime, timedelta
-from flask import Flask, request, jsonify, send_from_directory
+from urllib.parse import urlencode, urljoin
+import requests
+from flask import Flask, request, jsonify, send_from_directory, redirect
 from flask_cors import CORS
 from PIL import Image
 import io
@@ -38,6 +41,14 @@ DATABASE_URL = os.getenv('DATABASE_URL', 'sqlite:///data/results.db')
 JWT_SECRET = os.getenv('JWT_SECRET', 'dev-secret-change-me')
 JWT_EXPIRES_MINUTES = int(os.getenv('JWT_EXPIRES_MINUTES', 60 * 24))  # default 1 day
 JWT_ALGORITHM = os.getenv('JWT_ALGORITHM', 'HS256')
+APP_BASE_URL = os.getenv('APP_BASE_URL', 'http://localhost:8000')
+AUTH_SUCCESS_URL = os.getenv('AUTH_SUCCESS_URL', '/static/upload.html')
+AUTH_FAILURE_URL = os.getenv('AUTH_FAILURE_URL', '/static/landing.html')
+GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
+GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
+FACEBOOK_CLIENT_ID = os.getenv('FACEBOOK_CLIENT_ID')
+FACEBOOK_CLIENT_SECRET = os.getenv('FACEBOOK_CLIENT_SECRET')
+FACEBOOK_API_VERSION = os.getenv('FACEBOOK_API_VERSION', 'v18.0')
 
 # 初始化 AI 分析器
 analyzer = None
@@ -67,6 +78,9 @@ class User(Base):
     display_name = Column(String(255))
     password_hash = Column(String(255), nullable=False)
     avatar_url = Column(String(512))
+    provider = Column(String(50))
+    provider_id = Column(String(255), index=True)
+    provider_data = Column(Text)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -91,8 +105,18 @@ def ensure_analysis_user_column():
                 cols = [row[1] for row in conn.execute(text("PRAGMA table_info(analysis_results)"))]
                 if 'user_id' not in cols:
                     conn.execute(text("ALTER TABLE analysis_results ADD COLUMN user_id INTEGER"))
+                user_cols = {row[1] for row in conn.execute(text("PRAGMA table_info(users)"))}
+                if 'provider' not in user_cols:
+                    conn.execute(text("ALTER TABLE users ADD COLUMN provider TEXT"))
+                if 'provider_id' not in user_cols:
+                    conn.execute(text("ALTER TABLE users ADD COLUMN provider_id TEXT"))
+                if 'provider_data' not in user_cols:
+                    conn.execute(text("ALTER TABLE users ADD COLUMN provider_data TEXT"))
             else:
                 conn.execute(text("ALTER TABLE analysis_results ADD COLUMN IF NOT EXISTS user_id INTEGER"))
+                conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS provider VARCHAR(50)"))
+                conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS provider_id VARCHAR(255)"))
+                conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS provider_data TEXT"))
     except Exception as e:
         print(f"[DB] ⚠️ 檢查/新增 user_id 欄位失敗: {e}")
 
@@ -195,9 +219,22 @@ def serialize_user(user):
         "username": user.username,
         "display_name": user.display_name,
         "avatar_url": user.avatar_url,
+        "provider": user.provider,
         "created_at": user.created_at.isoformat() if user.created_at else None,
         "updated_at": user.updated_at.isoformat() if user.updated_at else None
     }
+
+def generate_unique_username(session, base):
+    base = base or secrets.token_hex(4)
+    base = base.strip().lower()
+    if not base:
+        base = secrets.token_hex(4)
+    candidate = base
+    counter = 1
+    while session.query(User).filter_by(username=candidate).first():
+        candidate = f"{base}{counter}"
+        counter += 1
+    return candidate
 
 def generate_token(user_id):
     payload = {
@@ -266,6 +303,67 @@ def get_analysis_result(username):
     finally:
         session.close()
     return None
+
+def build_redirect_url(base_url, token, new_user=False):
+    if not base_url.startswith('http'):
+        base_url = urljoin(APP_BASE_URL.rstrip('/') + '/', base_url.lstrip('/'))
+    sep = '&' if '?' in base_url else '?'
+    url = f"{base_url}{sep}token={token}"
+    if new_user:
+        url += "&new_user=1"
+    return url
+
+def build_failure_redirect(message="auth_failed"):
+    base_url = AUTH_FAILURE_URL or AUTH_SUCCESS_URL
+    if not base_url.startswith('http'):
+        base_url = urljoin(APP_BASE_URL.rstrip('/') + '/', base_url.lstrip('/'))
+    sep = '&' if '?' in base_url else '?'
+    return f"{base_url}{sep}error={message}"
+
+def login_with_provider(provider, provider_id, profile):
+    email = (profile.get("email") or "").strip().lower()
+    display_name = profile.get("display_name") or profile.get("name") or email or provider_id
+    avatar_url = profile.get("avatar_url")
+    session = SessionLocal()
+    try:
+        user = session.query(User).filter(
+            (User.provider == provider) & (User.provider_id == provider_id)
+        ).first()
+        if not user and email:
+            user = session.query(User).filter(User.email == email).first()
+        new_user = False
+        if not user:
+            new_user = True
+            username_base = normalize_username(profile.get("username") or email or f"{provider}_{provider_id}")
+            username = generate_unique_username(session, username_base)
+            password_stub = generate_password_hash(secrets.token_hex(16))
+            user = User(
+                email=email or f"{provider_id}@{provider}.local",
+                username=username,
+                display_name=display_name or username,
+                password_hash=password_stub,
+                avatar_url=avatar_url,
+                provider=provider,
+                provider_id=provider_id,
+                provider_data=json.dumps(profile, ensure_ascii=False)
+            )
+            session.add(user)
+        else:
+            if display_name:
+                user.display_name = display_name
+            if avatar_url:
+                user.avatar_url = avatar_url
+            if email and not user.email:
+                user.email = email
+            user.provider = provider
+            user.provider_id = provider_id
+            user.provider_data = json.dumps(profile, ensure_ascii=False)
+        session.commit()
+        serialized = serialize_user(user)
+        token = generate_token(user.id)
+        return token, serialized, new_user
+    finally:
+        session.close()
 
 def get_authenticated_user(required=False):
     auth_header = request.headers.get('Authorization', '')
@@ -418,6 +516,134 @@ def login_user():
 def get_me():
     user = get_authenticated_user(required=True)
     return jsonify({"ok": True, "user": user})
+
+# -----------------------------------------------------------------------------
+# OAuth Routes
+# -----------------------------------------------------------------------------
+def get_google_redirect_uri():
+    return urljoin(APP_BASE_URL.rstrip('/') + '/', 'api/auth/google/callback')
+
+def get_facebook_redirect_uri():
+    return urljoin(APP_BASE_URL.rstrip('/') + '/', 'api/auth/facebook/callback')
+
+@app.route('/api/auth/google/login')
+def google_login():
+    if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
+        return jsonify({"ok": False, "error": "google_oauth_not_configured"}), 500
+    params = {
+        "client_id": GOOGLE_CLIENT_ID,
+        "redirect_uri": get_google_redirect_uri(),
+        "response_type": "code",
+        "scope": "openid email profile",
+        "access_type": "online",
+        "prompt": "select_account"
+    }
+    return redirect(f"https://accounts.google.com/o/oauth2/v2/auth?{urlencode(params)}")
+
+@app.route('/api/auth/google/callback')
+def google_callback():
+    if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
+        return redirect(build_failure_redirect("google_not_configured"))
+    code = request.args.get('code')
+    if not code:
+        return redirect(build_failure_redirect("missing_code"))
+    token_resp = requests.post(
+        "https://oauth2.googleapis.com/token",
+        data={
+            "client_id": GOOGLE_CLIENT_ID,
+            "client_secret": GOOGLE_CLIENT_SECRET,
+            "code": code,
+            "grant_type": "authorization_code",
+            "redirect_uri": get_google_redirect_uri()
+        },
+        timeout=30
+    )
+    if token_resp.status_code != 200:
+        return redirect(build_failure_redirect("google_token_failed"))
+    tokens = token_resp.json()
+    access_token = tokens.get("access_token")
+    if not access_token:
+        return redirect(build_failure_redirect("google_token_missing"))
+    profile_resp = requests.get(
+        "https://www.googleapis.com/oauth2/v3/userinfo",
+        headers={"Authorization": f"Bearer {access_token}"},
+        timeout=30
+    )
+    if profile_resp.status_code != 200:
+        return redirect(build_failure_redirect("google_profile_failed"))
+    info = profile_resp.json()
+    provider_id = info.get("sub")
+    if not provider_id:
+        return redirect(build_failure_redirect("google_profile_invalid"))
+    profile = {
+        "email": info.get("email"),
+        "display_name": info.get("name"),
+        "avatar_url": info.get("picture"),
+        "username": info.get("preferred_username") or info.get("email")
+    }
+    token, user, new_user = login_with_provider("google", provider_id, profile)
+    success_url = build_redirect_url(AUTH_SUCCESS_URL, token, new_user)
+    return redirect(success_url)
+
+@app.route('/api/auth/facebook/login')
+def facebook_login():
+    if not FACEBOOK_CLIENT_ID or not FACEBOOK_CLIENT_SECRET:
+        return jsonify({"ok": False, "error": "facebook_oauth_not_configured"}), 500
+    params = {
+        "client_id": FACEBOOK_CLIENT_ID,
+        "redirect_uri": get_facebook_redirect_uri(),
+        "response_type": "code",
+        "scope": "email,public_profile"
+    }
+    return redirect(f"https://www.facebook.com/{FACEBOOK_API_VERSION}/dialog/oauth?{urlencode(params)}")
+
+@app.route('/api/auth/facebook/callback')
+def facebook_callback():
+    if not FACEBOOK_CLIENT_ID or not FACEBOOK_CLIENT_SECRET:
+        return redirect(build_failure_redirect("facebook_not_configured"))
+    code = request.args.get('code')
+    if not code:
+        return redirect(build_failure_redirect("missing_code"))
+    token_params = {
+        "client_id": FACEBOOK_CLIENT_ID,
+        "client_secret": FACEBOOK_CLIENT_SECRET,
+        "redirect_uri": get_facebook_redirect_uri(),
+        "code": code
+    }
+    token_resp = requests.get(
+        f"https://graph.facebook.com/{FACEBOOK_API_VERSION}/oauth/access_token",
+        params=token_params,
+        timeout=30
+    )
+    if token_resp.status_code != 200:
+        return redirect(build_failure_redirect("facebook_token_failed"))
+    access_token = token_resp.json().get("access_token")
+    if not access_token:
+        return redirect(build_failure_redirect("facebook_token_missing"))
+    profile_resp = requests.get(
+        f"https://graph.facebook.com/{FACEBOOK_API_VERSION}/me",
+        params={
+            "fields": "id,name,email,picture",
+            "access_token": access_token
+        },
+        timeout=30
+    )
+    if profile_resp.status_code != 200:
+        return redirect(build_failure_redirect("facebook_profile_failed"))
+    info = profile_resp.json()
+    provider_id = info.get("id")
+    if not provider_id:
+        return redirect(build_failure_redirect("facebook_profile_invalid"))
+    picture = info.get("picture", {}).get("data", {}).get("url")
+    profile = {
+        "email": info.get("email"),
+        "display_name": info.get("name"),
+        "avatar_url": picture,
+        "username": info.get("email") or info.get("name")
+    }
+    token, user, new_user = login_with_provider("facebook", provider_id, profile)
+    success_url = build_redirect_url(AUTH_SUCCESS_URL, token, new_user)
+    return redirect(success_url)
 
 # -----------------------------------------------------------------------------
 # 人格類型映射
