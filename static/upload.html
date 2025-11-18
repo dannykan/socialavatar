@@ -1162,7 +1162,14 @@
 
         updateStep(2, 'active');
         const res = await fetch('/bd/analyze', { method: 'POST', body: form });
-        if (!res.ok) throw new Error(`伺服器錯誤（${res.status}）`);
+        if (!res.ok) {
+          let msg = `伺服器錯誤（${res.status}）`;
+          try {
+            const errJson = await res.json();
+            if (errJson && errJson.error) msg = errJson.error;
+          } catch (_) {}
+          throw new Error(msg);
+        }
         updateStep(2, 'completed');
 
         updateStep(3, 'active');

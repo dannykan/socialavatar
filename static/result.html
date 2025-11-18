@@ -30,6 +30,7 @@
             overflow: hidden;
             position: relative;
             margin: 0 auto;
+            padding-bottom: 140px;
         }
 
         /* Instagram 風格漸變頭部 (隱藏) */
@@ -104,60 +105,45 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(90deg, #ff6b35 0%, #f7931e 25%, #e91e63 50%, #9c27b0 75%, #673ab7 100%);
             border-radius: 20px;
-            padding: 18px;
+            padding: 20px 18px;
             margin: 12px 20px;
             color: white;
-            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+            box-shadow: 0 10px 30px rgba(255, 107, 53, 0.3);
+            position: relative;
+            overflow: hidden;
         }
 
         .account-badges {
             display: flex;
             gap: 10px;
-            margin-bottom: 12px;
+            margin-bottom: 14px;
             justify-content: center;
             align-items: center;
             width: 100%;
         }
 
         .personality-badge {
-            background: rgba(255, 255, 255, 0.2);
-            border: 1px solid rgba(255, 255, 255, 0.3);
+            background: rgba(255, 182, 193, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.4);
             color: white;
             font-size: 12px;
             padding: 6px 15px;
             border-radius: 20px;
             font-weight: 600;
-        }
-
-        .tier-details {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin-top: 0;
-        }
-
-        .tier-emoji {
-            font-size: 32px;
-            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2));
-        }
-
-        .tier-info {
-            flex: 1;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
 
         .tier-name {
             font-size: 16px;
             font-weight: 700;
             margin-bottom: 0px;
+            text-align: center;
         }
 
-        .tier-en {
-            font-size: 12px;
-            opacity: 0.9;
-            font-style: italic;
-            margin-bottom: 8px;
+        .tier-emoji {
+            display: none; /* 隱藏 emoji，改用圖標 */
         }
 
         /* 主要價值展示區 */
@@ -177,13 +163,28 @@
         .total-value {
             font-size: 48px;
             font-weight: 800;
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            background: linear-gradient(100deg, #ff9bff 0%, #ff6fd8 35%, #ff499f 70%, #ff1f63 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
             line-height: 1.1;
             margin-bottom: 5px;
             animation: valueAppear 0.8s ease-out;
+            display: inline-flex;
+            align-items: baseline;
+            gap: 6px;
+            padding: 0 8px;
+        }
+
+        .currency-display {
+            display: inline-flex;
+            align-items: baseline;
+            gap: 4px;
+        }
+
+        .currency-display .currency {
+            font-size: 0.55em;
+            letter-spacing: 0;
         }
 
         @keyframes valueAppear {
@@ -237,7 +238,7 @@
         }
 
         .pricing-title {
-            font-size: 14px;
+            font-size: 16px;
             font-weight: 700;
             color: #333;
             margin-bottom: 12px;
@@ -279,6 +280,9 @@
             font-size: 16px;
             font-weight: 700;
             color: #667eea;
+            display: inline-flex;
+            align-items: baseline;
+            gap: 2px;
         }
 
         /* 係數展示 */
@@ -361,9 +365,17 @@
 
         /* 分享按鈕 */
         .share-section {
-            padding: 25px 30px 35px;
+            position: fixed;
+            left: 50%;
+            bottom: 24px;
+            transform: translateX(-50%);
+            width: calc(100% - 40px);
+            max-width: 360px;
+            padding: 0;
             text-align: center;
-            background: white;
+            background: transparent;
+            z-index: 1000;
+            pointer-events: none;
         }
 
         .share-button {
@@ -380,6 +392,9 @@
             display: inline-flex;
             align-items: center;
             gap: 10px;
+            width: 100%;
+            justify-content: center;
+            pointer-events: auto;
         }
 
         .share-button:hover {
@@ -466,6 +481,7 @@
             .container {
                 border-radius: 0;
                 box-shadow: none;
+                padding-bottom: 120px;
             }
 
             .total-value {
@@ -483,6 +499,11 @@
 
             .multiplier-grid {
                 grid-template-columns: 1fr;
+            }
+
+            .share-section {
+                width: calc(100% - 30px);
+                bottom: 16px;
             }
         }
     </style>
@@ -523,18 +544,15 @@
                 <div class="account-badges">
                     <div class="personality-badge" id="personality-type">分析中...</div>
                 </div>
-                <div class="tier-details">
-                    <span class="tier-emoji" id="tier-emoji">🎬</span>
-                    <div class="tier-info">
-                        <div class="tier-name" id="tier-name">Celebrity Influencer</div>
-                        <div class="tier-en" id="tier-en">明星級影響者</div>
-                    </div>
-                </div>
+                <div class="tier-name" id="tier-label">Growth Creator（成長型創作者）</div>
             </div>
 
             <div class="value-section">
-                <div class="value-title">帳號總身價 (Asset Value)</div>
-                <div class="total-value" id="total-value">NT$ 0</div>
+                <div class="value-title">💰 IG 社群帳號總價值 (TWD)</div>
+                <div class="total-value currency-display">
+                    <span class="currency">$</span>
+                    <span class="amount" id="total-value">0</span>
+                </div>
                 <div class="value-subtitle">基於 AI 智能鑑價模型</div>
             </div>
 
@@ -548,15 +566,24 @@
                 <div class="pricing-cards">
                     <div class="price-card">
                         <div class="price-type">貼文 Post</div>
-                        <div class="price-value" id="post-value">NT$ 0</div>
+                        <div class="price-value currency-display">
+                            <span class="currency">$</span>
+                            <span class="amount" id="post-value">0</span>
+                        </div>
                     </div>
                     <div class="price-card">
                         <div class="price-type">限動 Story</div>
-                        <div class="price-value" id="story-value">NT$ 0</div>
+                        <div class="price-value currency-display">
+                            <span class="currency">$</span>
+                            <span class="amount" id="story-value">0</span>
+                        </div>
                     </div>
                     <div class="price-card">
                         <div class="price-type">短影音 Reels</div>
-                        <div class="price-value" id="reels-value">NT$ 0</div>
+                        <div class="price-value currency-display">
+                            <span class="currency">$</span>
+                            <span class="amount" id="reels-value">0</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -586,6 +613,13 @@
     </div>
 
     <script>
+        // 解析 query string
+        function getQueryParam(key) {
+            const params = new URLSearchParams(window.location.search);
+            const value = params.get(key);
+            return value ? decodeURIComponent(value.trim()) : null;
+        }
+
         // 數字格式化
         function formatNumber(num) {
             if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
@@ -593,9 +627,29 @@
             return num.toString();
         }
 
+        let latestStoryData = null;
+
         // 金額格式化
         function formatPrice(price) {
-            return 'NT$ ' + price.toLocaleString();
+            const value = Number(price) || 0;
+            return value.toLocaleString();
+        }
+
+        function buildStoryPayload(data) {
+            const valData = data.value_estimation || {};
+            const usernameText = data.username || 'unknown';
+            const displayName = data.display_name || usernameText;
+            return {
+                username: usernameText.startsWith('@') ? usernameText : `@${usernameText}`,
+                plain_username: usernameText.replace(/^@/, ''),
+                display_name: displayName,
+                total_value: valData.account_asset_value || 0,
+                post_value: valData.post_value || 0,
+                story_value: valData.story_value || 0,
+                reels_value: valData.reels_value || 0,
+                review: data.analysis_text || '',
+                value_subtitle: '基於 AI 智能鑑價模型 (TWD)'
+            };
         }
 
         // 數字動畫
@@ -607,7 +661,7 @@
                 if (!startTimestamp) startTimestamp = timestamp;
                 const progress = Math.min((timestamp - startTimestamp) / duration, 1);
                 const current = Math.floor(progress * (end - start) + start);
-                obj.innerHTML = formatPrice(current);
+                obj.textContent = formatPrice(current);
                 if (progress < 1) {
                     window.requestAnimationFrame(step);
                 }
@@ -615,10 +669,28 @@
             window.requestAnimationFrame(step);
         }
 
+        function getFollowerTierLabel(followers) {
+            const tiers = [
+                { limit: 10000000, label: "🌟 Iconic Tier（傳奇級）" },
+                { limit: 1000000, label: "⭐ Mega Star（超級影響者）" },
+                { limit: 500000, label: "👑 Elite Influencer（頂級影響者）" },
+                { limit: 100000, label: "🎬 Celebrity Influencer（明星級影響者）" },
+                { limit: 50000, label: "⭐ Prime Influencer（核心型影響者）" },
+                { limit: 10000, label: "📈 Growth Creator（成長型創作者）" },
+                { limit: 1000, label: "🌱 Seed Creator（萌芽創作者）" },
+                { limit: 500, label: "🌱 新星" }
+            ];
+            for (const tier of tiers) {
+                if (followers >= tier.limit) return tier.label;
+            }
+            return "🌱 素人";
+        }
+
         // 渲染結果 (核心邏輯)
         function renderResult(data) {
             // 1. 填充基本資料
-            document.getElementById('username').textContent = data.username || 'unknown';
+            const usernameText = data.username || 'unknown';
+            document.getElementById('username').textContent = usernameText.startsWith('@') ? usernameText : `@${usernameText}`;
             document.getElementById('display-name').textContent = data.display_name || data.username;
             document.getElementById('followers').textContent = formatNumber(data.followers || 0);
             document.getElementById('following').textContent = formatNumber(data.following || 0);
@@ -626,26 +698,14 @@
 
             // 2. 人格類型與等級
             const pType = data.primary_type || {};
-            document.getElementById('personality-type').textContent = `${pType.emoji || ''} ${pType.name_zh || '分析中'}`;
+            // 頂部標籤顯示人格類型
+            document.getElementById('personality-type').textContent = pType.name_zh || '分析中';
             
             // 處理等級顯示 (這裡假設後端回傳的 tier 格式)
             const valData = data.value_estimation || {};
-            // 簡單處理 tier 顯示
-            const tierRaw = valData.follower_tier || "🌱 素人";
-            // 如果 tier 包含 emoji，拆分顯示
-            let tierEmoji = "🌱"; 
-            let tierName = tierRaw;
-            
-            // 嘗試提取 emoji (簡單正則)
-            const emojiMatch = tierRaw.match(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/);
-            if (emojiMatch) {
-                tierEmoji = emojiMatch[0];
-                tierName = tierRaw.replace(tierEmoji, '').trim();
-            }
-
-            document.getElementById('tier-emoji').textContent = tierEmoji;
-            document.getElementById('tier-name').textContent = tierName.split('（')[0] || tierName;
-            document.getElementById('tier-en').textContent = tierName.includes('（') ? tierName.split('（')[1].replace('）', '') : '';
+            // 簡單處理 tier 顯示（依粉絲數重新計算）
+            const tierLabel = getFollowerTierLabel(data.followers || valData.followers || 0);
+            document.getElementById('tier-label').textContent = tierLabel;
 
             // 3. 顯示總身價 (使用後端計算值)
             animateValue('total-value', valData.account_asset_value || 0);
@@ -702,6 +762,14 @@
                 });
             }
 
+            // 8. 準備分享用資料
+            latestStoryData = buildStoryPayload(data);
+            try {
+                localStorage.setItem('sa_story_data', JSON.stringify(latestStoryData));
+            } catch (err) {
+                console.warn('無法儲存分享資料', err);
+            }
+
             // 顯示結果頁面
             document.getElementById('loading').classList.add('hidden');
             document.getElementById('result').classList.remove('hidden');
@@ -709,72 +777,65 @@
 
         // 分享功能
         function shareResult() {
-            if (navigator.share) {
-                const username = document.getElementById('username').textContent;
-                const value = document.getElementById('total-value').textContent;
-                navigator.share({
-                    title: 'IG 帳號價值分析',
-                    text: `我的 IG 帳號 ${username} 身價 ${value}！快來測測你的！`,
-                    url: window.location.href
-                }).catch(console.error);
-            } else {
-                alert('請截圖分享！');
+            if (!latestStoryData) {
+                alert('尚未載入分享內容，請稍後再試');
+                return;
+            }
+            const plainUsername = (latestStoryData.plain_username || latestStoryData.username || '').replace(/^@/, '');
+            try {
+                localStorage.setItem('sa_story_data', JSON.stringify(latestStoryData));
+            } catch (err) {
+                console.warn('儲存分享資料失敗', err);
+            }
+            const targetUrl = plainUsername 
+                ? `/static/story.html?username=${encodeURIComponent(plainUsername)}`
+                : '/static/story.html';
+            window.open(targetUrl, '_blank');
+        }
+
+        async function fetchResultByUsername(username) {
+            try {
+                const resp = await fetch(`/api/result?username=${encodeURIComponent(username)}`);
+                if (!resp.ok) throw new Error(`API ${resp.status}`);
+                return await resp.json();
+            } catch (err) {
+                console.error('Fetch result error', err);
+                return null;
             }
         }
 
+        function showError(message) {
+            alert(message || '無法載入資料，請稍後再試');
+            document.getElementById('loading').classList.add('hidden');
+        }
+
         // 初始化：獲取數據
-        window.addEventListener('DOMContentLoaded', () => {
-            // 嘗試從 sessionStorage 獲取數據 (upload.html 存入的)
+        window.addEventListener('DOMContentLoaded', async () => {
+            const usernameParam = getQueryParam('username');
+            if (usernameParam) {
+                const data = await fetchResultByUsername(usernameParam);
+                if (data && data.ok !== false) {
+                    renderResult(data);
+                } else {
+                    showError('找不到該使用者的分析結果，請重新分析或確認網址。');
+                }
+                return;
+            }
+
             const rawData = sessionStorage.getItem('sa_result');
-            
             if (rawData) {
                 try {
                     const data = JSON.parse(rawData);
-                    // 模擬一點延遲讓動畫跑一下
                     setTimeout(() => {
                         renderResult(data);
                     }, 800);
                 } catch (e) {
                     console.error('Data parse error', e);
-                    alert('數據解析錯誤，請重新分析');
+                    showError('數據解析錯誤，請重新分析');
                     window.location.href = '/static/upload.html';
                 }
             } else {
-                // 沒有數據，導回上傳頁
-                // 開發測試時可註解掉下面這行，改用 mock data
-                // window.location.href = '/static/upload.html';
-                
-                // Mock Data 測試用
-                /*
-                setTimeout(() => {
-                    renderResult({
-                        username: "test_user",
-                        display_name: "測試帳號",
-                        followers: 12500,
-                        following: 400,
-                        posts: 150,
-                        analysis_text: "這是一個測試帳號的分析說明...\n換行測試。",
-                        primary_type: { emoji: "🧪", name_zh: "測試類型" },
-                        value_estimation: {
-                            account_asset_value: 888888,
-                            follower_tier: "🔥 測試級",
-                            post_value: 5000,
-                            story_value: 1500,
-                            reels_value: 6000,
-                            multipliers: {
-                                ratio: 1.2,
-                                visual: 1.5,
-                                niche: 1.1,
-                                commercial: 1.0
-                            }
-                        },
-                        improvement_tips: ["多發文", "多互動"]
-                    });
-                }, 1000);
-                */
-               
-               // 正式環境請解開這行：
-               window.location.href = '/static/upload.html';
+                window.location.href = '/static/upload.html';
             }
         });
     </script>

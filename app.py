@@ -1,10 +1,211 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+IG Value Estimation System V5
+主應用程式 - Flask 服務器
+"""
+
+import os
+import json
+import re
+from datetime import datetime
+from flask import Flask, request, jsonify, send_from_directory
+from flask_cors import CORS
+from PIL import Image
+import io
+from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import declarative_base, sessionmaker
+from ai_analyzer import IGAnalyzer, PromptBuilder
+
+# 初始化 Flask 應用
+app = Flask(__name__, static_folder='static', static_url_path='/static')
+CORS(app)
+
+# 環境變數配置
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+# 模型選擇：
+# - gpt-4o: 當前穩定版本，準確度高，支持視覺任務（推薦，GPT-5.1 可能不可用）
+# - gpt-4o-mini: 較便宜，速度較快，適合預算有限的情況
+# - gpt-5.1: 最新模型（如果可用）
+OPENAI_MODEL = os.getenv('OPENAI_MODEL', 'gpt-4o')
+PORT = int(os.getenv('PORT', 8000))
+MAX_SIDE = int(os.getenv('MAX_SIDE', 1280))
+JPEG_QUALITY = int(os.getenv('JPEG_QUALITY', 72))
+DATABASE_URL = os.getenv('DATABASE_URL', 'sqlite:///data/results.db')
+
+# 初始化 AI 分析器
+analyzer = None
+last_ai_response = None
+
 # -----------------------------------------------------------------------------
-# User Prompt (Safe Version)
+# Database Setup
+# -----------------------------------------------------------------------------
+engine_kwargs = {}
+if DATABASE_URL.startswith('sqlite'):
+    engine_kwargs["connect_args"] = {"check_same_thread": False}
+    db_path = DATABASE_URL.replace('sqlite:///', '')
+    db_dir = os.path.dirname(db_path)
+    if db_dir and not os.path.exists(db_dir):
+        os.makedirs(db_dir, exist_ok=True)
+
+engine = create_engine(DATABASE_URL, **engine_kwargs)
+SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+Base = declarative_base()
+
+class AnalysisResult(Base):
+    __tablename__ = "analysis_results"
+    
+    id = Column(Integer, primary_key=True)
+    username = Column(String(255), nullable=False)
+    username_key = Column(String(255), nullable=False, unique=True, index=True)
+    display_name = Column(String(255))
+    data = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+def init_db():
+    try:
+        Base.metadata.create_all(engine)
+        print("[DB] ✅ 資料庫初始化完成")
+    except SQLAlchemyError as e:
+        print(f"[DB] ❌ 初始化失敗: {e}")
+
+init_db()
+
+def init_analyzer():
+    """初始化 AI 分析器"""
+    global analyzer
+    if not OPENAI_API_KEY:
+        print("⚠️ 警告: OPENAI_API_KEY 未設置，部分功能可能無法使用")
+        return None
+    
+    # 檢查 API Key 是否為佔位符
+    if OPENAI_API_KEY in ['your-key', 'sk-your-api-key-here', '']:
+        print("❌ 錯誤: OPENAI_API_KEY 是佔位符，請設置真實的 API Key")
+        print("   請運行: export OPENAI_API_KEY='sk-...'")
+        return None
+    
+    # 檢查 API Key 格式
+    if not OPENAI_API_KEY.startswith('sk-'):
+        print("⚠️ 警告: OPENAI_API_KEY 格式可能不正確（應該以 'sk-' 開頭）")
+    
+    # 支持的模型列表（按優先順序）
+    supported_models = ['gpt-5.1', 'gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo']
+    fallback_models = ['gpt-4o', 'gpt-4o-mini']
+    
+    model_to_try = OPENAI_MODEL
+    models_tried = []
+    
+    while model_to_try:
+        try:
+            print(f"[初始化] 嘗試使用模型: {model_to_try}")
+            analyzer = IGAnalyzer(
+                api_key=OPENAI_API_KEY,
+                model=model_to_try,
+                max_side=MAX_SIDE,
+                quality=JPEG_QUALITY
+            )
+            print(f"✅ AI 分析器初始化成功 (模型: {model_to_try})")
+            return analyzer
+        except Exception as e:
+            error_msg = str(e)
+            models_tried.append(model_to_try)
+            print(f"⚠️ 模型 {model_to_try} 初始化失敗: {error_msg}")
+            
+            # 如果是模型不存在的錯誤，嘗試下一個備用模型
+            if 'model' in error_msg.lower() or 'not found' in error_msg.lower() or 'invalid' in error_msg.lower():
+                if model_to_try in supported_models:
+                    # 找到當前模型在列表中的位置，嘗試下一個
+                    try:
+                        current_idx = supported_models.index(model_to_try)
+                        if current_idx + 1 < len(supported_models):
+                            model_to_try = supported_models[current_idx + 1]
+                            print(f"[初始化] 嘗試備用模型: {model_to_try}")
+                            continue
+                    except ValueError:
+                        pass
+                
+                # 如果不在列表中或沒有下一個，嘗試備用模型
+                for fallback in fallback_models:
+                    if fallback not in models_tried:
+                        model_to_try = fallback
+                        print(f"[初始化] 嘗試備用模型: {fallback}")
+                        break
+                else:
+                    model_to_try = None
+            else:
+                # 其他錯誤（如 API Key 問題），不嘗試其他模型
+                print(f"❌ AI 分析器初始化失敗: {e}")
+                return None
+    
+    print(f"❌ 所有模型都無法使用。已嘗試: {', '.join(models_tried)}")
+    return None
+
+# 啟動時初始化
+init_analyzer()
+
+# -----------------------------------------------------------------------------
+# Database Helpers
+# -----------------------------------------------------------------------------
+def normalize_username(value):
+    if not value:
+        return ""
+    return str(value).replace('@', '').strip().lower()
+
+def save_analysis_result(payload):
+    if not payload:
+        return
+    username_key = normalize_username(payload.get("username") or payload.get("plain_username"))
+    if not username_key:
+        return
+    session = SessionLocal()
+    try:
+        serialized = json.dumps(payload, ensure_ascii=False)
+        record = session.query(AnalysisResult).filter_by(username_key=username_key).first()
+        if record:
+            record.username = payload.get("username", record.username)
+            record.display_name = payload.get("display_name", record.display_name)
+            record.data = serialized
+        else:
+            record = AnalysisResult(
+                username=payload.get("username", username_key),
+                username_key=username_key,
+                display_name=payload.get("display_name", ""),
+                data=serialized
+            )
+            session.add(record)
+        session.commit()
+        print(f"[DB] ✅ 已儲存分析結果: {username_key}")
+    except SQLAlchemyError as e:
+        session.rollback()
+        print(f"[DB] ❌ 儲存結果失敗: {e}")
+    finally:
+        session.close()
+
+def get_analysis_result(username):
+    username_key = normalize_username(username)
+    if not username_key:
+        return None
+    session = SessionLocal()
+    try:
+        record = session.query(AnalysisResult).filter_by(username_key=username_key).first()
+        if record:
+            return json.loads(record.data)
+    except SQLAlchemyError as e:
+        print(f"[DB] ❌ 讀取結果失敗: {e}")
+    finally:
+        session.close()
+    return None
+
+# -----------------------------------------------------------------------------
+# User Prompt Builder (Safe Version)
 # -----------------------------------------------------------------------------
 def build_user_prompt(followers, following, posts):
+    """構建用戶提示詞"""
     # 第一部分：動態數據（使用 f-string）
     header = f"分析這個 IG 帳號截圖。數據：粉絲 {followers}, 追蹤 {following}, 貼文 {posts}。"
-
+    
     # 第二部分：靜態指令（使用普通字符串，不需要雙括號轉義，更安全）
     body = """
 請完成兩個任務：
@@ -42,3 +243,942 @@ def build_user_prompt(followers, following, posts):
     "建議..."
   ]
 }
+```
+
+請確保 JSON 格式正確，可以直接被解析。
+"""
+    return header + body
+
+# -----------------------------------------------------------------------------
+# 人格類型映射
+# -----------------------------------------------------------------------------
+PERSONALITY_TYPES = {
+    "type_1": {"emoji": "🌸", "name_zh": "夢幻柔焦系", "name_en": "Dreamy Aesthetic"},
+    "type_2": {"emoji": "🎨", "name_zh": "藝術實驗者", "name_en": "Artistic Experimenter"},
+    "type_3": {"emoji": "🏔️", "name_zh": "戶外探險家", "name_en": "Outdoor Adventurer"},
+    "type_4": {"emoji": "📚", "name_zh": "知識策展人", "name_en": "Knowledge Curator"},
+    "type_5": {"emoji": "🍜", "name_zh": "生活記錄者", "name_en": "Everyday Chronicler"},
+    "type_6": {"emoji": "✨", "name_zh": "質感品味家", "name_en": "Refined Aesthete"},
+    "type_7": {"emoji": "🎭", "name_zh": "幽默創作者", "name_en": "Humor Creator"},
+    "type_8": {"emoji": "💼", "name_zh": "專業形象派", "name_en": "Professional Persona"},
+    "type_9": {"emoji": "🌿", "name_zh": "永續生活者", "name_en": "Sustainable Liver"},
+    "type_10": {"emoji": "🎮", "name_zh": "次文化愛好者", "name_en": "Subculture Enthusiast"},
+    "type_11": {"emoji": "💪", "name_zh": "健康積極派", "name_en": "Fitness Motivator"},
+    "type_12": {"emoji": "🔮", "name_zh": "靈性探索者", "name_en": "Spiritual Seeker"}
+}
+
+# -----------------------------------------------------------------------------
+# 價值計算函數
+# -----------------------------------------------------------------------------
+def calculate_base_price(followers):
+    """計算基礎價格"""
+    if followers < 1000:
+        return 500
+    elif followers < 5000:
+        return 1000
+    elif followers < 10000:
+        return 2000
+    elif followers < 50000:
+        return 5000
+    elif followers < 100000:
+        return 10000
+    elif followers < 500000:
+        return 20000
+    else:
+        return 50000
+
+def calculate_multipliers(analysis_data):
+    """計算所有係數"""
+    multipliers = {
+        "visual": 1.0,
+        "content": 1.0,
+        "professional": 1.0,
+        "follower": 1.0,
+        "unique": 1.0,
+        "engagement": 1.0,
+        "niche": 1.0,
+        "audience": 1.0,
+        "cross_platform": 1.0,
+        "ratio": 1.0,
+        "commercial": 1.0
+    }
+    
+    # 視覺品質係數 (0.7 - 2.0)
+    visual_quality = analysis_data.get("visual_quality", {}).get("overall", 5.0)
+    multipliers["visual"] = 0.7 + (visual_quality / 10.0) * 1.3
+    
+    # 內容類型係數 (0.8 - 2.5)
+    category_tier = analysis_data.get("content_type", {}).get("category_tier", "mid")
+    tier_map = {"high": 2.5, "mid_high": 1.8, "mid": 1.2, "low": 0.8}
+    multipliers["content"] = tier_map.get(category_tier, 1.2)
+    
+    # 專業度係數 (0.9 - 1.9)
+    has_contact = analysis_data.get("professionalism", {}).get("has_contact", False)
+    is_business = analysis_data.get("professionalism", {}).get("is_business_account", False)
+    multipliers["professional"] = 1.0
+    if has_contact:
+        multipliers["professional"] += 0.3
+    if is_business:
+        multipliers["professional"] += 0.6
+    
+    # 粉絲品質係數 (0.6 - 1.5) - 基於追蹤比
+    # 這裡簡化處理，實際應該從截圖中提取
+    multipliers["follower"] = 1.0
+    
+    # 風格獨特性係數 (1.0 - 1.6)
+    consistency = analysis_data.get("visual_quality", {}).get("consistency", 5.0)
+    multipliers["unique"] = 1.0 + (consistency / 10.0) * 0.6
+    
+    # 互動潛力係數 (0.8 - 1.5)
+    personal_conn = analysis_data.get("content_format", {}).get("personal_connection", 5.0)
+    multipliers["engagement"] = 0.8 + (personal_conn / 10.0) * 0.7
+    
+    # 利基專注度係數 (0.9 - 1.6)
+    multipliers["niche"] = multipliers["content"] * 0.9  # 基於內容類型
+    
+    # 受眾價值係數 (0.8 - 1.8)
+    multipliers["audience"] = multipliers["content"] * 1.1  # 基於內容類型
+    
+    # 跨平台影響力係數 (0.95 - 1.4)
+    multipliers["cross_platform"] = 1.0
+    
+    # 粉絲含金量 (ratio) - 簡化為 1.0
+    multipliers["ratio"] = 1.0
+    
+    # 商業意圖 (commercial) - 基於專業度
+    multipliers["commercial"] = multipliers["professional"]
+    
+    return multipliers
+
+def calculate_values(followers, multipliers, analysis_data):
+    """計算各種報價"""
+    base_price = calculate_base_price(followers)
+    
+    # 計算總係數
+    total_multiplier = (
+        multipliers["visual"] *
+        multipliers["content"] *
+        multipliers["professional"] *
+        multipliers["follower"] *
+        multipliers["unique"] *
+        multipliers["engagement"] *
+        multipliers["niche"] *
+        multipliers["audience"] *
+        multipliers["cross_platform"]
+    )
+    
+    # 貼文價值
+    post_value = int(base_price * total_multiplier)
+    
+    # Story 價值 (基於 personal_connection)
+    personal_conn = analysis_data.get("content_format", {}).get("personal_connection", 5.0)
+    story_multiplier = 0.3 + (personal_conn / 10.0) * 0.1
+    story_value = int(post_value * story_multiplier)
+    
+    # Reels 價值 (基於 video_focus)
+    video_focus = analysis_data.get("content_format", {}).get("video_focus", 1.0)
+    reels_multiplier = 0.8 + (video_focus / 10.0) * 0.7
+    reels_value = int(post_value * reels_multiplier)
+    
+    # 帳號總身價 (基於粉絲數和係數)
+    account_asset_value = int(followers * 10 * (total_multiplier / 2.0))
+    
+    return {
+        "post_value": post_value,
+        "story_value": story_value,
+        "reels_value": reels_value,
+        "account_asset_value": account_asset_value,
+        "multipliers": multipliers
+    }
+
+# -----------------------------------------------------------------------------
+# JSON 提取函數
+# -----------------------------------------------------------------------------
+def extract_json_from_text(text):
+    """從文本中提取 JSON"""
+    # 嘗試找到 JSON 區塊
+    json_match = re.search(r'```json\s*(\{.*?\})\s*```', text, re.DOTALL)
+    if json_match:
+        json_str = json_match.group(1)
+    else:
+        # 嘗試找到 { ... } 區塊
+        json_match = re.search(r'\{.*\}', text, re.DOTALL)
+        if json_match:
+            json_str = json_match.group(0)
+        else:
+            return None
+    
+    # 清理註釋
+    json_str = re.sub(r'//.*?$', '', json_str, flags=re.MULTILINE)
+    
+    try:
+        return json.loads(json_str)
+    except json.JSONDecodeError:
+        return None
+
+def extract_analysis_text(text, basic_info=None):
+    """提取風趣短評（約 50 字）"""
+    # 優先尋找「毒舌短評：」或「風趣短評：」標記
+    patterns = [
+        r'(?:毒舌|風趣)短評[：:]\s*([^\n]+(?:\n[^\n]+){0,2})',  # 匹配「毒舌短評：」或「風趣短評：」後的 1-3 行
+        r'\*\*(?:毒舌|風趣)短評[：:]\*\*\s*([^\n]+(?:\n[^\n]+){0,2})',  # 匹配 markdown 格式
+        r'(?:毒舌|風趣)短評[：:]\*\*\s*([^\n]+(?:\n[^\n]+){0,2})',  # 匹配混合格式
+    ]
+    
+    for pattern in patterns:
+        match = re.search(pattern, text, re.IGNORECASE | re.MULTILINE)
+        if match:
+            analysis = match.group(1).strip()
+            # 清理 markdown 格式
+            analysis = re.sub(r'\*\*', '', analysis)
+            analysis = re.sub(r'^#+\s*', '', analysis, flags=re.MULTILINE)
+            # 移除多餘的空白和換行
+            analysis = re.sub(r'\s+', ' ', analysis)
+            analysis = analysis.strip()
+            
+            # 限制在 60 字以內（留一點緩衝）
+            if len(analysis) > 60:
+                # 嘗試在句號、逗號處截斷
+                for sep in ['。', '，', ',', '.']:
+                    idx = analysis[:60].rfind(sep)
+                    if idx > 30:  # 至少保留 30 字
+                        analysis = analysis[:idx+1]
+                        break
+                else:
+                    analysis = analysis[:57] + '...'
+            
+            if analysis and len(analysis) > 10:  # 確保不是空字串或太短
+                print(f"[提取] ✅ 找到毒舌短評: {analysis[:50]}...")
+                return analysis
+    
+    # 如果沒找到標記，檢查是否 AI 拒絕回答（支援多種格式）
+    text_lower = text.lower()
+    rejection_phrases = [
+        "i'm sorry", "i cannot", "i can't assist", "無法協助", 
+        "不能協助", "抱歉，我無法", "抱歉,我無法", "抱歉我無法",
+        "無法識別", "無法提取", "無法分析", "無法協助",
+        "can't identify", "cannot identify", "無法識別或",
+        "如果你提供", "如果你能提供", "提供文字資訊"
+    ]
+    
+    if any(phrase in text_lower for phrase in rejection_phrases):
+        print("[提取] ⚠️ 檢測到 AI 拒絕訊息，嘗試從商業價值分析中提取")
+        # 嘗試從「商業價值分析」中提取一段簡短內容
+        business_analysis_patterns = [
+            r'商業價值分析[：:]\s*([^。]+。?)',
+            r'根據提供的數據[，,]?([^。]+。?)',
+            r'這個帳號[，,]?([^。]+。?)',
+        ]
+        
+        for pattern in business_analysis_patterns:
+            match = re.search(pattern, text, re.IGNORECASE | re.MULTILINE)
+            if match:
+                analysis = match.group(1).strip()
+                # 清理
+                analysis = re.sub(r'\*\*', '', analysis)
+                analysis = re.sub(r'\s+', ' ', analysis)
+                # 限制長度
+                if len(analysis) > 60:
+                    analysis = analysis[:57] + '...'
+                if len(analysis) > 15:  # 確保有足夠內容
+                    print(f"[提取] ✅ 從商業分析中提取: {analysis[:50]}...")
+                    return analysis
+        
+        # 如果還是找不到，基於基本資訊生成風趣短評
+        if basic_info:
+            followers = basic_info.get('followers', 0)
+            username = basic_info.get('username', 'unknown')
+            
+            if followers > 0:
+                if followers < 1000:
+                    return f"這個帳號有 {followers} 個粉絲，雖然不多但起步不錯，繼續努力說不定哪天就爆紅了（笑）"
+                elif followers < 10000:
+                    return f"這個帳號有 {followers//1000}K 粉絲，已經算是小有名氣了，內容再精緻一點應該能吸引更多品牌合作（笑）"
+                else:
+                    return f"這個帳號有 {followers//1000}K 粉絲，已經有一定的影響力了，建議多發 Reels 提升互動率，商業價值會更高（笑）"
+            elif username != 'unknown':
+                # 即使粉絲數為 0，如果有用戶名也能生成短評
+                return f"這個帳號 @{username} 看起來剛起步，建議多發優質內容累積粉絲，說不定哪天就爆紅了（笑）"
+        
+    # 如果都找不到，返回預設文字（即使基本資訊為空也顯示）
+    return "這個帳號看起來還不錯，但 AI 偵探今天有點害羞，建議你重新上傳一張更清晰的截圖，讓我能好好分析一下（笑）"
+
+
+def finalize_short_review(text):
+    """確保短評以完整句子結尾"""
+    if not text:
+        return ""
+    text = str(text).strip()
+    if not text:
+        return ""
+    # 移除尾端多餘的逗號、頓號或分號
+    while text and text[-1] in ['，', ',', '、', '；', ';']:
+        text = text[:-1].rstrip()
+    # 如果最後仍無終止符號，補上一個句號
+    if text and text[-1] not in "。.!?！？":
+        text = text + "。"
+    return text
+
+# -----------------------------------------------------------------------------
+# Helper: 將帶有 K/M 或字串格式的數字轉為整數
+# -----------------------------------------------------------------------------
+def parse_numeric_count(value, default=0):
+    """將粉絲/追蹤/貼文數字統一轉為整數"""
+    if value is None:
+        return default
+    if isinstance(value, (int, float)):
+        try:
+            return int(value)
+        except Exception:
+            return default
+    try:
+        text = str(value).strip()
+        if not text:
+            return default
+        multiplier = 1
+        last_char = text[-1].lower()
+        if last_char in ('k', 'm'):
+            if last_char == 'k':
+                multiplier = 1000
+            elif last_char == 'm':
+                multiplier = 1000000
+            text = text[:-1].strip()
+        text = text.replace(',', '').replace('，', '')
+        if not text:
+            return default
+        return int(float(text) * multiplier)
+    except Exception:
+        return default
+    
+    # 如果沒找到標記，嘗試提取 JSON 之前的簡短文字（作為備用）
+    json_start = text.find('```json')
+    if json_start == -1:
+        json_start = text.find('{')
+    
+    if json_start > 0:
+        analysis = text[:json_start].strip()
+        # 清理 markdown 格式
+        analysis = re.sub(r'^#+\s*', '', analysis, flags=re.MULTILINE)
+        analysis = re.sub(r'\*\*(.*?)\*\*', r'\1', analysis)
+        # 移除任務標題和拒絕訊息
+        analysis = re.sub(r'任務\s*\d+[：:].*?\n', '', analysis, flags=re.MULTILINE)
+        analysis = re.sub(r'任務\s*\d+[：:].*?$', '', analysis, flags=re.MULTILINE)
+        analysis = re.sub(r'抱歉[，,]?.*?但我可以', '', analysis, flags=re.DOTALL)
+        analysis = re.sub(r'無法識別.*?但我可以', '', analysis, flags=re.DOTALL)
+        # 只取第一段有意義的文字（過濾拒絕訊息）
+        lines = [line.strip() for line in analysis.split('\n') 
+                if line.strip() and not line.strip().startswith('**') 
+                and '抱歉' not in line and '無法' not in line
+                and 'i\'m sorry' not in line.lower() and 'cannot' not in line.lower()
+                and '如果你提供' not in line and '提供文字' not in line]
+        if lines:
+            analysis = lines[0]
+            # 限制長度
+            if len(analysis) > 60:
+                analysis = analysis[:57] + '...'
+            if len(analysis) > 15:
+                return analysis
+    
+    # 如果都找不到，返回預設文字
+    return "這個帳號...嗯，還需要更多觀察才能給出風趣評價（笑）"
+
+# -----------------------------------------------------------------------------
+# 從文字中提取基本資訊（備用方法）
+# -----------------------------------------------------------------------------
+def extract_basic_info_from_text(text):
+    """從 AI 回應文字中提取基本資訊（備用方法）"""
+    info = {
+        "username": "unknown",
+        "display_name": "未知用戶",
+        "followers": 0,
+        "following": 0,
+        "posts": 0
+    }
+    
+    print("[提取] 開始從文字中提取基本資訊...")
+    
+    # 提取帳號名稱/用戶名（優先匹配「帳號名稱」）
+    username_patterns = [
+        r'帳號名稱[：:]\s*([a-zA-Z0-9_.]+)',  # 新增：匹配「帳號名稱: dannytjkan」
+        r'用戶名[：:]\s*@?([a-zA-Z0-9_.]+)',
+        r'@([a-zA-Z0-9_.]+)',
+        r'username[：:]\s*([a-zA-Z0-9_.]+)',
+        r'帳號[：:]\s*([a-zA-Z0-9_.]+)',
+    ]
+    for pattern in username_patterns:
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            info["username"] = match.group(1).strip()
+            print(f"[提取] ✅ 找到用戶名: {info['username']}")
+            break
+    
+    # 提取顯示名稱（如果沒有找到，使用用戶名）
+    display_name_patterns = [
+        r'顯示名稱[：:]\s*([^\n]+)',
+        r'名稱[：:]\s*([^\n]+)',
+        r'display[_\s]name[：:]\s*([^\n]+)',
+    ]
+    for pattern in display_name_patterns:
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            info["display_name"] = match.group(1).strip()
+            print(f"[提取] ✅ 找到顯示名稱: {info['display_name']}")
+            break
+    
+    # 如果沒有找到顯示名稱，使用用戶名
+    if info["display_name"] == "未知用戶" and info["username"] != "unknown":
+        info["display_name"] = info["username"]
+    
+    # 提取粉絲數（優先匹配「粉絲數」）
+    followers_patterns = [
+        r'(\d+(?:\.\d+)?)\s*[Kk]的粉絲',  # 匹配「10.1K的粉絲」
+        r'粉絲數[：:]\s*(\d+(?:[,，]\d+)*)',  # 匹配「粉絲數: 10,100」
+        r'粉絲[數]?[：:]\s*(\d+(?:[,，]\d+)*)\s*[KM]?',
+        r'followers[：:]\s*(\d+(?:[,，]\d+)*)\s*[KM]?',
+        r'(\d+(?:[,，]\d+)*)\s*[Kk]?\s*粉絲',
+        r'擁有(\d+(?:\.\d+)?)\s*[Kk]',  # 匹配「擁有10.1K」
+    ]
+    for pattern in followers_patterns:
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            followers_str = match.group(1)
+            # 檢查匹配的文本中是否包含 K 或 M
+            matched_text = text[match.start():match.end()].upper()
+            
+            # 處理 K 格式（如 10.1K）
+            if 'K' in matched_text and 'KM' not in matched_text:
+                try:
+                    # 保留小數點，因為可能是 10.1K
+                    num = float(followers_str.replace(',', '').replace('，', ''))
+                    info["followers"] = int(num * 1000)
+                    print(f"[提取] ✅ 找到粉絲數 (K格式): {info['followers']} (原始: {followers_str}K)")
+                except Exception as e:
+                    print(f"[提取] ⚠️ 解析粉絲數失敗: {e}")
+                    pass
+            # 處理 M 格式
+            elif 'M' in matched_text:
+                try:
+                    num = float(followers_str.replace(',', '').replace('，', ''))
+                    info["followers"] = int(num * 1000000)
+                    print(f"[提取] ✅ 找到粉絲數 (M格式): {info['followers']}")
+                except Exception as e:
+                    print(f"[提取] ⚠️ 解析粉絲數失敗: {e}")
+                    pass
+            # 純數字格式
+            else:
+                try:
+                    info["followers"] = int(followers_str.replace(',', '').replace('，', '').replace('.', ''))
+                    print(f"[提取] ✅ 找到粉絲數: {info['followers']}")
+                except Exception as e:
+                    print(f"[提取] ⚠️ 解析粉絲數失敗: {e}")
+                    pass
+            if info["followers"] > 0:
+                break
+    
+    # 提取追蹤數（優先匹配「追蹤數」）
+    following_patterns = [
+        r'追蹤數[：:]\s*(\d+(?:[,，]\d+)*)',  # 新增：匹配「追蹤數: 914」
+        r'追蹤[數]?[：:]\s*(\d+(?:[,，]\d+)*)\s*[KM]?',
+        r'following[：:]\s*(\d+(?:[,，]\d+)*)\s*[KM]?',
+    ]
+    for pattern in following_patterns:
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            following_str = match.group(1).replace(',', '').replace('，', '').replace('.', '')
+            try:
+                info["following"] = int(following_str)
+                print(f"[提取] ✅ 找到追蹤數: {info['following']}")
+            except:
+                pass
+            if info["following"] > 0:
+                break
+    
+    # 提取貼文數（優先匹配「貼文數」）
+    posts_patterns = [
+        r'(\d+)\s*則貼文',  # 匹配「181則貼文」
+        r'貼文數[：:]\s*(\d+(?:[,，]\d+)*)',  # 匹配「貼文數: 181」
+        r'貼文[數]?[：:]\s*(\d+(?:[,，]\d+)*)\s*[KM]?',
+        r'posts[：:]\s*(\d+(?:[,，]\d+)*)\s*[KM]?',
+        r'(\d+)\s*貼文',  # 匹配「181貼文」
+    ]
+    for pattern in posts_patterns:
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            posts_str = match.group(1).replace(',', '').replace('，', '').replace('.', '')
+            try:
+                info["posts"] = int(posts_str)
+                print(f"[提取] ✅ 找到貼文數: {info['posts']}")
+            except:
+                pass
+            if info["posts"] > 0:
+                break
+    
+    print(f"[提取] 最終提取結果: {info}")
+    return info
+
+# -----------------------------------------------------------------------------
+# Flask 路由
+# -----------------------------------------------------------------------------
+@app.route('/health', methods=['GET'])
+def health():
+    """健康檢查端點"""
+    return jsonify({
+        "status": "ok",
+        "version": "v5",
+        "model": OPENAI_MODEL,
+        "ai_enabled": analyzer is not None,
+        "new_features": [
+            "open_ended_analysis",
+            "natural_language_valuation",
+            "contextual_reasoning"
+        ]
+    })
+
+@app.route('/debug/config', methods=['GET'])
+def debug_config():
+    """查看系統配置"""
+    return jsonify({
+        "openai_model": OPENAI_MODEL,
+        "max_side": MAX_SIDE,
+        "jpeg_quality": JPEG_QUALITY,
+        "port": PORT,
+        "api_key_set": OPENAI_API_KEY is not None
+    })
+
+@app.route('/debug/last_ai', methods=['GET'])
+def debug_last_ai():
+    """查看最後一次 AI 回應"""
+    global last_ai_response
+    if last_ai_response:
+        return jsonify({
+            "response": last_ai_response,
+            "length": len(last_ai_response)
+        })
+    return jsonify({"error": "尚未有 AI 回應"})
+
+@app.route('/bd/analyze', methods=['POST'])
+def analyze():
+    """分析 IG 帳號"""
+    global last_ai_response
+    
+    # 文件大小限制 (10MB)
+    MAX_FILE_SIZE = 10 * 1024 * 1024
+    
+    print("[分析] ========== 開始新的分析請求 ==========")
+    print(f"[分析] 請求方法: {request.method}")
+    print(f"[分析] Content-Type: {request.content_type}")
+    print(f"[分析] 文件列表: {list(request.files.keys())}")
+    
+    try:
+        # 檢查必要文件
+        if 'profile' not in request.files:
+            print("[分析] ❌ 缺少 profile 文件")
+            return jsonify({"ok": False, "error": "缺少 profile 圖片"}), 400
+        
+        profile_file = request.files['profile']
+        print(f"[分析] Profile 文件名: {profile_file.filename}")
+        
+        if profile_file.filename == '':
+            print("[分析] ❌ Profile 文件名為空")
+            return jsonify({"ok": False, "error": "profile 文件為空"}), 400
+        
+        # 檢查文件類型
+        allowed_extensions = {'.jpg', '.jpeg', '.png', '.gif', '.webp'}
+        file_ext = os.path.splitext(profile_file.filename.lower())[1]
+        if file_ext not in allowed_extensions:
+            return jsonify({"ok": False, "error": f"不支援的文件格式，僅支援: {', '.join(allowed_extensions)}"}), 400
+        
+        # 檢查 AI 分析器
+        if analyzer is None:
+            return jsonify({"ok": False, "error": "AI 分析器未初始化，請檢查 OPENAI_API_KEY"}), 500
+        
+        # 讀取 profile 圖片（先讀取內容，然後檢查大小）
+        print("[分析] 開始讀取 profile 文件...")
+        try:
+            profile_data = profile_file.read()
+            profile_size = len(profile_data)
+            print(f"[分析] Profile 文件大小: {profile_size} bytes ({profile_size / 1024 / 1024:.2f} MB)")
+        except Exception as e:
+            print(f"[分析] ❌ 讀取文件失敗: {e}")
+            return jsonify({"ok": False, "error": f"讀取文件失敗: {str(e)}"}), 400
+        
+        if profile_size > MAX_FILE_SIZE:
+            print(f"[分析] ❌ 文件過大: {profile_size} > {MAX_FILE_SIZE}")
+            return jsonify({"ok": False, "error": f"文件過大，最大允許 {MAX_FILE_SIZE // 1024 // 1024}MB"}), 400
+        
+        if profile_size == 0:
+            print("[分析] ❌ 文件為空")
+            return jsonify({"ok": False, "error": "文件為空"}), 400
+        
+        # 讀取圖片
+        print("[分析] 開始解析圖片...")
+        try:
+            profile_image = Image.open(io.BytesIO(profile_data))
+            print(f"[分析] 圖片格式: {profile_image.format}, 尺寸: {profile_image.size}")
+            profile_image = profile_image.convert('RGB')
+            print("[分析] ✅ 圖片讀取成功")
+        except Exception as e:
+            print(f"[分析] ❌ 無法讀取圖片文件: {e}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({"ok": False, "error": f"無法讀取圖片文件: {str(e)}"}), 400
+        
+        # 讀取 posts 圖片（可選，最多 6 張）
+        post_images = []
+        if 'posts' in request.files:
+            post_files = request.files.getlist('posts')
+            for post_file in post_files[:6]:  # 最多 6 張
+                if post_file.filename:
+                    # 檢查文件類型
+                    post_ext = os.path.splitext(post_file.filename.lower())[1]
+                    if post_ext not in allowed_extensions:
+                        print(f"⚠️ 不支援的貼文圖片格式，跳過: {post_file.filename}")
+                        continue
+                    
+                    # 讀取文件內容並檢查大小
+                    post_data = post_file.read()
+                    post_size = len(post_data)
+                    
+                    if post_size > MAX_FILE_SIZE:
+                        print(f"⚠️ 貼文圖片過大，跳過: {post_file.filename}")
+                        continue
+                    
+                    if post_size == 0:
+                        print(f"⚠️ 貼文圖片為空，跳過: {post_file.filename}")
+                        continue
+                    
+                    try:
+                        post_img = Image.open(io.BytesIO(post_data))
+                        post_img = post_img.convert('RGB')
+                        post_images.append(post_img)
+                    except Exception as e:
+                        print(f"⚠️ 無法讀取貼文圖片: {e}")
+        
+        # 使用 AI 分析（目前只分析 profile，posts 可作為額外上下文）
+        print("[分析] 開始 AI 分析...")
+        print(f"[分析] AI 分析器狀態: {analyzer is not None}")
+        
+        if analyzer is None:
+            print("[分析] ❌ AI 分析器未初始化")
+            return jsonify({
+                "ok": False,
+                "error": "AI 分析器未初始化，請檢查 OPENAI_API_KEY"
+            }), 500
+        
+        witty_review = None  # 初始化變數
+        try:
+            # 使用兩階段處理：返回 (完整分析, 風趣短評)
+            analysis_text, witty_review = analyzer.analyze_profile(profile_image)
+            print(f"[分析] ✅ AI 分析完成，回應長度: {len(analysis_text)}")
+            if witty_review:
+                print(f"[分析] ✅ 風趣短評生成: {witty_review[:50]}...")
+            
+            # 檢查 AI 是否拒絕回答（完整分析部分）
+            if any(phrase in analysis_text.lower() for phrase in [
+                "i'm sorry", "i cannot", "i can't assist", "無法協助", 
+                "不能協助", "抱歉", "無法直接"
+            ]):
+                print("[分析] ⚠️ 檢測到 AI 拒絕回答，但已有風趣短評")
+                if "i'm sorry" in analysis_text.lower() or "i can't assist" in analysis_text.lower():
+                    print("[分析] AI 回應可能被安全過濾，檢查回應內容...")
+                    print(f"[分析] AI 回應前 200 字符: {analysis_text[:200]}")
+            
+            last_ai_response = analysis_text
+        except Exception as e:
+            error_msg = f"AI 分析失敗: {str(e)}"
+            print(f"[分析] ❌ {error_msg}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({
+                "ok": False,
+                "error": error_msg
+            }), 500
+        
+        # 提取 JSON 數據
+        print("[分析] 開始提取 JSON 數據...")
+        analysis_data = extract_json_from_text(analysis_text)
+        if analysis_data:
+            print("[分析] ✅ JSON 提取成功")
+        else:
+            print("[分析] ⚠️ JSON 提取失敗，將從文字中提取")
+        
+        # 優先從文字中提取基本資訊（因為 AI 通常在文字中更準確地提到這些資訊）
+        print("[分析] 優先從文字中提取基本資訊...")
+        print(f"[分析] AI 回應長度: {len(analysis_text)} 字符")
+        basic_info = extract_basic_info_from_text(analysis_text)
+        print(f"[分析] 文字提取結果: {basic_info}")
+        
+        # 如果 JSON 中有 basic_info，且文字提取不完整，則合併使用
+        if analysis_data and "basic_info" in analysis_data:
+            json_basic_info = analysis_data["basic_info"]
+            print(f"[分析] JSON 中也包含基本資訊: {json_basic_info}")
+            
+            # 合併：優先使用文字提取的結果，如果文字中沒有則使用 JSON 的
+            if basic_info.get("username") == "unknown" and json_basic_info.get("username"):
+                basic_info["username"] = json_basic_info["username"]
+            if basic_info.get("display_name") == "未知用戶" and json_basic_info.get("display_name"):
+                basic_info["display_name"] = json_basic_info["display_name"]
+            if basic_info.get("followers", 0) == 0 and json_basic_info.get("followers"):
+                basic_info["followers"] = json_basic_info["followers"]
+            if basic_info.get("following", 0) == 0 and json_basic_info.get("following"):
+                basic_info["following"] = json_basic_info["following"]
+            if basic_info.get("posts", 0) == 0 and json_basic_info.get("posts"):
+                basic_info["posts"] = json_basic_info["posts"]
+            
+            print(f"[分析] ✅ 合併後的基本資訊: {basic_info}")
+        
+        # 確保 basic_info 是字典
+        if not isinstance(basic_info, dict):
+            print("[分析] ⚠️ basic_info 不是字典，重新初始化")
+            basic_info = {}
+        
+        # 如果還是沒有提取到，使用預設值
+        followers_value = parse_numeric_count(basic_info.get("followers", 0))
+        if not basic_info or followers_value <= 0:
+            print("[分析] ❌ basic_info 資料無效，返回錯誤讓使用者重新上傳")
+            return jsonify({
+                "ok": False,
+                "error": "AI 無法可靠地讀取帳號基本資訊，請重新上傳更清晰的截圖再試一次"
+            }), 400
+        # 正規化所有數值
+        basic_info["followers"] = parse_numeric_count(followers_value, 0)
+        basic_info["following"] = parse_numeric_count(basic_info.get("following", 0), 0)
+        basic_info["posts"] = parse_numeric_count(basic_info.get("posts", 0), 0)
+        basic_info["username"] = str(basic_info.get("username", "unknown")).strip()
+        basic_info["display_name"] = str(basic_info.get("display_name", basic_info.get("username", "未知用戶"))).strip()
+        
+        if not analysis_data:
+            # 如果無法提取 JSON，使用預設值
+            print("⚠️ 無法從 AI 回應中提取 JSON，使用預設值")
+            print(f"[分析] AI 回應前 500 字符: {analysis_text[:500]}")
+            analysis_data = {
+                "visual_quality": {"overall": 5.0, "consistency": 5.0},
+                "content_type": {"primary": "未知", "category_tier": "mid"},
+                "content_format": {"video_focus": 1.0, "personal_connection": 5.0},
+                "professionalism": {"has_contact": False, "is_business_account": False},
+                "personality_type": {"primary_type": "type_5", "reasoning": "無法判斷"},
+                "improvement_tips": ["請提供更清晰的截圖"]
+            }
+        
+        # 使用兩階段處理生成的風趣短評（優先使用）
+        # 如果兩階段處理失敗，才使用 extract_analysis_text 作為備用
+        if witty_review and len(witty_review.strip()) > 10:
+            clean_analysis_text = witty_review
+            print(f"[分析] ✅ 使用兩階段處理生成的風趣短評")
+        else:
+            # 備用方案：從完整分析中提取
+            print("[分析] ⚠️ 使用備用方案提取短評")
+            clean_analysis_text = extract_analysis_text(analysis_text, basic_info)
+        
+        clean_analysis_text = finalize_short_review(clean_analysis_text)
+        
+        # 計算價值
+        print("[分析] 開始計算價值...")
+        try:
+            multipliers = calculate_multipliers(analysis_data)
+            print(f"[分析] 係數計算完成: {len(multipliers)} 個係數")
+            value_estimation = calculate_values(
+                basic_info["followers"],
+                multipliers,
+                analysis_data
+            )
+            print(f"[分析] ✅ 價值計算完成")
+        except Exception as e:
+            print(f"[分析] ❌ 價值計算失敗: {e}")
+            import traceback
+            traceback.print_exc()
+            # 使用預設值
+            multipliers = {
+                "visual": 1.0, "content": 1.0, "professional": 1.0,
+                "follower": 1.0, "unique": 1.0, "engagement": 1.0,
+                "niche": 1.0, "audience": 1.0, "cross_platform": 1.0,
+                "ratio": 1.0, "commercial": 1.0
+            }
+            value_estimation = {
+                "post_value": 1000,
+                "story_value": 300,
+                "reels_value": 800,
+                "account_asset_value": basic_info["followers"] * 5,
+                "multipliers": multipliers
+            }
+        
+        # 獲取人格類型資訊
+        try:
+            personality_type_id = analysis_data.get("personality_type", {}).get("primary_type", "type_5")
+            if not personality_type_id or personality_type_id not in PERSONALITY_TYPES:
+                personality_type_id = "type_5"
+            personality_info = PERSONALITY_TYPES.get(personality_type_id, PERSONALITY_TYPES["type_5"])
+        except Exception as e:
+            print(f"[分析] ⚠️ 獲取人格類型失敗: {e}，使用預設值")
+            personality_type_id = "type_5"
+            personality_info = PERSONALITY_TYPES["type_5"]
+        
+        # 清理用戶輸入，防止 XSS（雖然這裡是從 AI 回應中提取，但還是要安全）
+        def sanitize_string(s):
+            if not isinstance(s, str):
+                return str(s) if s else ""
+            # 移除潛在的危險字符
+            return s.replace('<', '&lt;').replace('>', '&gt;')[:1000]  # 限制長度
+        
+        # 構建回應
+        result = {
+            "ok": True,
+            "version": "v5",
+            "username": sanitize_string(basic_info.get("username", "unknown")),
+            "display_name": sanitize_string(basic_info.get("display_name", "未知用戶")),
+            "followers": int(basic_info["followers"]),
+            "following": int(basic_info.get("following", 0)),
+            "posts": int(basic_info.get("posts", 0)),
+            "analysis_text": clean_analysis_text[:2000] if clean_analysis_text else "",  # 限制長度
+            "primary_type": {
+                "id": personality_type_id,
+                "emoji": personality_info["emoji"],
+                "name_zh": personality_info["name_zh"],
+                "name_en": personality_info["name_en"]
+            },
+            "value_estimation": {
+                **value_estimation,
+                "follower_tier": get_follower_tier(basic_info["followers"])
+            },
+            "improvement_tips": [
+                sanitize_string(tip) for tip in analysis_data.get("improvement_tips", [])[:10]  # 最多 10 條
+            ]
+        }
+        result["value_subtitle"] = "基於 AI 智能鑑價模型 (TWD)"
+        result["plain_username"] = normalize_username(result["username"])
+        
+        save_analysis_result(result)
+        
+        print("[分析] ✅ 分析完成")
+        return jsonify(result)
+        
+    except ValueError as e:
+        # 處理值錯誤（如 AI API 錯誤）
+        error_msg = str(e)
+        print(f"[分析] ❌ ValueError: {error_msg}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            "ok": False,
+            "error": error_msg
+        }), 500
+    except KeyError as e:
+        # 處理鍵值錯誤
+        error_msg = f"數據結構錯誤: 缺少 {str(e)}"
+        print(f"[分析] ❌ KeyError: {error_msg}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            "ok": False,
+            "error": error_msg
+        }), 500
+    except TypeError as e:
+        # 處理類型錯誤
+        error_msg = f"數據類型錯誤: {str(e)}"
+        print(f"[分析] ❌ TypeError: {error_msg}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            "ok": False,
+            "error": error_msg
+        }), 500
+    except Image.UnidentifiedImageError as e:
+        # 處理圖片格式錯誤
+        error_msg = f"無法識別圖片格式: {str(e)}"
+        print(f"[分析] ❌ {error_msg}")
+        return jsonify({
+            "ok": False,
+            "error": error_msg
+        }), 400
+    except Exception as e:
+        # 處理其他未預期的錯誤
+        error_msg = str(e)
+        error_type = type(e).__name__
+        print(f"[分析] ❌ 未預期錯誤 ({error_type}): {error_msg}")
+        import traceback
+        print("=" * 50)
+        print("完整錯誤追蹤:")
+        traceback.print_exc()
+        print("=" * 50)
+        return jsonify({
+            "ok": False,
+            "error": f"伺服器錯誤 ({error_type}): {error_msg}" if error_msg else "未知錯誤",
+            "error_type": error_type
+        }), 500
+
+def get_follower_tier(followers):
+    """獲取粉絲等級（舊版 Growth Creator 風格）"""
+    if followers >= 10_000_000:
+        return "🌟 Iconic Tier（傳奇級）"
+    elif followers >= 1_000_000:
+        return "⭐ Mega Star（超級影響者）"
+    elif followers >= 500_000:
+        return "👑 Elite Influencer（頂級影響者）"
+    elif followers >= 100_000:
+        return "🎬 Celebrity Influencer（明星級影響者）"
+    elif followers >= 50_000:
+        return "⭐ Prime Influencer（核心型影響者）"
+    elif followers >= 10_000:
+        return "📈 Growth Creator（成長型創作者）"
+    elif followers >= 1_000:
+        return "🌱 Seed Creator（萌芽創作者）"
+    elif followers >= 500:
+        return "🌱 新星"
+    else:
+        return "🌱 素人"
+
+@app.route('/api/result')
+def api_get_result():
+    username = request.args.get('username', '').strip()
+    if not username:
+        return jsonify({"ok": False, "error": "username_required"}), 400
+    data = get_analysis_result(username)
+    if not data:
+        return jsonify({"ok": False, "error": "not_found"}), 404
+    return jsonify(data)
+
+# 靜態文件服務
+@app.route('/')
+def index():
+    """首頁重定向到 landing.html"""
+    return send_from_directory('static', 'landing.html')
+
+# -----------------------------------------------------------------------------
+# 主程式入口
+# -----------------------------------------------------------------------------
+if __name__ == '__main__':
+    print("=" * 50)
+    print("🚀 IG Value Estimation System V5")
+    print("=" * 50)
+    print(f"📡 服務端口: {PORT}")
+    print(f"🤖 AI 模型: {OPENAI_MODEL}")
+    
+    # 檢查 API Key 狀態
+    if not OPENAI_API_KEY:
+        print(f"🔑 API Key: ❌ 未設置")
+        print("=" * 50)
+        print("⚠️  錯誤: 請設置 OPENAI_API_KEY 環境變數")
+        print("   例如: export OPENAI_API_KEY='sk-...'")
+        print("=" * 50)
+    elif OPENAI_API_KEY in ['your-key', 'sk-your-api-key-here', '']:
+        print(f"🔑 API Key: ❌ 佔位符（無效）")
+        print("=" * 50)
+        print("⚠️  錯誤: OPENAI_API_KEY 是佔位符，請設置真實的 API Key")
+        print("   請運行: export OPENAI_API_KEY='sk-你的真實API密鑰'")
+        print("=" * 50)
+    else:
+        # 只顯示前 10 個字符和後 4 個字符
+        masked_key = f"{OPENAI_API_KEY[:10]}...{OPENAI_API_KEY[-4:]}" if len(OPENAI_API_KEY) > 14 else "***"
+        print(f"🔑 API Key: ✅ 已設置 ({masked_key})")
+        print("=" * 50)
+    
+    # 顯示模型選擇說明
+    print(f"📋 模型配置: {OPENAI_MODEL}")
+    print("   可用模型選項：")
+    print("   - gpt-5.1: 最新模型，最強推理能力（推薦用於資訊提取）")
+    print("   - gpt-4o: 穩定版本，準確度高")
+    print("   - gpt-4o-mini: 較便宜，速度較快")
+    print("   切換模型: export OPENAI_MODEL='模型名稱'")
+    print("=" * 50)
+    
+    app.run(host='0.0.0.0', port=PORT, debug=False)
