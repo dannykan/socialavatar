@@ -83,16 +83,6 @@ class AnalysisResult(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-def init_db():
-    try:
-        Base.metadata.create_all(engine)
-        ensure_analysis_user_column()
-        print("[DB] ✅ 資料庫初始化完成")
-    except SQLAlchemyError as e:
-        print(f"[DB] ❌ 初始化失敗: {e}")
-
-init_db()
-
 def ensure_analysis_user_column():
     try:
         with engine.connect() as conn:
@@ -105,6 +95,16 @@ def ensure_analysis_user_column():
                 conn.execute(text("ALTER TABLE analysis_results ADD COLUMN IF NOT EXISTS user_id INTEGER"))
     except Exception as e:
         print(f"[DB] ⚠️ 檢查/新增 user_id 欄位失敗: {e}")
+
+def init_db():
+    try:
+        Base.metadata.create_all(engine)
+        ensure_analysis_user_column()
+        print("[DB] ✅ 資料庫初始化完成")
+    except SQLAlchemyError as e:
+        print(f"[DB] ❌ 初始化失敗: {e}")
+
+init_db()
 
 def init_analyzer():
     """初始化 AI 分析器"""
