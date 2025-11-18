@@ -641,14 +641,14 @@
             const displayName = data.display_name || usernameText;
             return {
                 username: usernameText.startsWith('@') ? usernameText : `@${usernameText}`,
-                plain_username: usernameText.replace(/^@/, ''),
+                plain_username: (data.plain_username || usernameText).replace(/^@/, ''),
                 display_name: displayName,
                 total_value: valData.account_asset_value || 0,
                 post_value: valData.post_value || 0,
                 story_value: valData.story_value || 0,
                 reels_value: valData.reels_value || 0,
                 review: data.analysis_text || '',
-                value_subtitle: '基於 AI 智能鑑價模型 (TWD)'
+                value_subtitle: data.value_subtitle || '基於 AI 智能鑑價模型 (TWD)'
             };
         }
 
@@ -709,6 +709,10 @@
 
             // 3. 顯示總身價 (使用後端計算值)
             animateValue('total-value', valData.account_asset_value || 0);
+            const subtitleEl = document.querySelector('.value-section .value-subtitle');
+            if (subtitleEl) {
+                subtitleEl.textContent = data.value_subtitle || '基於 AI 智能鑑價模型 (TWD)';
+            }
 
             // 4. 顯示 AI 分析文字
             const analysisSection = document.getElementById('analysis-section');

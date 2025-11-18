@@ -8,14 +8,16 @@ IG Value Estimation System V5
 import os
 import json
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from PIL import Image
 import io
-from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime
+import jwt
+from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, ForeignKey, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import declarative_base, sessionmaker
+from werkzeug.security import generate_password_hash, check_password_hash
 from ai_analyzer import IGAnalyzer, PromptBuilder
 
 # 初始化 Flask 應用
@@ -33,6 +35,9 @@ PORT = int(os.getenv('PORT', 8000))
 MAX_SIDE = int(os.getenv('MAX_SIDE', 1280))
 JPEG_QUALITY = int(os.getenv('JPEG_QUALITY', 72))
 DATABASE_URL = os.getenv('DATABASE_URL', 'sqlite:///data/results.db')
+JWT_SECRET = os.getenv('JWT_SECRET', 'dev-secret-change-me')
+JWT_EXPIRES_MINUTES = int(os.getenv('JWT_EXPIRES_MINUTES', 60 * 24))  # default 1 day
+JWT_ALGORITHM = os.getenv('JWT_ALGORITHM', 'HS256')
 
 # 初始化 AI 分析器
 analyzer = None
@@ -53,6 +58,19 @@ engine = create_engine(DATABASE_URL, **engine_kwargs)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 Base = declarative_base()
 
+class User(Base):
+    __tablename__ = "users"
+    
+    id = Column(Integer, primary_key=True)
+    email = Column(String(255), nullable=False, unique=True, index=True)
+    username = Column(String(255), nullable=False, unique=True, index=True)
+    display_name = Column(String(255))
+    password_hash = Column(String(255), nullable=False)
+    avatar_url = Column(String(512))
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class AnalysisResult(Base):
     __tablename__ = "analysis_results"
     
@@ -60,6 +78,7 @@ class AnalysisResult(Base):
     username = Column(String(255), nullable=False)
     username_key = Column(String(255), nullable=False, unique=True, index=True)
     display_name = Column(String(255))
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=True, index=True)
     data = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -67,11 +86,25 @@ class AnalysisResult(Base):
 def init_db():
     try:
         Base.metadata.create_all(engine)
+        ensure_analysis_user_column()
         print("[DB] ✅ 資料庫初始化完成")
     except SQLAlchemyError as e:
         print(f"[DB] ❌ 初始化失敗: {e}")
 
 init_db()
+
+def ensure_analysis_user_column():
+    try:
+        with engine.connect() as conn:
+            dialect = engine.dialect.name
+            if dialect == 'sqlite':
+                cols = [row[1] for row in conn.execute(text("PRAGMA table_info(analysis_results)"))]
+                if 'user_id' not in cols:
+                    conn.execute(text("ALTER TABLE analysis_results ADD COLUMN user_id INTEGER"))
+            else:
+                conn.execute(text("ALTER TABLE analysis_results ADD COLUMN IF NOT EXISTS user_id INTEGER"))
+    except Exception as e:
+        print(f"[DB] ⚠️ 檢查/新增 user_id 欄位失敗: {e}")
 
 def init_analyzer():
     """初始化 AI 分析器"""
@@ -153,6 +186,40 @@ def normalize_username(value):
         return ""
     return str(value).replace('@', '').strip().lower()
 
+def serialize_user(user):
+    if not user:
+        return None
+    return {
+        "id": user.id,
+        "email": user.email,
+        "username": user.username,
+        "display_name": user.display_name,
+        "avatar_url": user.avatar_url,
+        "created_at": user.created_at.isoformat() if user.created_at else None,
+        "updated_at": user.updated_at.isoformat() if user.updated_at else None
+    }
+
+def generate_token(user_id):
+    payload = {
+        "sub": user_id,
+        "exp": datetime.utcnow() + timedelta(minutes=JWT_EXPIRES_MINUTES)
+    }
+    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+
+def decode_token(token):
+    try:
+        return jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+    except jwt.ExpiredSignatureError:
+        raise AuthError("token_expired", 401)
+    except jwt.InvalidTokenError:
+        raise AuthError("invalid_token", 401)
+
+class AuthError(Exception):
+    def __init__(self, message, status=401):
+        super().__init__(message)
+        self.message = message
+        self.status = status
+
 def save_analysis_result(payload):
     if not payload:
         return
@@ -166,12 +233,14 @@ def save_analysis_result(payload):
         if record:
             record.username = payload.get("username", record.username)
             record.display_name = payload.get("display_name", record.display_name)
+            record.user_id = payload.get("user_id", record.user_id)
             record.data = serialized
         else:
             record = AnalysisResult(
                 username=payload.get("username", username_key),
                 username_key=username_key,
                 display_name=payload.get("display_name", ""),
+                user_id=payload.get("user_id"),
                 data=serialized
             )
             session.add(record)
@@ -197,6 +266,35 @@ def get_analysis_result(username):
     finally:
         session.close()
     return None
+
+def get_authenticated_user(required=False):
+    auth_header = request.headers.get('Authorization', '')
+    if not auth_header:
+        if required:
+            raise AuthError("authorization_header_missing", 401)
+        return None
+    parts = auth_header.split()
+    if len(parts) != 2 or parts[0].lower() != 'bearer':
+        if required:
+            raise AuthError("invalid_authorization_header", 401)
+        return None
+    token = parts[1]
+    payload = decode_token(token)
+    user_id = payload.get("sub")
+    if not user_id:
+        if required:
+            raise AuthError("invalid_token_payload", 401)
+        return None
+    session = SessionLocal()
+    try:
+        user = session.get(User, user_id)
+        if not user:
+            if required:
+                raise AuthError("user_not_found", 401)
+            return None
+        return serialize_user(user)
+    finally:
+        session.close()
 
 # -----------------------------------------------------------------------------
 # User Prompt Builder (Safe Version)
@@ -248,6 +346,78 @@ def build_user_prompt(followers, following, posts):
 請確保 JSON 格式正確，可以直接被解析。
 """
     return header + body
+
+# -----------------------------------------------------------------------------
+# Authentication Endpoints
+# -----------------------------------------------------------------------------
+def validate_registration_payload(data):
+    email = (data.get("email") or "").strip().lower()
+    username = normalize_username(data.get("username"))
+    display_name = (data.get("display_name") or "").strip() or username
+    password = data.get("password") or ""
+    if not email or "@" not in email:
+        raise AuthError("invalid_email", 400)
+    if not username or len(username) < 3:
+        raise AuthError("invalid_username", 400)
+    if len(password) < 6:
+        raise AuthError("password_too_short", 400)
+    return email, username, display_name, password
+
+@app.route('/api/auth/register', methods=['POST'])
+def register_user():
+    data = request.get_json() or {}
+    email, username, display_name, password = validate_registration_payload(data)
+    session = SessionLocal()
+    try:
+        existing = session.query(User).filter(
+            (User.email == email) | (User.username == username)
+        ).first()
+        if existing:
+            raise AuthError("user_exists", 400)
+        user = User(
+            email=email,
+            username=username,
+            display_name=display_name,
+            password_hash=generate_password_hash(password)
+        )
+        session.add(user)
+        session.commit()
+        result = serialize_user(user)
+        token = generate_token(user.id)
+        return jsonify({"ok": True, "token": token, "user": result}), 201
+    except AuthError as e:
+        session.rollback()
+        raise e
+    except SQLAlchemyError as e:
+        session.rollback()
+        print(f"[DB] ❌ 註冊失敗: {e}")
+        return jsonify({"ok": False, "error": "register_failed"}), 500
+    finally:
+        session.close()
+
+@app.route('/api/auth/login', methods=['POST'])
+def login_user():
+    data = request.get_json() or {}
+    identifier = (data.get("email") or data.get("username") or "").strip().lower()
+    password = data.get("password") or ""
+    if not identifier or not password:
+        raise AuthError("missing_credentials", 400)
+    session = SessionLocal()
+    try:
+        user = session.query(User).filter(
+            (User.email == identifier) | (User.username == normalize_username(identifier))
+        ).first()
+        if not user or not check_password_hash(user.password_hash, password):
+            raise AuthError("invalid_credentials", 401)
+        token = generate_token(user.id)
+        return jsonify({"ok": True, "token": token, "user": serialize_user(user)})
+    finally:
+        session.close()
+
+@app.route('/api/auth/me')
+def get_me():
+    user = get_authenticated_user(required=True)
+    return jsonify({"ok": True, "user": user})
 
 # -----------------------------------------------------------------------------
 # 人格類型映射
@@ -770,6 +940,8 @@ def analyze():
     print(f"[分析] 文件列表: {list(request.files.keys())}")
     
     try:
+        current_user = get_authenticated_user(required=False)
+        
         # 檢查必要文件
         if 'profile' not in request.files:
             print("[分析] ❌ 缺少 profile 文件")
@@ -1046,6 +1218,7 @@ def analyze():
         }
         result["value_subtitle"] = "基於 AI 智能鑑價模型 (TWD)"
         result["plain_username"] = normalize_username(result["username"])
+        result["user_id"] = current_user["id"] if current_user else None
         
         save_analysis_result(result)
         
@@ -1136,6 +1309,10 @@ def api_get_result():
     if not data:
         return jsonify({"ok": False, "error": "not_found"}), 404
     return jsonify(data)
+
+@app.errorhandler(AuthError)
+def handle_auth_error(err):
+    return jsonify({"ok": False, "error": err.message}), err.status
 
 # 靜態文件服務
 @app.route('/')

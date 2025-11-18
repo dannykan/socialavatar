@@ -534,6 +534,7 @@
             const valData = result.value_estimation || {};
             return {
                 username: result.username ? (result.username.startsWith('@') ? result.username : `@${result.username}`) : '@username',
+                plain_username: (result.plain_username || result.username || '').replace(/^@/, ''),
                 display_name: result.display_name || result.username || '',
                 total_value: valData.account_asset_value || 0,
                 post_value: valData.post_value || 0,
