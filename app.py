@@ -1,4 +1,4 @@
-# app_v5.py — IG Value Estimation System (v5) with Open-Ended Analysis
+# app.py — V5 Final Optimized: Tiered Valuation & Dynamic Pricing
 import os, io, base64, json, re
 from datetime import datetime, timezone
 from flask import Flask, request, jsonify, send_from_directory
@@ -13,13 +13,11 @@ app = Flask(__name__, static_folder="static", static_url_path="/static")
 CORS(app)
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o")  # 建議用 gpt-4o 獲得更好分析
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o") 
 MAX_SIDE = int(os.getenv("MAX_SIDE", "1280"))
 JPEG_Q = int(os.getenv("JPEG_QUALITY", "72"))
 
-# -----------------------------------------------------------------------------
-# 12種IG人格類型定義
-# -----------------------------------------------------------------------------
+# 12種IG人格類型定義 (保持不變)
 PERSONALITY_TYPES = {
     "type_1": {"name_zh": "夢幻柔焦系", "name_en": "Dreamy Aesthetic", "emoji": "🌸"},
     "type_2": {"name_zh": "藝術實驗者", "name_en": "Artistic Experimenter", "emoji": "🎨"},
@@ -36,135 +34,124 @@ PERSONALITY_TYPES = {
 }
 
 # -----------------------------------------------------------------------------
-# 工具函數
+# 核心算法 1：級距式基礎價值 (Tiered Base Value)
 # -----------------------------------------------------------------------------
-def calculate_base_price(followers):
-    """根據粉絲數計算基礎身價"""
-    if followers >= 100000:
-        return 80000
-    elif followers >= 50000:
-        return 35000
-    elif followers >= 10000:
-        return 12000
-    elif followers >= 5000:
-        return 3500
-    elif followers >= 1000:
-        return 1200
-    elif followers >= 500:
-        return 600
-    else:
-        return 200
-
-def get_follower_tier(followers):
-    """獲取粉絲級別名稱（新格式：emoji + English + Chinese）"""
-    if followers >= 10000000:
-        return "🌟 Iconic Tier（傳奇級）"
-    elif followers >= 1000000:
-        return "⭐ Mega Star（超級影響者）"
-    elif followers >= 500000:
-        return "👑 Elite Influencer（頂級影響者）"
-    elif followers >= 100000:
-        return "🎬 Celebrity Influencer（明星級影響者）"
-    elif followers >= 50000:
-        return "⭐ Prime Influencer（核心型影響者）"
-    elif followers >= 10000:
-        return "📈 Growth Creator（成長型創作者）"
-    elif followers >= 1000:
-        return "🌱 Seed Creator（萌芽創作者）"
-    elif followers >= 500:
-        return "🌱 新星"
-    else:
-        return "🌱 素人"
-
-def calculate_follower_quality_multiplier(followers, following):
-    """計算粉絲品質係數"""
-    if following == 0:
-        return 1.0
+def calculate_tiered_base_value(followers):
+    """
+    使用累進費率計算基礎價值，避免大帳號價值虛高，保障小帳號價值。
+    回傳：基礎單篇貼文價值 (NTD)
+    """
+    # 定義級距：(上限粉絲數, 每粉單價)
+    tiers = [
+        (5000, 0.60),    # 0-5k粉：每粉 0.6 元 (CPM 600)
+        (15000, 0.45),   # 5k-20k粉：每粉 0.45 元
+        (80000, 0.35),   # 20k-100k粉：每粉 0.35 元
+        (400000, 0.25),  # 100k-500k粉：每粉 0.25 元
+        (float('inf'), 0.15) # 500k以上：每粉 0.15 元
+    ]
     
-    ratio = followers / following
+    remaining = followers
+    total_value = 0
     
-    if ratio >= 3.0:
-        return 1.5
-    elif ratio >= 1.5:
-        return 1.2
-    elif ratio >= 1.0:
-        return 1.0
-    elif ratio >= 0.5:
-        return 0.8
-    else:
-        return 0.6
-
-def get_follower_quality_label(followers, following):
-    """獲取粉絲品質標籤"""
-    if following == 0:
-        return "標準"
-    
-    ratio = followers / following
-    
-    if ratio >= 3.0:
-        return "高影響力"
-    elif ratio >= 1.5:
-        return "有吸引力"
-    elif ratio >= 1.0:
-        return "標準"
-    elif ratio >= 0.5:
-        return "需成長"
-    else:
-        return "待建立"
+    for limit, price in tiers:
+        if remaining <= 0:
+            break
+        count = min(remaining, limit)
+        total_value += count * price
+        remaining -= count
+        
+    # 最低保底價 150 元
+    return max(int(total_value), 150)
 
 # -----------------------------------------------------------------------------
-# Last AI buffer
+# 核心算法 2：動態估價模型 (Dynamic Valuation Model)
 # -----------------------------------------------------------------------------
-LAST_AI_TEXT = { "raw": "", "text": "", "ts": None }
+def calculate_account_valuation(followers, following, ai_data):
+    """
+    綜合估價邏輯：
+    1. 算出級距 Base
+    2. 乘上 AI 分析的四大係數 (Ratio, Visual, Niche, Commercial)
+    3. 根據內容偏好 (Content Format) 動態推算 Reels/Story 價格
+    4. 最後推算帳號總身價
+    """
+    
+    # 1. 基礎貼文價值 (Tiered)
+    base_post_value = calculate_tiered_base_value(followers)
 
-def _set_last_ai(text: str = "", raw: str = ""):
-    LAST_AI_TEXT["text"] = text or ""
-    LAST_AI_TEXT["raw"]  = raw or ""
-    LAST_AI_TEXT["ts"]   = datetime.now(timezone.utc).isoformat()
+    # 2. 邏輯係數 (Hard Logic)
+    ratio = followers / (following if following > 0 else 1)
+    ratio_mult = 1.0
+    if ratio > 50: ratio_mult = 1.4     # 巨星
+    elif ratio > 10: ratio_mult = 1.2   # 優質創作者
+    elif ratio < 0.8: ratio_mult = 0.6  # 互粉帳號
+    elif ratio < 0.3: ratio_mult = 0.3  # 垃圾帳號
 
-def save_last_ai(ai_dict=None, raw="", text=""):
-    s_text = text or ""
-    if not s_text and ai_dict is not None:
-        try:
-            s_text = json.dumps(ai_dict, ensure_ascii=False, indent=2)
-        except:
-            s_text = str(ai_dict)
-    _set_last_ai(text=s_text, raw=raw)
+    # 3. AI 美感係數 (Visual) - 這是讓貼文報價上升的關鍵
+    visual_score = ai_data.get("visual_quality", {}).get("overall", 5.0)
+    # 映射：1分=0.7x, 10分=1.8x (美感有溢價)
+    visual_mult = 0.7 + (visual_score / 10.0) * 1.1
+
+    # 4. AI 利基係數 (Niche) - 決定商業含金量
+    niche_tier = ai_data.get("content_type", {}).get("category_tier", "mid")
+    niche_map = {
+        "high": 2.2,      # 金融/醫美
+        "mid_high": 1.6,  # 時尚/3C/汽車
+        "mid": 1.2,       # 美食/旅遊
+        "low": 0.8        # 語錄/迷因/日記
+    }
+    niche_mult = niche_map.get(niche_tier, 1.0)
+
+    # 5. 商業訊號 (Signal)
+    comm_mult = 1.2 if ai_data.get("professionalism", {}).get("has_contact") else 1.0
+
+    # --- 綜合算出：單篇貼文報價 (Post Price) ---
+    # 注意：這裡已經包含了所有維度的加成
+    final_post_mult = ratio_mult * visual_mult * niche_mult * comm_mult
+    estimated_post_price = int(base_post_value * final_post_mult)
+
+    # --- 動態計算 Story & Reels ---
+    # 從 AI 獲取內容偏好 (1-10分)
+    content_format = ai_data.get("content_format", {})
+    video_score = content_format.get("video_focus", 3)       # 預設 3 (偏圖文)
+    personal_score = content_format.get("personal_connection", 5) # 預設 5
+    
+    # Reels 倍率：基礎 1.1x，視訊分數每高 1 分 +0.12x (最高可達 ~2.3x)
+    # 邏輯：如果你是影片創作者，你的 Reels 會比 Post 貴很多
+    reels_mult = 1.1 + (max(0, video_score - 2) * 0.12)
+    
+    # Story 倍率：基礎 0.25x，個人連結每高 1 分 +0.04x (最高可達 ~0.6x)
+    # 邏輯：如果你很親民(personal connection高)，限動黏著度高，價格才高
+    story_mult = 0.25 + (max(0, personal_score - 3) * 0.04)
+
+    estimated_reels_price = int(estimated_post_price * reels_mult)
+    estimated_story_price = int(estimated_post_price * story_mult)
+
+    # --- 帳號總身價 (Account Asset Value) ---
+    # 定義：這個帳號作為一個「資產」的估值
+    # 邏輯：(預估月營收 x 18個月 P/E Ratio) + (粉絲基礎資產)
+    # 假設：活躍創作者平均一個月接 4 篇 Post + 4 篇 Story
+    monthly_revenue = (estimated_post_price * 4) + (estimated_story_price * 4)
+    asset_value = int(monthly_revenue * 18)
+    
+    # 修正極端值 (針對超小或超大帳號的校正)
+    if asset_value < 3000: asset_value = 3000
+
+    return {
+        "account_asset_value": asset_value,
+        "post_value": estimated_post_price,
+        "story_value": estimated_story_price,
+        "reels_value": estimated_reels_price,
+        "multipliers": {
+            "ratio": round(ratio_mult, 2),
+            "visual": round(visual_mult, 2),
+            "niche": round(niche_mult, 2),
+            "commercial": round(comm_mult, 2),
+            "total": round(final_post_mult, 2)
+        }
+    }
 
 # -----------------------------------------------------------------------------
-# JSON Parsing（新增：從自然語言中提取 JSON）
-# -----------------------------------------------------------------------------
-def extract_json_from_text(text: str):
-    """從包含自然語言的文本中提取 JSON"""
-    # 先嘗試找 ```json ``` 包裹的內容
-    json_pattern = r'```json\s*(\{.*?\})\s*```'
-    match = re.search(json_pattern, text, re.DOTALL)
-    
-    if match:
-        json_str = match.group(1)
-        try:
-            return json.loads(json_str)
-        except:
-            pass
-    
-    # 再嘗試找任何 {...} 的內容
-    json_pattern2 = r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}'
-    matches = re.findall(json_pattern2, text, re.DOTALL)
-    
-    # 從最長的開始嘗試解析
-    for json_str in sorted(matches, key=len, reverse=True):
-        try:
-            data = json.loads(json_str)
-            # 驗證是否包含我們需要的關鍵字段
-            if 'account_value' in data or 'visual_quality' in data:
-                return data
-        except:
-            continue
-    
-    return None
-
-# -----------------------------------------------------------------------------
-# Image Processing
+# Helpers
 # -----------------------------------------------------------------------------
 def resize_and_encode_b64(pil_img: Image.Image, max_side=MAX_SIDE, quality=JPEG_Q):
     w, h = pil_img.size
@@ -185,17 +172,24 @@ def resize_and_encode_b64(pil_img: Image.Image, max_side=MAX_SIDE, quality=JPEG_
     buf.seek(0)
     return base64.b64encode(buf.read()).decode('utf-8')
 
-# -----------------------------------------------------------------------------
-# OpenAI Vision API
-# -----------------------------------------------------------------------------
+def extract_json_from_text(text: str):
+    json_pattern = r'```json\s*(\{.*?\})\s*```'
+    match = re.search(json_pattern, text, re.DOTALL)
+    if match:
+        try: return json.loads(match.group(1))
+        except: pass
+    json_pattern2 = r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}'
+    matches = re.findall(json_pattern2, text, re.DOTALL)
+    for json_str in sorted(matches, key=len, reverse=True):
+        try: return json.loads(json_str)
+        except: continue
+    return None
+
 def call_openai_vision(base64_imgs: list, user_prompt: str, system_prompt: str = ""):
     if not OPENAI_API_KEY:
         raise ValueError("OPENAI_API_KEY not set")
     
-    content_parts = []
-    if user_prompt:
-        content_parts.append({"type": "text", "text": user_prompt})
-    
+    content_parts = [{"type": "text", "text": user_prompt}]
     for b64 in base64_imgs:
         content_parts.append({
             "type": "image_url",
@@ -215,451 +209,59 @@ def call_openai_vision(base64_imgs: list, user_prompt: str, system_prompt: str =
     payload = {
         "model": OPENAI_MODEL,
         "messages": messages,
-        "max_tokens": 3000,
+        "max_tokens": 2500,
         "temperature": 0.7
     }
     
     resp = requests.post(url, headers=headers, json=payload, timeout=90)
     resp.raise_for_status()
-    
-    data = resp.json()
-    raw_text = data["choices"][0]["message"]["content"]
-    return raw_text
+    return resp.json()["choices"][0]["message"]["content"]
 
 # -----------------------------------------------------------------------------
-# System Prompt for Value Estimation (V5 - 開放式分析)
+# System & User Prompt (Updated)
 # -----------------------------------------------------------------------------
-SYSTEM_PROMPT = """你是一個專業的 Instagram 帳號估值專家，擅長評估帳號的市場價值和商業潛力。
+SYSTEM_PROMPT = """你是一位嚴格的 Instagram 帳號鑑價師。
+請透過視覺細節進行商業價值評估，並專注於分析：
+1. 視覺美感 (Visual): 1-10分
+2. 利基含金量 (Niche): 判斷領域 (High/Mid/Low)
+3. 內容格式 (Format): 是影片為主還是圖文為主？
+4. 親密度 (Connection): 是高冷型還是親民型？"""
 
-你的任務是深入分析這個 IG 帳號，回答以下問題：
-
-**核心問題：這個 IG 帳號如果要賣掉，市場價格是多少？為什麼？**
-
-請從以下角度分析：
-1. 粉絲質量與互動潛力
-2. 內容風格與主題定位
-3. 視覺品質與專業度
-4. 品牌合作潛力
-5. 特殊加分項（藍勾、海外背景、專業身份等）
-6. 可改進之處
-
-請用自然、專業的口吻分析，就像你是一個經驗豐富的 KOL 經紀人在評估帳號。
-
-**分析完後，在最後提供結構化的 JSON 數據。**"""
-
-# -----------------------------------------------------------------------------
-# User Prompt Generator (V5 - 開放式分析)
-# -----------------------------------------------------------------------------
 def build_user_prompt(followers, following, posts):
-    return f"""請分析這個 Instagram 帳號的商業價值。
+    return f"""分析這個 IG 帳號截圖。數據：粉絲 {followers}, 追蹤 {following}, 貼文 {posts}。
 
-**基本數據：**
-- 粉絲數：{followers:,}
-- 追蹤數：{following:,}
-- 貼文數：{posts:,}
+請完成兩個任務：
 
-**請完成以下任務：**
+1. **專業短評 (Analysis Text)**：
+用 200 字以內，針對其「商業變現潛力」給出評價。指出優點與缺點。
 
-1. **寫一段專業的估值分析**（2-3段），回答：
-   - 這個帳號如果要賣掉，市場價格大概多少？為什麼？
-   - 粉絲質量如何？內容風格如何？
-   - 適合什麼品牌合作？
-   - 有什麼特別的加分項？
-
-2. **在分析文字後面，提供以下 JSON 數據：**
+2. **數據提取 (JSON)**：
+請嚴格回傳以下 JSON：
 
 ```json
 {{
-  "account_value": {{
-    "min": 50000,
-    "max": 80000,
-    "reasoning": "簡短說明估值邏輯（1-2句話）"
-  }},
-  "pricing": {{
-    "post": 8000,
-    "story": 3200,
-    "reels": 12000
-  }},
-  "visual_quality": {{
-    "color_harmony": 8.5,
-    "composition": 7.8,
-    "editing": 8.2,
-    "overall": 8.1
+  "visual_quality": {{ 
+    "overall": 7.5,  // 1.0-10.0，10分是頂級雜誌感
+    "consistency": 8.0 
   }},
   "content_type": {{
-    "primary": "美食料理",
-    "focus_score": 8,
-    "commercial_potential": "high"
+    "primary": "美食",
+    "category_tier": "mid" // high(金融/醫美/精品), mid_high(時尚/3C), mid(美食/旅遊), low(日記/迷因)
   }},
-  "professionalism": {{
-    "has_business_tag": true,
-    "has_contact": false,
-    "has_link": true,
-    "consistency_score": 7.5,
-    "brand_identity": 8.0
+  "content_format": {{
+    "video_focus": 3, // 1-10: 1=純圖文, 8-10=Reels創作者(影響Reels報價)
+    "personal_connection": 6 // 1-10: 1=官方冷淡, 8-10=像朋友一樣(影響Story報價)
   }},
-  "uniqueness": {{
-    "style_signature": "極簡美食攝影",
-    "creativity_score": 7.8,
-    "differentiation": 7.5
+  "professionalism": {{ 
+    "has_contact": true,
+    "is_business_account": false
   }},
-  "engagement_potential": {{
-    "has_cta_in_bio": true,
-    "emoji_density": 7.0,
-    "selfie_ratio": 0.6,
-    "content_discussability": 8.0
-  }},
-  "niche_focus": {{
-    "theme_consistency": 8.5,
-    "has_professional_keyword": true,
-    "vertical_depth": 8.0
-  }},
-  "audience_value": {{
-    "audience_tier": "美食料理",
-    "engagement_quality": 7.5,
-    "target_precision": 8.0
-  }},
-  "cross_platform": {{
-    "has_youtube": false,
-    "has_tiktok": false,
-    "has_blog": true,
-    "has_other_social": false,
-    "content_reusability": 7.0
-  }},
-  "personality_type": {{
-    "primary_type": "type_5",
-    "confidence": 0.75,
-    "reasoning": "以日常美食記錄為主，風格自然親切"
+  "personality_type": {{ 
+    "primary_type": "type_5", // 對應12型人格
+    "reasoning": "簡短理由" 
   }},
   "improvement_tips": [
-    "增加與粉絲互動的 Story 內容",
-    "建立固定發文時段提升粉絲黏性",
-    "嘗試加入簡短的美食小知識"
+    "建議...",
+    "建議..."
   ]
 }}
-```
-
-可用人格類型：
-- type_1: 夢幻柔焦系 🌸
-- type_2: 藝術實驗者 🎨
-- type_3: 戶外探險家 🏔️
-- type_4: 知識策展人 📚
-- type_5: 生活記錄者 🍜
-- type_6: 質感品味家 ✨
-- type_7: 幽默創作者 🎭
-- type_8: 專業形象派 💼
-- type_9: 永續生活者 🌿
-- type_10: 次文化愛好者 🎮
-- type_11: 健康積極派 💪
-- type_12: 靈性探索者 🔮
-
-**記得：先寫分析文字，再附上 JSON。**"""
-
-# -----------------------------------------------------------------------------
-# Routes
-# -----------------------------------------------------------------------------
-@app.route("/")
-def index():
-    return send_from_directory(app.static_folder, "landing.html")
-
-@app.route("/health")
-def health():
-    return jsonify({
-        "status": "ok",
-        "version": "v5",
-        "model": OPENAI_MODEL,
-        "ai_enabled": bool(OPENAI_API_KEY),
-        "max_side": MAX_SIDE,
-        "jpeg_quality": JPEG_Q,
-        "new_features": [
-            "open_ended_analysis",
-            "natural_language_valuation",
-            "contextual_reasoning"
-        ]
-    })
-
-@app.route("/debug/config")
-def debug_config():
-    return jsonify({
-        "ai_on": bool(OPENAI_API_KEY),
-        "model": OPENAI_MODEL,
-        "max_side": MAX_SIDE,
-        "jpeg_q": JPEG_Q,
-        "version": "v5"
-    })
-
-@app.route("/debug/last_ai")
-def debug_last_ai():
-    return jsonify(LAST_AI_TEXT)
-
-@app.route("/bd/analyze", methods=["POST"])
-def analyze():
-    """主分析端點（V5 - 開放式分析）"""
-    
-    print("[DEBUG] /bd/analyze 端點被調用")
-    
-    # 1. 檢查 OpenAI API Key
-    if not OPENAI_API_KEY:
-        print("[ERROR] OpenAI API key 未設置")
-        return jsonify({"ok": False, "error": "OpenAI API key not configured"}), 500
-    
-    # 2. 獲取上傳的圖片
-    profile_file = request.files.get("profile")
-    if not profile_file:
-        print("[ERROR] 未上傳 profile 截圖")
-        return jsonify({"ok": False, "error": "未上傳 profile 截圖"}), 400
-    
-    try:
-        profile_img = Image.open(profile_file.stream)
-        print("[DEBUG] Profile 圖片已打開")
-    except Exception as e:
-        print(f"[ERROR] 無法讀取 profile 圖片: {str(e)}")
-        return jsonify({"ok": False, "error": f"無法讀取 profile 圖片: {str(e)}"}), 400
-    
-    # 3. 處理 profile 圖片
-    profile_b64 = resize_and_encode_b64(profile_img, MAX_SIDE, JPEG_Q)
-    print("[DEBUG] Profile 圖片已編碼")
-    
-    # 4. 處理其他貼文圖片（最多 6 張）
-    post_files = request.files.getlist("posts")
-    post_b64_list = []
-    
-    for pf in post_files[:6]:
-        try:
-            post_img = Image.open(pf.stream)
-            post_b64_list.append(resize_and_encode_b64(post_img, MAX_SIDE, JPEG_Q))
-        except Exception as e:
-            print(f"[DEBUG] 跳過貼文圖片: {str(e)}")
-            continue
-    
-    print(f"[DEBUG] 已處理 {len(post_b64_list)} 張貼文圖片")
-    
-    # 5. 準備所有圖片
-    all_images = [profile_b64] + post_b64_list
-    
-    # 6. 先進行基礎 OCR 分析（提取粉絲數等）
-    ocr_prompt = """請從這個 Instagram 個人頁截圖中提取以下資訊：
-
-1. 用戶名（username，不含 @）
-2. 顯示名稱（display name）
-3. 粉絲數（followers）
-4. 追蹤數（following）
-5. 貼文數（posts）
-
-以 JSON 格式回傳：
-```json
-{
-  "username": "user123",
-  "display_name": "User Name",
-  "followers": 7200,
-  "following": 850,
-  "posts": 342
-}
-```
-
-只回傳 JSON，不要其他文字。"""
-    
-    try:
-        print("[DEBUG] 開始 OCR 分析...")
-        ocr_result = call_openai_vision([profile_b64], ocr_prompt, "")
-        print(f"[DEBUG] OCR 結果: {ocr_result[:200]}...")
-        ocr_data = extract_json_from_text(ocr_result)
-        
-        if not ocr_data:
-            print("[ERROR] 無法解析基本資訊")
-            return jsonify({"ok": False, "error": "無法解析基本資訊"}), 500
-        
-        username = ocr_data.get("username", "")
-        display_name = ocr_data.get("display_name", "")
-        followers = int(ocr_data.get("followers", 0))
-        following = int(ocr_data.get("following", 0))
-        posts = int(ocr_data.get("posts", 0))
-        
-        print(f"[DEBUG] OCR 數據: username={username}, followers={followers}, display_name={display_name}")
-        
-    except Exception as e:
-        print(f"[ERROR] 基本資訊提取失敗: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({"ok": False, "error": f"基本資訊提取失敗: {str(e)}"}), 500
-    
-    # 7. 進行完整的開放式價值分析（V5 - 新方法）
-    try:
-        print("[DEBUG] 開始完整 AI 分析...")
-        user_prompt = build_user_prompt(followers, following, posts)
-        ai_response = call_openai_vision(all_images, user_prompt, SYSTEM_PROMPT)
-        
-        print(f"[DEBUG] AI 回應長度: {len(ai_response)} 字元")
-        
-        save_last_ai(raw=ai_response)
-        
-        # 從自然語言回答中提取 JSON 數據
-        ai_data = extract_json_from_text(ai_response)
-        
-        if not ai_data:
-            print("[ERROR] AI 回應格式錯誤")
-            print(f"[DEBUG] AI 回應: {ai_response[:500]}")
-            return jsonify({"ok": False, "error": "AI 回應格式錯誤"}), 500
-        
-        print("[DEBUG] AI 數據已提取")
-        
-        # 提取分析文字（JSON 之前的部分）
-        json_start = ai_response.find('{')
-        analysis_text = ai_response[:json_start].strip() if json_start > 0 else ""
-        
-        # 清理可能的程式碼殘留
-        if analysis_text:
-            # 移除可能的 markdown 程式碼標記
-            analysis_text = analysis_text.replace('```json', '').replace('```', '')
-            # 移除多餘的空白行
-            analysis_text = '\n\n'.join([p.strip() for p in analysis_text.split('\n\n') if p.strip()])
-        
-    except Exception as e:
-        print(f"[ERROR] AI 分析失敗: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({"ok": False, "error": f"AI 分析失敗: {str(e)}"}), 500
-    
-    # 8. 計算係數（用於前端顯示）
-    def calc_multiplier(data, key, default=1.0):
-        """從 AI 數據計算係數"""
-        section = ai_data.get(key, {})
-        if not section:
-            return default
-        
-        # 根據不同維度計算
-        if key == "visual_quality":
-            return section.get("overall", 5.0) / 5.0
-        elif key == "content_type":
-            content_map = {
-                "美妝時尚": 2.5, "旅遊探店": 2.0, "美食料理": 1.8,
-                "健身運動": 1.8, "科技3C": 1.6, "親子家庭": 1.7,
-                "攝影藝術": 1.5, "寵物萌寵": 1.5, "知識教育": 1.4,
-                "生活風格": 1.2, "生活日常": 1.0, "個人隨拍": 0.8
-            }
-            return content_map.get(section.get("primary", "生活日常"), 1.0)
-        elif key == "professionalism":
-            score = (
-                (1 if section.get("has_business_tag") else 0) * 0.2 +
-                (1 if section.get("has_contact") else 0) * 0.15 +
-                (1 if section.get("has_link") else 0) * 0.15 +
-                section.get("consistency_score", 5) / 10 * 0.25 +
-                section.get("brand_identity", 5) / 10 * 0.25
-            )
-            return 0.9 + score
-        elif key == "uniqueness":
-            creativity = section.get("creativity_score", 5.0)
-            diff = section.get("differentiation", 5.0)
-            avg = (creativity + diff) / 2
-            if avg >= 8.5: return 1.6
-            elif avg >= 7.0: return 1.3
-            else: return 1.0
-        elif key in ["engagement_potential", "niche_focus", "audience_value"]:
-            # 簡化計算
-            scores = [v for v in section.values() if isinstance(v, (int, float))]
-            if not scores: return 1.0
-            avg = sum(scores) / len(scores)
-            return 0.8 + (avg / 10) * 0.8
-        elif key == "cross_platform":
-            count = sum(1 for v in section.values() if isinstance(v, bool) and v)
-            return 1.0 + count * 0.1
-        
-        return default
-    
-    multipliers = {
-        "visual": calc_multiplier(ai_data, "visual_quality"),
-        "content": calc_multiplier(ai_data, "content_type"),
-        "professional": calc_multiplier(ai_data, "professionalism"),
-        "follower": calculate_follower_quality_multiplier(followers, following),
-        "unique": calc_multiplier(ai_data, "uniqueness"),
-        "engagement": calc_multiplier(ai_data, "engagement_potential"),
-        "niche": calc_multiplier(ai_data, "niche_focus"),
-        "audience": calc_multiplier(ai_data, "audience_value"),
-        "cross_platform": calc_multiplier(ai_data, "cross_platform")
-    }
-    
-    # 9. 組裝回傳資料
-    personality = ai_data.get("personality_type", {})
-    primary_type_id = personality.get("primary_type", "type_5")
-    primary_type_info = PERSONALITY_TYPES.get(primary_type_id, PERSONALITY_TYPES["type_5"])
-    
-    # 調試：打印人格類型數據
-    print(f"[DEBUG] AI personality data: {personality}")
-    print(f"[DEBUG] Primary type ID: {primary_type_id}")
-    print(f"[DEBUG] Primary type info: {primary_type_info}")
-    
-    account_value_data = ai_data.get("account_value", {})
-    pricing_data = ai_data.get("pricing", {})
-    
-    result = {
-        "ok": True,
-        "version": "v5",
-        
-        # 基本資訊
-        "username": username,
-        "display_name": display_name,
-        "followers": followers,
-        "following": following,
-        "posts": posts,
-        
-        # AI 分析文字（新增）
-        "analysis_text": analysis_text,
-        
-        # 人格類型
-        "primary_type": {
-            "id": primary_type_id,
-            "name_zh": primary_type_info["name_zh"],
-            "name_en": primary_type_info["name_en"],
-            "emoji": primary_type_info["emoji"],
-            "confidence": personality.get("confidence", 0.5),
-            "reasoning": personality.get("reasoning", "")
-        },
-        
-        # 身價評估（使用 AI 估算的價格）
-        "value_estimation": {
-            "base_price": calculate_base_price(followers),
-            "follower_tier": get_follower_tier(followers),
-            "follower_quality": get_follower_quality_label(followers, following),
-            "account_value_min": account_value_data.get("min", 0),
-            "account_value_max": account_value_data.get("max", 0),
-            "account_value_reasoning": account_value_data.get("reasoning", ""),
-            "multipliers": {k: round(v, 2) for k, v in multipliers.items()},
-            "post_value": pricing_data.get("post", 0),
-            "story_value": pricing_data.get("story", 0),
-            "reels_value": pricing_data.get("reels", 0)
-        },
-        
-        # 分析詳情
-        "analysis": {
-            "visual_quality": ai_data.get("visual_quality", {}),
-            "content_type": ai_data.get("content_type", {}),
-            "professionalism": ai_data.get("professionalism", {}),
-            "uniqueness": ai_data.get("uniqueness", {}),
-            "engagement_potential": ai_data.get("engagement_potential", {}),
-            "niche_focus": ai_data.get("niche_focus", {}),
-            "audience_value": ai_data.get("audience_value", {}),
-            "cross_platform": ai_data.get("cross_platform", {})
-        },
-        
-        # 描述
-        "improvement_tips": ai_data.get("improvement_tips", []),
-        
-        # 診斷資訊
-        "diagnose": {
-            "ai_on": True,
-            "model": OPENAI_MODEL,
-            "version": "v5",
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        }
-    }
-    
-    save_last_ai(ai_dict=result)
-    
-    return jsonify(result)
-
-# -----------------------------------------------------------------------------
-# Run
-# -----------------------------------------------------------------------------
-if __name__ == "__main__":
-    port = int(os.getenv("PORT", "8000"))
-    app.run(host="0.0.0.0", port=port, debug=False)
