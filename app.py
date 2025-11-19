@@ -1216,6 +1216,42 @@ def debug_last_ai():
         })
     return jsonify({"error": "尚未有 AI 回應"})
 
+@app.route('/debug/auth-status', methods=['GET'])
+def debug_auth_status():
+    """檢查認證系統狀態"""
+    status = {
+        "firebase_configured": firebase_app is not None,
+        "database_configured": DATABASE_URL is not None,
+        "jwt_secret_set": JWT_SECRET is not None and JWT_SECRET != 'dev-secret-change-me',
+        "app_base_url": APP_BASE_URL,
+        "database_type": "sqlite" if DATABASE_URL.startswith('sqlite') else "postgresql" if DATABASE_URL.startswith('postgres') else "unknown"
+    }
+    
+    # 檢查資料庫連線
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        status["database_connected"] = True
+    except Exception as e:
+        status["database_connected"] = False
+        status["database_error"] = str(e)
+    
+    # 檢查 Firebase（不顯示敏感資訊）
+    if firebase_app:
+        try:
+            # 嘗試獲取 Firebase 專案 ID（不涉及敏感操作）
+            status["firebase_initialized"] = True
+        except:
+            status["firebase_initialized"] = False
+    else:
+        status["firebase_initialized"] = False
+        if not FIREBASE_SERVICE_ACCOUNT:
+            status["firebase_error"] = "FIREBASE_SERVICE_ACCOUNT 未設定"
+        else:
+            status["firebase_error"] = "Firebase 初始化失敗（檢查日誌）"
+    
+    return jsonify(status)
+
 @app.route('/bd/analyze', methods=['POST'])
 def analyze():
     """分析 IG 帳號"""
