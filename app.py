@@ -1665,6 +1665,11 @@ def index():
     """首頁重定向到 landing.html"""
     return send_from_directory('static', 'landing.html')
 
+@app.route('/static/auth-utils.js')
+def serve_auth_utils():
+    """提供認證工具 JavaScript 文件"""
+    return send_from_directory('static', 'auth-utils.js', mimetype='application/javascript')
+
 # -----------------------------------------------------------------------------
 # 主程式入口
 # -----------------------------------------------------------------------------

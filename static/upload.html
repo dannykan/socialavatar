@@ -978,6 +978,7 @@
     </div>
   </div>
 
+  <script src="/static/auth-utils.js"></script>
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
     import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
@@ -1162,12 +1163,8 @@
 
         updateStep(2, 'active');
         
-        // 取得 JWT token（如果有的話）
-        const authToken = localStorage.getItem('auth_token');
-        const headers = {};
-        if (authToken) {
-          headers['Authorization'] = `Bearer ${authToken}`;
-        }
+        // 自動刷新 token（如果即將過期）並取得有效的 Authorization header
+        const headers = await getAuthHeaders(currentAuthUser);
         
         const res = await fetch('/bd/analyze', { 
           method: 'POST', 
