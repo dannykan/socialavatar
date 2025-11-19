@@ -3,6 +3,37 @@
  * 用於管理 JWT token 和自動刷新
  */
 
+// 配置：刷新時機（預設：在 token 過期前 10 分鐘刷新）
+const TOKEN_REFRESH_THRESHOLD = 10 * 60 * 1000; // 10 分鐘（可調整）
+
+// 配置：定期檢查間隔（預設：每 5 分鐘檢查一次）
+const TOKEN_CHECK_INTERVAL = 5 * 60 * 1000; // 5 分鐘
+
+// 全局變數：定期檢查的 timer
+let tokenCheckTimer = null;
+
+// 全局變數：錯誤通知回調函數
+let errorNotificationCallback = null;
+
+/**
+ * 設定錯誤通知回調函數
+ * @param {Function} callback - 接收錯誤訊息的回調函數 (message) => void
+ */
+function setErrorNotificationCallback(callback) {
+  errorNotificationCallback = callback;
+}
+
+/**
+ * 顯示錯誤通知
+ */
+function notifyError(message) {
+  if (errorNotificationCallback) {
+    errorNotificationCallback(message);
+  } else {
+    console.warn('[Auth] 錯誤通知:', message);
+  }
+}
+
 /**
  * 解碼 JWT token（不驗證簽名，只用於讀取 payload）
  */
@@ -24,7 +55,7 @@ function decodeJWT(token) {
 }
 
 /**
- * 檢查 token 是否即將過期（在 5 分鐘內過期）
+ * 檢查 token 是否即將過期（在設定的時間內過期）
  */
 function isTokenExpiringSoon(token) {
   if (!token) return true;
@@ -34,10 +65,24 @@ function isTokenExpiringSoon(token) {
   
   const expirationTime = payload.exp * 1000; // 轉換為毫秒
   const currentTime = Date.now();
-  const fiveMinutes = 5 * 60 * 1000; // 5 分鐘
   
-  // 如果剩餘時間少於 5 分鐘，視為即將過期
-  return (expirationTime - currentTime) < fiveMinutes;
+  // 如果剩餘時間少於設定的閾值，視為即將過期
+  return (expirationTime - currentTime) < TOKEN_REFRESH_THRESHOLD;
+}
+
+/**
+ * 獲取 token 剩餘有效時間（毫秒）
+ */
+function getTokenRemainingTime(token) {
+  if (!token) return 0;
+  
+  const payload = decodeJWT(token);
+  if (!payload || !payload.exp) return 0;
+  
+  const expirationTime = payload.exp * 1000;
+  const currentTime = Date.now();
+  
+  return Math.max(0, expirationTime - currentTime);
 }
 
 /**
@@ -59,9 +104,13 @@ function isTokenExpired(token) {
  * 刷新 JWT token
  * 使用 Firebase 用戶獲取新的 ID token，然後調用後端 API 獲取新的 JWT
  */
-async function refreshAuthToken(firebaseUser) {
+async function refreshAuthToken(firebaseUser, silent = false) {
   if (!firebaseUser) {
-    console.warn('[Auth] 無法刷新 token：沒有 Firebase 用戶');
+    const message = '無法刷新 token：沒有 Firebase 用戶';
+    if (!silent) {
+      notifyError(message);
+    }
+    console.warn('[Auth]', message);
     return null;
   }
   
@@ -83,7 +132,8 @@ async function refreshAuthToken(firebaseUser) {
     
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || `HTTP ${response.status}`);
+      const errorMessage = errorData.error || `HTTP ${response.status}`;
+      throw new Error(errorMessage);
     }
     
     const data = await response.json();
@@ -101,7 +151,11 @@ async function refreshAuthToken(firebaseUser) {
     
     return data.token;
   } catch (error) {
-    console.error('[Auth] ❌ Token 刷新失敗:', error);
+    const message = `Token 刷新失敗: ${error.message}`;
+    console.error('[Auth] ❌', message);
+    if (!silent) {
+      notifyError(message);
+    }
     return null;
   }
 }
@@ -109,9 +163,10 @@ async function refreshAuthToken(firebaseUser) {
 /**
  * 確保 token 有效，如果即將過期或已過期則自動刷新
  * @param {Object} firebaseUser - Firebase 用戶對象（可選）
+ * @param {boolean} silent - 是否靜默模式（不顯示錯誤通知）
  * @returns {Promise<string|null>} 有效的 token 或 null
  */
-async function ensureValidToken(firebaseUser = null) {
+async function ensureValidToken(firebaseUser = null, silent = false) {
   const token = localStorage.getItem('auth_token');
   
   // 如果沒有 token，返回 null（允許匿名使用）
@@ -124,10 +179,14 @@ async function ensureValidToken(firebaseUser = null) {
   if (isTokenExpired(token)) {
     console.log('[Auth] Token 已過期，嘗試刷新...');
     if (firebaseUser) {
-      return await refreshAuthToken(firebaseUser);
+      return await refreshAuthToken(firebaseUser, silent);
     } else {
       // 沒有 Firebase 用戶，無法刷新，清除過期 token
-      console.warn('[Auth] Token 已過期且無法刷新，清除 token');
+      const message = 'Token 已過期且無法刷新，將以匿名方式使用';
+      if (!silent) {
+        notifyError(message);
+      }
+      console.warn('[Auth]', message);
       localStorage.removeItem('auth_token');
       localStorage.removeItem('user_data');
       return null;
@@ -136,9 +195,11 @@ async function ensureValidToken(firebaseUser = null) {
   
   // 檢查是否即將過期
   if (isTokenExpiringSoon(token)) {
-    console.log('[Auth] Token 即將過期（5 分鐘內），嘗試刷新...');
+    const remainingTime = getTokenRemainingTime(token);
+    const minutes = Math.floor(remainingTime / 60000);
+    console.log(`[Auth] Token 即將過期（剩餘 ${minutes} 分鐘），嘗試刷新...`);
     if (firebaseUser) {
-      return await refreshAuthToken(firebaseUser);
+      return await refreshAuthToken(firebaseUser, silent);
     } else {
       // 沒有 Firebase 用戶，但 token 還有效，繼續使用
       console.log('[Auth] Token 即將過期但無法刷新，繼續使用現有 token');
@@ -147,17 +208,20 @@ async function ensureValidToken(firebaseUser = null) {
   }
   
   // Token 有效且未即將過期
-  console.log('[Auth] Token 有效，無需刷新');
+  const remainingTime = getTokenRemainingTime(token);
+  const minutes = Math.floor(remainingTime / 60000);
+  console.log(`[Auth] Token 有效（剩餘 ${minutes} 分鐘），無需刷新`);
   return token;
 }
 
 /**
  * 獲取有效的 Authorization header
  * @param {Object} firebaseUser - Firebase 用戶對象（可選）
+ * @param {boolean} silent - 是否靜默模式（不顯示錯誤通知）
  * @returns {Promise<Object>} 包含 Authorization header 的對象
  */
-async function getAuthHeaders(firebaseUser = null) {
-  const token = await ensureValidToken(firebaseUser);
+async function getAuthHeaders(firebaseUser = null, silent = false) {
+  const token = await ensureValidToken(firebaseUser, silent);
   const headers = {};
   
   if (token) {
@@ -167,15 +231,71 @@ async function getAuthHeaders(firebaseUser = null) {
   return headers;
 }
 
+/**
+ * 啟動定期檢查 token 狀態
+ * 在頁面載入時自動檢查，並定期檢查 token 是否需要刷新
+ * @param {Object} firebaseUser - Firebase 用戶對象（可選）
+ */
+function startTokenPeriodicCheck(firebaseUser = null) {
+  // 清除現有的 timer（如果有的話）
+  if (tokenCheckTimer) {
+    clearInterval(tokenCheckTimer);
+    tokenCheckTimer = null;
+  }
+  
+  // 立即檢查一次
+  ensureValidToken(firebaseUser, true).then(token => {
+    if (token) {
+      const remainingTime = getTokenRemainingTime(token);
+      const minutes = Math.floor(remainingTime / 60000);
+      console.log(`[Auth] 定期檢查：Token 有效（剩餘 ${minutes} 分鐘）`);
+    } else {
+      console.log('[Auth] 定期檢查：沒有有效的 token');
+    }
+  });
+  
+  // 設定定期檢查
+  tokenCheckTimer = setInterval(() => {
+    ensureValidToken(firebaseUser, true).then(token => {
+      if (token) {
+        const remainingTime = getTokenRemainingTime(token);
+        const minutes = Math.floor(remainingTime / 60000);
+        console.log(`[Auth] 定期檢查：Token 有效（剩餘 ${minutes} 分鐘）`);
+      } else {
+        console.log('[Auth] 定期檢查：沒有有效的 token');
+      }
+    });
+  }, TOKEN_CHECK_INTERVAL);
+  
+  console.log(`[Auth] 已啟動定期檢查（每 ${TOKEN_CHECK_INTERVAL / 60000} 分鐘檢查一次）`);
+}
+
+/**
+ * 停止定期檢查 token 狀態
+ */
+function stopTokenPeriodicCheck() {
+  if (tokenCheckTimer) {
+    clearInterval(tokenCheckTimer);
+    tokenCheckTimer = null;
+    console.log('[Auth] 已停止定期檢查');
+  }
+}
+
 // 導出函數（如果使用模組系統）
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     decodeJWT,
     isTokenExpiringSoon,
     isTokenExpired,
+    getTokenRemainingTime,
     refreshAuthToken,
     ensureValidToken,
-    getAuthHeaders
+    getAuthHeaders,
+    startTokenPeriodicCheck,
+    stopTokenPeriodicCheck,
+    setErrorNotificationCallback,
+    TOKEN_REFRESH_THRESHOLD,
+    TOKEN_CHECK_INTERVAL
   };
 }
 

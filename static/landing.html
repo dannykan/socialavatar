@@ -906,6 +906,18 @@
       if (user) {
         logMobileDebug('onAuthStateChanged: User logged in', { userId: user.uid, email: user.email });
         
+        // 設定錯誤通知回調
+        if (typeof setErrorNotificationCallback === 'function') {
+          setErrorNotificationCallback((message) => {
+            showError(message);
+          });
+        }
+        
+        // 啟動定期檢查 token（在登入狀態下）
+        if (typeof startTokenPeriodicCheck === 'function') {
+          startTokenPeriodicCheck(user);
+        }
+        
         // 檢查是否有 redirect 結果需要處理
         const redirectHandled = await checkRedirectResult();
         
@@ -917,9 +929,21 @@
       } else {
         logMobileDebug('onAuthStateChanged: No user');
         showLoggedOutState();
+        
+        // 停止定期檢查（登出時）
+        if (typeof stopTokenPeriodicCheck === 'function') {
+          stopTokenPeriodicCheck();
+        }
       }
       
       loadingOverlay.style.display = 'none';
+    });
+    
+    // 頁面卸載時停止定期檢查
+    window.addEventListener('beforeunload', () => {
+      if (typeof stopTokenPeriodicCheck === 'function') {
+        stopTokenPeriodicCheck();
+      }
     });
 
     async function checkUserAnalysis(user) {

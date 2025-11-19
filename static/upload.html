@@ -1028,6 +1028,48 @@
             ? `<img class="user-avatar" src="${user.photoURL}"><span>${user.displayName || user.email}</span>`
             : `<span>👤 ${user.displayName || user.email}</span>`;
         }
+        
+        // 設定錯誤通知回調
+        if (typeof setErrorNotificationCallback === 'function') {
+          setErrorNotificationCallback((message) => {
+            // 顯示錯誤通知（可以自訂樣式）
+            const errorDiv = document.createElement('div');
+            errorDiv.style.cssText = `
+              position: fixed;
+              top: 20px;
+              right: 20px;
+              background: rgba(239, 68, 68, 0.95);
+              color: white;
+              padding: 12px 20px;
+              border-radius: 8px;
+              box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+              z-index: 10000;
+              max-width: 400px;
+              font-size: 14px;
+            `;
+            errorDiv.textContent = `⚠️ ${message}`;
+            document.body.appendChild(errorDiv);
+            
+            // 3 秒後自動移除
+            setTimeout(() => {
+              errorDiv.style.opacity = '0';
+              errorDiv.style.transition = 'opacity 0.3s';
+              setTimeout(() => errorDiv.remove(), 300);
+            }, 3000);
+          });
+        }
+        
+        // 啟動定期檢查 token
+        if (typeof startTokenPeriodicCheck === 'function') {
+          startTokenPeriodicCheck(user);
+        }
+      }
+    });
+    
+    // 頁面卸載時停止定期檢查
+    window.addEventListener('beforeunload', () => {
+      if (typeof stopTokenPeriodicCheck === 'function') {
+        stopTokenPeriodicCheck();
       }
     });
 
