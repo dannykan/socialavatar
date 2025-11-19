@@ -828,6 +828,45 @@
         }
       }
       
+      // 呼叫後端 API 驗證 Firebase token 並取得 JWT
+      try {
+        console.log('[DEBUG] Getting Firebase ID token...');
+        const idToken = await user.getIdToken();
+        console.log('[DEBUG] ID token obtained, calling backend...');
+        
+        const response = await fetch('/api/auth/firebase-login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ id_token: idToken })
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || `HTTP ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log('[DEBUG] ✅ Backend login successful');
+        
+        // 儲存後端 JWT token
+        if (data.token) {
+          localStorage.setItem('auth_token', data.token);
+          console.log('[DEBUG] JWT token saved to localStorage');
+        }
+        
+        // 儲存使用者資訊（可選，供前端使用）
+        if (data.user) {
+          localStorage.setItem('user_data', JSON.stringify(data.user));
+        }
+        
+      } catch (error) {
+        console.error('[ERROR] Backend login failed:', error);
+        // 即使後端登入失敗，也繼續流程（允許匿名使用）
+        console.warn('[WARN] Continuing without backend token');
+      }
+      
       storeUserSession(user);
       
       try {
@@ -1283,6 +1322,9 @@
       try {
         await window.signOut(auth);
         sessionStorage.clear();
+        // 清除後端 JWT token 和使用者資料
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('user_data');
         location.reload();
       } catch (error) {
         console.error('Logout error:', error);

@@ -1161,7 +1161,19 @@
         updateStep(1, 'completed');
 
         updateStep(2, 'active');
-        const res = await fetch('/bd/analyze', { method: 'POST', body: form });
+        
+        // 取得 JWT token（如果有的話）
+        const authToken = localStorage.getItem('auth_token');
+        const headers = {};
+        if (authToken) {
+          headers['Authorization'] = `Bearer ${authToken}`;
+        }
+        
+        const res = await fetch('/bd/analyze', { 
+          method: 'POST', 
+          headers: headers,
+          body: form 
+        });
         if (!res.ok) {
           let msg = `伺服器錯誤（${res.status}）`;
           try {
