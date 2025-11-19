@@ -1176,10 +1176,76 @@
         });
         if (!res.ok) {
           let msg = `伺服器錯誤（${res.status}）`;
+          let errorCode = null;
           try {
             const errJson = await res.json();
-            if (errJson && errJson.error) msg = errJson.error;
+            if (errJson && errJson.error) {
+              msg = errJson.error;
+              errorCode = errJson.error;
+            }
           } catch (_) {}
+          
+          // 如果是 token 相關錯誤，提示重新登入
+          if (errorCode && (errorCode.includes('token') || errorCode.includes('auth'))) {
+            const shouldRelogin = confirm(
+              '登入狀態已過期，請重新登入。\n\n' +
+              '點擊「確定」返回登入頁面，或「取消」繼續（將以匿名方式分析）。'
+            );
+            if (shouldRelogin) {
+              // 清除過期的 token
+              localStorage.removeItem('auth_token');
+              localStorage.removeItem('user_data');
+              window.location.href = '/static/landing.html';
+              return;
+            }
+            // 用戶選擇繼續，移除 token 後重試
+            localStorage.removeItem('auth_token');
+            headers = {}; // 移除 Authorization header
+            // 重新發送請求（不帶 token）
+            const retryRes = await fetch('/bd/analyze', {
+              method: 'POST',
+              headers: {},
+              body: form
+            });
+            if (!retryRes.ok) {
+              const retryErr = await retryRes.json().catch(() => ({}));
+              throw new Error(retryErr.error || `伺服器錯誤（${retryRes.status}）`);
+            }
+            // 重試成功，繼續處理回應
+            const retryData = await retryRes.json();
+            updateStep(2, 'completed');
+            updateStep(3, 'active');
+            updateStep(3, 'completed');
+            updateStep(4, 'active');
+            retryData.user = {
+              uid: currentAuthUser?.uid,
+              email: currentAuthUser?.email,
+              displayName: currentAuthUser?.displayName,
+              photoURL: currentAuthUser?.photoURL
+            };
+            retryData.timestamp = new Date().toISOString();
+            try {
+              sessionStorage.setItem('user', JSON.stringify(retryData.user));
+            } catch {}
+            try {
+              if (currentAuthUser) {
+                await setDoc(doc(db, 'users', currentAuthUser.uid), {
+                  uid: currentAuthUser.uid,
+                  email: currentAuthUser.email,
+                  hasAnalysis: true,
+                  latestAnalysis: retryData,
+                  updatedAt: serverTimestamp()
+                });
+              }
+            } catch (e) {
+              console.error('Firestore save failed:', e);
+            }
+            sessionStorage.setItem('sa_result', JSON.stringify(retryData));
+            sessionStorage.setItem('analysis_submitted', 'true');
+            updateStep(4, 'completed');
+            setTimeout(() => window.location.replace('/static/loading.html'), 800);
+            return;
+          }
           throw new Error(msg);
         }
         updateStep(2, 'completed');

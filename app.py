@@ -286,6 +286,9 @@ class AuthError(Exception):
         super().__init__(message)
         self.message = message
         self.status = status
+    
+    def to_dict(self):
+        return {"ok": False, "error": self.message}
 
 def save_analysis_result(payload):
     if not payload:
@@ -405,9 +408,25 @@ def get_authenticated_user(required=False):
     if len(parts) != 2 or parts[0].lower() != 'bearer':
         if required:
             raise AuthError("invalid_authorization_header", 401)
+        # 如果不是 required，靜默返回 None（允許匿名使用）
         return None
     token = parts[1]
-    payload = decode_token(token)
+    try:
+        payload = decode_token(token)
+    except AuthError as e:
+        # Token 驗證失敗
+        if required:
+            raise e
+        # 如果不是 required，記錄警告但允許繼續（匿名使用）
+        print(f"[Auth] ⚠️ Token 驗證失敗但允許匿名使用: {e.message}")
+        return None
+    except Exception as e:
+        # 其他錯誤
+        if required:
+            raise AuthError("token_verification_failed", 401)
+        print(f"[Auth] ⚠️ Token 解析失敗但允許匿名使用: {e}")
+        return None
+    
     user_id = payload.get("sub")
     if not user_id:
         if required:
