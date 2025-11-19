@@ -11,3 +11,4 @@ firebase-admin>=6.5.0
 
 # 可選依賴
 python-dotenv>=1.0.0
+pytest>=7.4.0
