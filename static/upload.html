@@ -978,6 +978,7 @@
     </div>
   </div>
 
+  <script src="/static/ui-utils.js"></script>
   <script src="/static/auth-utils.js"></script>
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
@@ -1032,30 +1033,11 @@
         // 設定錯誤通知回調
         if (typeof setErrorNotificationCallback === 'function') {
           setErrorNotificationCallback((message) => {
-            // 顯示錯誤通知（可以自訂樣式）
-            const errorDiv = document.createElement('div');
-            errorDiv.style.cssText = `
-              position: fixed;
-              top: 20px;
-              right: 20px;
-              background: rgba(239, 68, 68, 0.95);
-              color: white;
-              padding: 12px 20px;
-              border-radius: 8px;
-              box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-              z-index: 10000;
-              max-width: 400px;
-              font-size: 14px;
-            `;
-            errorDiv.textContent = `⚠️ ${message}`;
-            document.body.appendChild(errorDiv);
-            
-            // 3 秒後自動移除
-            setTimeout(() => {
-              errorDiv.style.opacity = '0';
-              errorDiv.style.transition = 'opacity 0.3s';
-              setTimeout(() => errorDiv.remove(), 300);
-            }, 3000);
+            if (window.showToast) {
+              window.showToast(message, { type: 'error' });
+            } else {
+              alert(message);
+            }
           });
         }
         
@@ -1329,8 +1311,12 @@
       } catch (e) {
         console.error('Analysis failed:', e);
         document.getElementById('loadingOverlay').classList.remove('show');
-        errBox.textContent = e.message || '網路錯誤';
+        const friendlyMessage = e.message || '網路錯誤，請稍後再試。';
+        errBox.textContent = friendlyMessage;
         errBox.style.display = 'block';
+        if (window.showToast) {
+          window.showToast(friendlyMessage, { type: 'error' });
+        }
       }
     };
   </script>

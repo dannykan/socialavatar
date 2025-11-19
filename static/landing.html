@@ -488,6 +488,7 @@
     </div>
   </div>
 
+  <script src="/static/ui-utils.js"></script>
   <script src="/static/auth-utils.js"></script>
   <script type="module">
     // 立即執行的異步函數
@@ -1071,6 +1072,12 @@
       });
     }
 
+    function sanitizeMessage(message) {
+      const temp = document.createElement('div');
+      temp.innerHTML = message;
+      return temp.textContent || temp.innerText || '';
+    }
+
     function showError(message) {
       const errorMsg = document.getElementById('errorMsg');
       errorMsg.innerHTML = message;
@@ -1078,6 +1085,10 @@
       
       document.getElementById('warningMsg').style.display = 'none';
       document.getElementById('infoMsg').style.display = 'none';
+
+      if (window.showToast) {
+        window.showToast(sanitizeMessage(message), { type: 'error' });
+      }
     }
 
     function showWarning(message) {
@@ -1087,6 +1098,10 @@
       
       document.getElementById('errorMsg').style.display = 'none';
       document.getElementById('infoMsg').style.display = 'none';
+
+      if (window.showToast) {
+        window.showToast(sanitizeMessage(message), { type: 'warning' });
+      }
     }
 
     function showInfo(message) {
@@ -1096,6 +1111,10 @@
       
       document.getElementById('errorMsg').style.display = 'none';
       document.getElementById('warningMsg').style.display = 'none';
+
+      if (window.showToast) {
+        window.showToast(sanitizeMessage(message), { type: 'info', duration: 3000 });
+      }
     }
 
     function setButtonLoading(buttonId, isLoading) {
