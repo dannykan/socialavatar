@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管理員儀表板 - Social NetWorth</title>
+    <link rel="stylesheet" href="/static/app.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            padding: 20px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        .admin-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .admin-header {
+            background: rgba(11, 18, 32, 0.95);
+            backdrop-filter: blur(12px);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .admin-title {
+            font-size: 32px;
+            font-weight: 700;
+            margin: 0 0 16px 0;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            color: #94a3b8;
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .section {
+            background: rgba(11, 18, 32, 0.95);
+            backdrop-filter: blur(12px);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .section-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin: 0 0 16px 0;
+            color: #ffffff;
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        th {
+            background: rgba(255, 255, 255, 0.05);
+            font-weight: 600;
+            color: #ffffff;
+            position: sticky;
+            top: 0;
+        }
+
+        td {
+            color: #cbd5e1;
+        }
+
+        tr:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .badge-primary {
+            background: rgba(102, 126, 234, 0.2);
+            color: #667eea;
+        }
+
+        .badge-success {
+            background: rgba(34, 197, 94, 0.2);
+            color: #22c55e;
+        }
+
+        .badge-warning {
+            background: rgba(245, 158, 11, 0.2);
+            color: #f59e0b;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #94a3b8;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        .pagination button {
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            color: #ffffff;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .pagination button:hover:not(:disabled) {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .pagination button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .error-message {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #ef4444;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+        }
+
+        @media (max-width: 768px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .table-container {
+                font-size: 12px;
+            }
+            
+            th, td {
+                padding: 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-container">
+        <div class="admin-header">
+            <h1 class="admin-title">🔐 管理員儀表板</h1>
+            <div id="errorMessage" class="error-message" style="display: none;"></div>
+        </div>
+
+        <!-- 系統統計 -->
+        <div class="section">
+            <h2 class="section-title">📊 系統統計</h2>
+            <div id="statsSection" class="stats-grid" style="display: none;">
+                <div class="stat-card">
+                    <div class="stat-label">總用戶數</div>
+                    <div class="stat-value" id="totalUsers">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">有分析的用戶</div>
+                    <div class="stat-value" id="usersWithAnalyses">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">總分析次數</div>
+                    <div class="stat-value" id="totalAnalyses">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">匿名分析</div>
+                    <div class="stat-value" id="anonymousAnalyses">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">平均價值</div>
+                    <div class="stat-value" id="avgValue">$0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">最高價值</div>
+                    <div class="stat-value" id="maxValue">$0</div>
+                </div>
+            </div>
+            <div id="statsLoading" class="loading">
+                <div class="spinner"></div>
+                <p>載入統計中...</p>
+            </div>
+        </div>
+
+        <!-- 用戶列表 -->
+        <div class="section">
+            <h2 class="section-title">👥 用戶列表</h2>
+            <div id="usersSection">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>載入用戶中...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 分析記錄 -->
+        <div class="section">
+            <h2 class="section-title">📋 分析記錄</h2>
+            <div id="analysesSection">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>載入分析記錄中...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 編輯分析記錄 Modal -->
+    <div id="editAnalysisModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">✏️ 編輯分析記錄</h3>
+                <button class="modal-close" onclick="closeEditModal()">&times;</button>
+            </div>
+            <form id="editAnalysisForm">
+                <input type="hidden" id="editAnalysisId">
+                <div class="form-group">
+                    <label class="form-label">IG 帳號</label>
+                    <input type="text" id="editAnalysisUsername" class="form-input" readonly>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">💰 帳號總價值 (TWD)</label>
+                    <input type="number" id="editAccountValue" class="form-input" min="0" step="1000" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">📝 貼文報價 (TWD)</label>
+                    <input type="number" id="editPostValue" class="form-input" min="0" step="100" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">📸 Story 報價 (TWD)</label>
+                    <input type="number" id="editStoryValue" class="form-input" min="0" step="100" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">🎬 Reels 報價 (TWD)</label>
+                    <input type="number" id="editReelsValue" class="form-input" min="0" step="100" required>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn-modal btn-modal-secondary" onclick="closeEditModal()">取消</button>
+                    <button type="submit" class="btn-modal btn-modal-primary">儲存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 刪除確認 Modal -->
+    <div id="deleteConfirmModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">⚠️ 確認刪除</h3>
+                <button class="modal-close" onclick="closeDeleteModal()">&times;</button>
+            </div>
+            <div id="deleteConfirmMessage" style="color: #cbd5e1; margin-bottom: 24px;">
+                <!-- 動態內容 -->
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn-modal btn-modal-secondary" onclick="closeDeleteModal()">取消</button>
+                <button type="button" class="btn-modal btn-modal-danger" id="confirmDeleteBtn">確認刪除</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/auth-utils.js"></script>
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBI2-4yEwzxvYOvui9FZiGAzCE22OhKmU8",
+            authDomain: "social-avatar-d13c8.firebaseapp.com",
+            projectId: "social-avatar-d13c8",
+            storageBucket: "social-avatar-d13c8.appspot.com",
+            messagingSenderId: "280598358339",
+            appId: "1:280598358339:web:214a0d4ca53793163367f6"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+
+        let currentUser = null;
+        let currentUsersPage = 1;
+        let currentAnalysesPage = 1;
+
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) {
+                showError('請先登入');
+                setTimeout(() => {
+                    window.location.href = '/static/landing.html';
+                }, 2000);
+                return;
+            }
+            currentUser = user;
+            
+            // 確保獲取 JWT token
+            try {
+                console.log('[Admin] Firebase 用戶已登入，獲取 JWT token...');
+                
+                // 清除舊的 token（如果存在），強制重新獲取
+                const oldToken = localStorage.getItem('auth_token');
+                if (oldToken) {
+                    console.log('[Admin] 發現舊 token，清除並重新獲取...');
+                    localStorage.removeItem('auth_token');
+                }
+                
+                const idToken = await user.getIdToken();
+                console.log('[Admin] Firebase ID token 已獲取，長度:', idToken.length);
+                
+                // 調用後端 API 獲取 JWT token
+                const loginRes = await fetch('/api/auth/firebase-login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ id_token: idToken })
+                });
+                
+                if (loginRes.ok) {
+                    const loginData = await loginRes.json();
+                    if (loginData.token) {
+                        localStorage.setItem('auth_token', loginData.token);
+                        console.log('[Admin] ✅ JWT token 已獲取並儲存（新格式）');
+                        console.log('[Admin] Token 長度:', loginData.token.length);
+                    } else {
+                        console.warn('[Admin] ⚠️ 回應中沒有 token');
+                    }
+                } else {
+                    const errorData = await loginRes.json().catch(() => ({}));
+                    console.error('[Admin] ❌ 獲取 JWT token 失敗:', loginRes.status, errorData);
+                    // 如果是 Firebase 未配置錯誤，顯示提示
+                    if (errorData.error === 'firebase_not_configured') {
+                        showError('Firebase 服務未配置，無法完成認證。請設定 FIREBASE_SERVICE_ACCOUNT 環境變數。');
+                    }
+                }
+            } catch (error) {
+                console.error('[Admin] ❌ 獲取 JWT token 時發生錯誤:', error);
+            }
+            
+            // 先檢查是否為管理員
+            try {
+                const headers = await getAuthHeaders(user);
+                const testRes = await fetch('/api/admin/stats', { headers });
+                if (!testRes.ok) {
+                    const errorData = await testRes.json().catch(() => ({}));
+                    if (errorData.error === 'admin_access_required') {
+                        showError('您沒有管理員權限，無法訪問此頁面');
+                        setTimeout(() => {
+                            window.location.href = '/static/landing.html';
+                        }, 3000);
+                        return;
+                    } else if (errorData.error === 'authorization_header_missing') {
+                        showError('認證失敗，請重新登入');
+                        setTimeout(() => {
+                            window.location.href = '/static/landing.html';
+                        }, 3000);
+                        return;
+                    }
+                }
+            } catch (error) {
+                console.error('檢查管理員權限失敗:', error);
+            }
+            
+            await loadDashboard();
+        });
+
+        async function loadDashboard() {
+            try {
+                // 確保有有效的 token
+                const token = localStorage.getItem('auth_token');
+                if (!token) {
+                    console.warn('[Admin] 沒有 JWT token，嘗試重新獲取...');
+                    if (currentUser) {
+                        try {
+                            const idToken = await currentUser.getIdToken();
+                            const loginRes = await fetch('/api/auth/firebase-login', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ id_token: idToken })
+                            });
+                            if (loginRes.ok) {
+                                const data = await loginRes.json();
+                                if (data.token) {
+                                    localStorage.setItem('auth_token', data.token);
+                                    console.log('[Admin] ✅ JWT token 已重新獲取');
+                                }
+                            }
+                        } catch (e) {
+                            console.error('[Admin] 無法獲取 JWT token:', e);
+                            showError('無法獲取認證 token，請重新登入');
+                            setTimeout(() => {
+                                window.location.href = '/static/landing.html';
+                            }, 3000);
+                            return;
+                        }
+                    }
+                }
+                
+                const headers = await getAuthHeaders(currentUser);
+                
+                // 檢查 headers 是否包含 Authorization
+                if (!headers.Authorization) {
+                    showError('認證失敗，請重新登入');
+                    setTimeout(() => {
+                        window.location.href = '/static/landing.html';
+                    }, 3000);
+                    return;
+                }
+                
+                // 載入統計資訊
+                await loadStats(headers);
+                
+                // 載入用戶列表
+                await loadUsers(headers, currentUsersPage);
+                
+                // 載入分析記錄
+                await loadAnalyses(headers, currentAnalysesPage);
+            } catch (error) {
+                console.error('載入儀表板失敗:', error);
+                showError(`載入失敗: ${error.message}`);
+            }
+        }
+
+        async function loadStats(headers) {
+            try {
+                const res = await fetch('/api/admin/stats', { headers });
+                if (!res.ok) {
+                    // 檢查是否返回 HTML（404 錯誤頁面）
+                    const contentType = res.headers.get('content-type');
+                    if (contentType && contentType.includes('text/html')) {
+                        throw new Error('API 端點不存在 (404)，請確認服務器已正確啟動');
+                    }
+                    const data = await res.json().catch(() => ({}));
+                    throw new Error(data.error || `HTTP ${res.status}`);
+                }
+                const data = await res.json();
+                if (data.ok) {
+                    renderStats(data.stats);
+                }
+            } catch (error) {
+                console.error('載入統計失敗:', error);
+                document.getElementById('statsLoading').innerHTML = `
+                    <div class="error-message">載入統計失敗: ${error.message}</div>
+                `;
+            }
+        }
+
+        function renderStats(stats) {
+            document.getElementById('totalUsers').textContent = stats.users.total || 0;
+            document.getElementById('usersWithAnalyses').textContent = stats.users.with_analyses || 0;
+            document.getElementById('totalAnalyses').textContent = stats.analyses.total || 0;
+            document.getElementById('anonymousAnalyses').textContent = stats.analyses.anonymous || 0;
+            document.getElementById('avgValue').textContent = formatPrice(stats.values.average || 0);
+            document.getElementById('maxValue').textContent = formatPrice(stats.values.max || 0);
+            
+            document.getElementById('statsLoading').style.display = 'none';
+            document.getElementById('statsSection').style.display = 'grid';
+        }
+
+        async function loadUsers(headers, page = 1) {
+            try {
+                const res = await fetch(`/api/admin/users?page=${page}&per_page=20`, { headers });
+                if (!res.ok) {
+                    // 檢查是否返回 HTML（404 錯誤頁面）
+                    const contentType = res.headers.get('content-type');
+                    if (contentType && contentType.includes('text/html')) {
+                        throw new Error('API 端點不存在 (404)，請確認服務器已正確啟動');
+                    }
+                    const data = await res.json().catch(() => ({}));
+                    throw new Error(data.error || `HTTP ${res.status}`);
+                }
+                const data = await res.json();
+                if (data.ok) {
+                    renderUsers(data.users, data.pagination);
+                }
+            } catch (error) {
+                console.error('載入用戶失敗:', error);
+                document.getElementById('usersSection').innerHTML = `
+                    <div class="error-message">載入用戶失敗: ${error.message}</div>
+                `;
+            }
+        }
+
+        function renderUsers(users, pagination) {
+            if (users.length === 0) {
+                document.getElementById('usersSection').innerHTML = '<p style="color: #94a3b8; text-align: center; padding: 40px;">暫無用戶</p>';
+                return;
+            }
+
+            const html = `
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Email</th>
+                                <th>用戶名</th>
+                                <th>顯示名稱</th>
+                                <th>登入方式</th>
+                                <th>分析次數</th>
+                                <th>註冊時間</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${users.map(user => `
+                                <tr>
+                                    <td>${user.id}</td>
+                                    <td>${user.email || '-'}</td>
+                                    <td>${user.username || '-'}</td>
+                                    <td>${user.display_name || '-'}</td>
+                                    <td><span class="badge badge-primary">${user.provider || 'unknown'}</span></td>
+                                    <td>${user.analysis_count || 0}</td>
+                                    <td>${user.created_at ? new Date(user.created_at).toLocaleString('zh-TW') : '-'}</td>
+                                    <td>
+                                        <button class="action-btn action-btn-delete" onclick="confirmDeleteUser(${user.id}, '${(user.email || user.username || '').replace(/'/g, "\\'")}', ${user.analysis_count || 0})">
+                                            刪除
+                                        </button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+                ${renderPagination('users', pagination, currentUsersPage)}
+            `;
+            document.getElementById('usersSection').innerHTML = html;
+        }
+
+        async function loadAnalyses(headers, page = 1) {
+            try {
+                const res = await fetch(`/api/admin/analyses?page=${page}&per_page=20`, { headers });
+                if (!res.ok) {
+                    // 檢查是否返回 HTML（404 錯誤頁面）
+                    const contentType = res.headers.get('content-type');
+                    if (contentType && contentType.includes('text/html')) {
+                        throw new Error('API 端點不存在 (404)，請確認服務器已正確啟動');
+                    }
+                    const data = await res.json().catch(() => ({}));
+                    throw new Error(data.error || `HTTP ${res.status}`);
+                }
+                const data = await res.json();
+                if (data.ok) {
+                    renderAnalyses(data.analyses, data.pagination);
+                }
+            } catch (error) {
+                console.error('載入分析記錄失敗:', error);
+                document.getElementById('analysesSection').innerHTML = `
+                    <div class="error-message">載入分析記錄失敗: ${error.message}</div>
+                `;
+            }
+        }
+
+        async function loadAnalysisDetail(analysisId) {
+            try {
+                const headers = await getAuthHeaders(currentUser);
+                const res = await fetch(`/api/admin/analyses?page=1&per_page=1000`, { headers });
+                if (!res.ok) throw new Error('無法載入分析記錄');
+                const data = await res.json();
+                if (data.ok) {
+                    const analysis = data.analyses.find(a => a.id === analysisId);
+                    return analysis;
+                }
+            } catch (error) {
+                console.error('載入分析詳情失敗:', error);
+            }
+            return null;
+        }
+
+        async function fetchFullAnalysisData(analysisId) {
+            // 從分析記錄列表中獲取完整數據
+            try {
+                const headers = await getAuthHeaders(currentUser);
+                const res = await fetch(`/api/admin/analyses?page=1&per_page=1000`, { headers });
+                if (!res.ok) throw new Error('無法載入分析記錄');
+                const data = await res.json();
+                if (data.ok) {
+                    // 需要獲取完整的分析數據，包括報價信息
+                    // 這裡我們需要一個新的 API 端點來獲取單個分析的完整數據
+                    // 暫時先使用現有數據
+                    return data.analyses.find(a => a.id === analysisId);
+                }
+            } catch (error) {
+                console.error('獲取完整分析數據失敗:', error);
+            }
+            return null;
+        }
+
+        function openEditModal(analysisId, username, accountValue, postValue, storyValue, reelsValue) {
+            document.getElementById('editAnalysisId').value = analysisId;
+            document.getElementById('editAnalysisUsername').value = username;
+            document.getElementById('editAccountValue').value = accountValue || 0;
+            document.getElementById('editPostValue').value = postValue || 0;
+            document.getElementById('editStoryValue').value = storyValue || 0;
+            document.getElementById('editReelsValue').value = reelsValue || 0;
+            document.getElementById('editAnalysisModal').classList.add('active');
+        }
+
+        window.closeEditModal = function() {
+            document.getElementById('editAnalysisModal').classList.remove('active');
+        };
+
+        function openDeleteModal(type, id, name, analysisCount = 0) {
+            const modal = document.getElementById('deleteConfirmModal');
+            const messageDiv = document.getElementById('deleteConfirmMessage');
+            const confirmBtn = document.getElementById('confirmDeleteBtn');
+            
+            if (type === 'user') {
+                messageDiv.innerHTML = `
+                    <p>確定要刪除用戶 <strong>${name}</strong> 嗎？</p>
+                    <p style="color: #ef4444; margin-top: 12px;">⚠️ 此操作將同時刪除該用戶的所有分析記錄（共 ${analysisCount} 筆），且無法復原！</p>
+                `;
+                confirmBtn.onclick = () => deleteUser(id);
+            } else if (type === 'analysis') {
+                messageDiv.innerHTML = `
+                    <p>確定要刪除分析記錄 <strong>@${name}</strong> 嗎？</p>
+                    <p style="color: #ef4444; margin-top: 12px;">⚠️ 此操作無法復原！</p>
+                `;
+                confirmBtn.onclick = () => deleteAnalysis(id);
+            }
+            
+            modal.classList.add('active');
+        }
+
+        window.closeDeleteModal = function() {
+            document.getElementById('deleteConfirmModal').classList.remove('active');
+        };
+
+        async function deleteUser(userId) {
+            try {
+                const headers = await getAuthHeaders(currentUser);
+                const res = await fetch(`/api/admin/users/${userId}`, {
+                    method: 'DELETE',
+                    headers: headers
+                });
+                
+                if (!res.ok) {
+                    const errorData = await res.json();
+                    throw new Error(errorData.error || '刪除失敗');
+                }
+                
+                const data = await res.json();
+                showSuccessNotification(data.message || '用戶已刪除');
+                closeDeleteModal();
+                
+                // 重新載入數據
+                await loadDashboard();
+            } catch (error) {
+                console.error('刪除用戶失敗:', error);
+                showError(`刪除失敗: ${error.message}`);
+            }
+        }
+
+        async function deleteAnalysis(analysisId) {
+            try {
+                const headers = await getAuthHeaders(currentUser);
+                const res = await fetch(`/api/admin/analyses/${analysisId}`, {
+                    method: 'DELETE',
+                    headers: headers
+                });
+                
+                if (!res.ok) {
+                    const errorData = await res.json();
+                    throw new Error(errorData.error || '刪除失敗');
+                }
+                
+                const data = await res.json();
+                showSuccessNotification(data.message || '分析記錄已刪除');
+                closeDeleteModal();
+                
+                // 重新載入數據
+                await loadAnalyses(headers, currentAnalysesPage);
+            } catch (error) {
+                console.error('刪除分析記錄失敗:', error);
+                showError(`刪除失敗: ${error.message}`);
+            }
+        }
+
+        function showSuccessNotification(message) {
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: rgba(34, 197, 94, 0.95);
+                color: white;
+                padding: 16px 20px;
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                z-index: 10001;
+                animation: slideIn 0.3s ease;
+            `;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            setTimeout(() => {
+                errorDiv.style.display = 'none';
+            }, 5000);
+        }
+
+        function renderAnalyses(analyses, pagination) {
+            if (analyses.length === 0) {
+                document.getElementById('analysesSection').innerHTML = '<p style="color: #94a3b8; text-align: center; padding: 40px;">暫無分析記錄</p>';
+                return;
+            }
+
+            const html = `
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>IG 帳號</th>
+                                <th>顯示名稱</th>
+                                <th>用戶</th>
+                                <th>粉絲數</th>
+                                <th>帳號價值</th>
+                                <th>分析時間</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${analyses.map(analysis => `
+                                <tr>
+                                    <td>${analysis.id}</td>
+                                    <td>@${analysis.username}</td>
+                                    <td>${analysis.display_name || '-'}</td>
+                                    <td>${analysis.user ? `${analysis.user.email} (${analysis.user.display_name || analysis.user.username})` : '<span class="badge badge-warning">匿名</span>'}</td>
+                                    <td>${formatNumber(analysis.followers || 0)}</td>
+                                    <td>${formatPrice(analysis.account_asset_value || 0)}</td>
+                                    <td>${analysis.created_at ? new Date(analysis.created_at).toLocaleString('zh-TW') : '-'}</td>
+                                    <td>
+                                        <button class="action-btn action-btn-edit" onclick="editAnalysis(${analysis.id}, '${(analysis.username || '').replace(/'/g, "\\'")}', ${analysis.account_asset_value || 0}, ${analysis.post_value || 0}, ${analysis.story_value || 0}, ${analysis.reels_value || 0})">
+                                            編輯
+                                        </button>
+                                        <button class="action-btn action-btn-delete" onclick="confirmDeleteAnalysis(${analysis.id}, '${(analysis.username || '').replace(/'/g, "\\'")}')">
+                                            刪除
+                                        </button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+                ${renderPagination('analyses', pagination, currentAnalysesPage)}
+            `;
+            document.getElementById('analysesSection').innerHTML = html;
+        }
+
+        // 將函數設為全局，以便 onclick 可以訪問
+        window.editAnalysis = async function(analysisId, username, accountValue, postValue, storyValue, reelsValue) {
+            // 先嘗試獲取完整的分析數據
+            const fullData = await fetchFullAnalysisData(analysisId);
+            if (fullData) {
+                openEditModal(
+                    analysisId,
+                    username,
+                    fullData.account_asset_value || accountValue,
+                    fullData.post_value || postValue,
+                    fullData.story_value || storyValue,
+                    fullData.reels_value || reelsValue
+                );
+            } else {
+                // 使用傳入的參數
+                openEditModal(analysisId, username, accountValue, postValue, storyValue, reelsValue);
+            }
+        };
+
+        window.confirmDeleteAnalysis = function(analysisId, username) {
+            openDeleteModal('analysis', analysisId, username);
+        };
+
+        window.confirmDeleteUser = function(userId, email, analysisCount) {
+            openDeleteModal('user', userId, email, analysisCount);
+        };
+
+        // 處理編輯表單提交
+        document.getElementById('editAnalysisForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const analysisId = document.getElementById('editAnalysisId').value;
+            const accountValue = parseInt(document.getElementById('editAccountValue').value);
+            const postValue = parseInt(document.getElementById('editPostValue').value);
+            const storyValue = parseInt(document.getElementById('editStoryValue').value);
+            const reelsValue = parseInt(document.getElementById('editReelsValue').value);
+            
+            try {
+                const headers = await getAuthHeaders(currentUser);
+                const res = await fetch(`/api/admin/analyses/${analysisId}/update`, {
+                    method: 'PUT',
+                    headers: {
+                        ...headers,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        account_asset_value: accountValue,
+                        post_value: postValue,
+                        story_value: storyValue,
+                        reels_value: reelsValue
+                    })
+                });
+                
+                if (!res.ok) {
+                    const errorData = await res.json();
+                    throw new Error(errorData.error || '更新失敗');
+                }
+                
+                const data = await res.json();
+                showSuccessNotification(data.message || '分析記錄已更新');
+                closeEditModal();
+                
+                // 重新載入分析記錄
+                await loadAnalyses(headers, currentAnalysesPage);
+            } catch (error) {
+                console.error('更新分析記錄失敗:', error);
+                showError(`更新失敗: ${error.message}`);
+            }
+        });
+
+        function renderPagination(type, pagination, currentPage) {
+            if (pagination.pages <= 1) return '';
+            
+            return `
+                <div class="pagination">
+                    <button onclick="changePage('${type}', ${currentPage - 1})" ${currentPage <= 1 ? 'disabled' : ''}>
+                        上一頁
+                    </button>
+                    <span style="color: #94a3b8; padding: 0 16px;">
+                        第 ${currentPage} / ${pagination.pages} 頁 (共 ${pagination.total} 筆)
+                    </span>
+                    <button onclick="changePage('${type}', ${currentPage + 1})" ${currentPage >= pagination.pages ? 'disabled' : ''}>
+                        下一頁
+                    </button>
+                </div>
+            `;
+        }
+
+        window.changePage = async function(type, page) {
+            if (page < 1) return;
+            
+            const headers = await getAuthHeaders(currentUser);
+            
+            if (type === 'users') {
+                currentUsersPage = page;
+                await loadUsers(headers, page);
+            } else if (type === 'analyses') {
+                currentAnalysesPage = page;
+                await loadAnalyses(headers, page);
+            }
+        };
+
+        function formatPrice(value) {
+            if (value >= 1000000) {
+                return `$${(value / 1000000).toFixed(1)}M`;
+            } else if (value >= 1000) {
+                return `$${(value / 1000).toFixed(1)}K`;
+            }
+            return `$${value.toLocaleString()}`;
+        }
+
+        function formatNumber(value) {
+            if (value >= 1000000) {
+                return `${(value / 1000000).toFixed(1)}M`;
+            } else if (value >= 1000) {
+                return `${(value / 1000).toFixed(1)}K`;
+            }
+            return value.toLocaleString();
+        }
+
+    </script>
+</body>
+</html>
+

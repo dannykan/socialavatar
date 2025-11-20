@@ -281,6 +281,20 @@ function stopTokenPeriodicCheck() {
   }
 }
 
+// 導出函數到全局作用域（瀏覽器環境）
+if (typeof window !== 'undefined') {
+  window.decodeJWT = decodeJWT;
+  window.isTokenExpiringSoon = isTokenExpiringSoon;
+  window.isTokenExpired = isTokenExpired;
+  window.getTokenRemainingTime = getTokenRemainingTime;
+  window.refreshAuthToken = refreshAuthToken;
+  window.ensureValidToken = ensureValidToken;
+  window.getAuthHeaders = getAuthHeaders;
+  window.startTokenPeriodicCheck = startTokenPeriodicCheck;
+  window.stopTokenPeriodicCheck = stopTokenPeriodicCheck;
+  window.setErrorNotificationCallback = setErrorNotificationCallback;
+}
+
 // 導出函數（如果使用模組系統）
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {

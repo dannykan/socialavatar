@@ -21,9 +21,17 @@ import io
 import jwt
 from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, ForeignKey, text
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.orm import declarative_base, sessionmaker, joinedload, relationship
 from werkzeug.security import generate_password_hash, check_password_hash
 from ai_analyzer import IGAnalyzer, PromptBuilder
+
+# 載入 .env 檔案（如果存在）
+try:
+    from dotenv import load_dotenv
+    load_dotenv('.env.local')  # 優先載入 .env.local
+    load_dotenv()  # 然後載入 .env（如果存在）
+except ImportError:
+    pass  # dotenv 是可選的
 
 # 初始化 Flask 應用
 app = Flask(__name__, static_folder='static', static_url_path='/static')
@@ -48,6 +56,8 @@ AUTH_SUCCESS_URL = os.getenv('AUTH_SUCCESS_URL', '/static/upload.html')
 AUTH_FAILURE_URL = os.getenv('AUTH_FAILURE_URL', '/static/landing.html')
 GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
 GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
+# 管理員 Email 列表（用逗號分隔）
+ADMIN_EMAILS = [email.strip().lower() for email in os.getenv('ADMIN_EMAILS', '').split(',') if email.strip()]
 FACEBOOK_CLIENT_ID = os.getenv('FACEBOOK_CLIENT_ID')
 FACEBOOK_CLIENT_SECRET = os.getenv('FACEBOOK_CLIENT_SECRET')
 FACEBOOK_API_VERSION = os.getenv('FACEBOOK_API_VERSION', 'v18.0')
@@ -100,6 +110,9 @@ class AnalysisResult(Base):
     data = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # 關聯到 User
+    user = relationship("User", backref="analyses")
 
 def ensure_analysis_user_column():
     try:
@@ -268,17 +281,22 @@ def generate_unique_username(session, base):
 
 def generate_token(user_id):
     payload = {
-        "sub": user_id,
+        "sub": str(user_id),  # JWT sub 必須是字符串
         "exp": datetime.utcnow() + timedelta(minutes=JWT_EXPIRES_MINUTES)
     }
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
 def decode_token(token):
     try:
-        return jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        print(f"[Auth] ✅ Token 驗證成功: user_id={payload.get('sub')}")
+        return payload
     except jwt.ExpiredSignatureError:
+        print(f"[Auth] ❌ Token 已過期")
         raise AuthError("token_expired", 401)
-    except jwt.InvalidTokenError:
+    except jwt.InvalidTokenError as e:
+        print(f"[Auth] ❌ Token 無效: {e}")
+        print(f"[Auth] Token 前50字符: {token[:50] if token else 'None'}...")
         raise AuthError("invalid_token", 401)
 
 class AuthError(Exception):
@@ -402,35 +420,49 @@ def get_authenticated_user(required=False):
     auth_header = request.headers.get('Authorization', '')
     if not auth_header:
         if required:
+            print(f"[Auth] ❌ 缺少 Authorization header")
             raise AuthError("authorization_header_missing", 401)
         return None
     parts = auth_header.split()
     if len(parts) != 2 or parts[0].lower() != 'bearer':
         if required:
+            print(f"[Auth] ❌ Authorization header 格式錯誤: {auth_header[:50]}")
             raise AuthError("invalid_authorization_header", 401)
         # 如果不是 required，靜默返回 None（允許匿名使用）
         return None
     token = parts[1]
+    print(f"[Auth] 🔍 驗證 token，長度: {len(token)}")
     try:
         payload = decode_token(token)
     except AuthError as e:
         # Token 驗證失敗
         if required:
+            print(f"[Auth] ❌ Token 驗證失敗 (required=True): {e.message}")
             raise e
         # 如果不是 required，記錄警告但允許繼續（匿名使用）
         print(f"[Auth] ⚠️ Token 驗證失敗但允許匿名使用: {e.message}")
         return None
     except Exception as e:
         # 其他錯誤
+        print(f"[Auth] ❌ Token 解析異常: {e}")
+        import traceback
+        traceback.print_exc()
         if required:
             raise AuthError("token_verification_failed", 401)
         print(f"[Auth] ⚠️ Token 解析失敗但允許匿名使用: {e}")
         return None
     
-    user_id = payload.get("sub")
-    if not user_id:
+    user_id_str = payload.get("sub")
+    if not user_id_str:
         if required:
             raise AuthError("invalid_token_payload", 401)
+        return None
+    # 將字符串轉換為整數（JWT sub 是字符串，但數據庫 ID 是整數）
+    try:
+        user_id = int(user_id_str)
+    except (ValueError, TypeError):
+        if required:
+            raise AuthError("invalid_user_id_in_token", 401)
         return None
     session = SessionLocal()
     try:
@@ -580,12 +612,76 @@ def get_me():
 
 @app.route('/api/auth/firebase-login', methods=['POST'])
 def firebase_login():
-    if not firebase_app:
-        return jsonify({"ok": False, "error": "firebase_not_configured"}), 500
     data = request.get_json() or {}
     id_token = (data.get("id_token") or "").strip()
     if not id_token:
         raise AuthError("missing_id_token", 400)
+    
+    # 如果 Firebase 未配置，使用本地開發模式
+    if not firebase_app:
+        print("[Auth] ⚠️ Firebase 未配置，使用本地開發模式")
+        # 嘗試從 token 中提取信息（如果是 JWT）
+        try:
+            import base64
+            # JWT token 格式：header.payload.signature
+            parts = id_token.split('.')
+            if len(parts) >= 2:
+                # 解碼 payload
+                payload = parts[1]
+                # 添加 padding（如果需要）
+                padding = 4 - (len(payload) % 4)
+                if padding != 4:
+                    payload += '=' * padding
+                
+                decoded_bytes = base64.urlsafe_b64decode(payload)
+                decoded_payload = json.loads(decoded_bytes)
+                
+                # Firebase ID token 的字段名稱
+                email = decoded_payload.get("email") or decoded_payload.get("email_address")
+                name = decoded_payload.get("name") or decoded_payload.get("display_name")
+                # Firebase 使用 'sub' 作為 user ID
+                uid = decoded_payload.get("sub") or decoded_payload.get("user_id") or decoded_payload.get("uid")
+                
+                if not email:
+                    print(f"[Auth] ⚠️ Token 中沒有 email，可用字段: {list(decoded_payload.keys())[:10]}")
+                    # 如果沒有 email，嘗試使用其他方式
+                    # 檢查是否有其他標識符
+                    if not uid:
+                        raise AuthError("email_not_found_in_token", 400)
+                    # 使用 uid 創建一個臨時 email
+                    email = f"{uid}@firebase.local"
+                    print(f"[Auth] 使用臨時 email: {email}")
+                
+                print(f"[Auth] 本地模式：從 token 提取 email={email}, uid={uid}, name={name}")
+                
+                # 使用 email 作為 provider_id
+                provider = "firebase"
+                provider_id = uid or email
+                profile = {
+                    "email": email,
+                    "display_name": name or email.split("@")[0],
+                    "avatar_url": decoded_payload.get("picture"),
+                    "username": email.split("@")[0] if email else "user"
+                }
+                token, user, new_user = login_with_provider(provider, provider_id, profile)
+                print(f"[Auth] ✅ 本地模式登入成功: {email}")
+                return jsonify({"ok": True, "token": token, "user": user, "new_user": new_user})
+        except json.JSONDecodeError as e:
+            print(f"[Auth] ❌ JSON 解析失敗: {e}")
+            print(f"[Auth] Payload 長度: {len(payload) if 'payload' in locals() else 'N/A'}")
+        except Exception as e:
+            import traceback
+            print(f"[Auth] ❌ 本地模式解析 token 失敗: {e}")
+            traceback.print_exc()
+        
+        # 如果解析失敗，返回錯誤
+        return jsonify({
+            "ok": False, 
+            "error": "firebase_not_configured", 
+            "message": "Firebase 未配置且無法解析 token。請設定 FIREBASE_SERVICE_ACCOUNT 環境變數。"
+        }), 500
+    
+    # 正常流程：使用 Firebase 驗證
     decoded = verify_firebase_token(id_token)
     provider = decoded.get("firebase", {}).get("sign_in_provider", "firebase")
     provider_id = decoded.get("uid")
@@ -1654,6 +1750,539 @@ def api_get_result():
     if not data:
         return jsonify({"ok": False, "error": "not_found"}), 404
     return jsonify(data)
+
+def login_required(f):
+    """登入驗證裝飾器"""
+    from functools import wraps
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        try:
+            user = get_authenticated_user(required=True)
+            if not user:
+                raise AuthError("authentication_required", 401)
+        except AuthError as e:
+            return jsonify({"ok": False, "error": e.message}), e.status
+        return f(*args, **kwargs)
+    return decorated_function
+
+def admin_required(f):
+    """管理員驗證裝飾器"""
+    from functools import wraps
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        try:
+            user = get_authenticated_user(required=True)
+            if not user:
+                raise AuthError("authentication_required", 401)
+            
+            # 檢查是否為管理員
+            user_email = user.get("email", "").lower()
+            if not ADMIN_EMAILS:
+                print(f"[Admin] ⚠️ ADMIN_EMAILS 未設定，拒絕訪問")
+                raise AuthError("admin_access_required", 403)
+            
+            if user_email not in ADMIN_EMAILS:
+                print(f"[Admin] ⚠️ 用戶 {user_email} 嘗試訪問管理員功能，但不在管理員列表中")
+                raise AuthError("admin_access_required", 403)
+            
+            print(f"[Admin] ✅ 管理員 {user_email} 訪問管理員功能")
+        except AuthError as e:
+            return jsonify({"ok": False, "error": e.message}), e.status
+        return f(*args, **kwargs)
+    return decorated_function
+
+@app.route('/api/user/analyses', methods=['GET'])
+@login_required
+def get_user_analyses():
+    """獲取當前用戶的所有分析記錄"""
+    user = get_authenticated_user(required=True)
+    session = SessionLocal()
+    try:
+        # 查詢該用戶的所有分析結果
+        records = session.query(AnalysisResult).filter_by(user_id=user["id"]).order_by(AnalysisResult.created_at.desc()).all()
+        
+        analyses = []
+        for record in records:
+            try:
+                data = json.loads(record.data)
+                analyses.append({
+                    "id": record.id,
+                    "username": record.username,
+                    "display_name": record.display_name,
+                    "created_at": record.created_at.isoformat() if record.created_at else None,
+                    "updated_at": record.updated_at.isoformat() if record.updated_at else None,
+                    "account_asset_value": data.get("value_estimation", {}).get("account_asset_value", 0),
+                    "followers": data.get("followers", 0),
+                    "analysis_text": data.get("analysis_text", "")[:100] + "..." if len(data.get("analysis_text", "")) > 100 else data.get("analysis_text", "")
+                })
+            except (json.JSONDecodeError, KeyError) as e:
+                print(f"[API] ⚠️ 解析分析記錄失敗 (ID: {record.id}): {e}")
+                continue
+        
+        return jsonify({"ok": True, "analyses": analyses, "count": len(analyses)})
+    except SQLAlchemyError as e:
+        session.rollback()
+        print(f"[API] ❌ 查詢用戶分析記錄失敗: {e}")
+        return jsonify({"ok": False, "error": "database_error"}), 500
+    finally:
+        session.close()
+
+@app.route('/api/user/me', methods=['GET'])
+@login_required
+def get_current_user():
+    """獲取當前登入用戶的資訊"""
+    user = get_authenticated_user(required=True)
+    session = SessionLocal()
+    try:
+        db_user = session.get(User, user["id"])
+        if not db_user:
+            raise AuthError("user_not_found", 404)
+        return jsonify({"ok": True, "user": serialize_user(db_user)})
+    except SQLAlchemyError as e:
+        session.rollback()
+        print(f"[API] ❌ 查詢用戶資訊失敗: {e}")
+        return jsonify({"ok": False, "error": "database_error"}), 500
+    finally:
+        session.close()
+
+@app.route('/api/user/stats', methods=['GET'])
+@login_required
+def get_user_stats():
+    """獲取當前用戶的統計資訊"""
+    user = get_authenticated_user(required=True)
+    session = SessionLocal()
+    try:
+        # 查詢該用戶的所有分析結果
+        records = session.query(AnalysisResult).filter_by(user_id=user["id"]).order_by(AnalysisResult.created_at.desc()).all()
+        
+        if not records:
+            return jsonify({
+                "ok": True,
+                "stats": {
+                    "total_analyses": 0,
+                    "latest_value": 0,
+                    "highest_value": 0,
+                    "first_analysis_date": None,
+                    "latest_analysis_date": None,
+                    "value_history": []
+                }
+            })
+        
+        # 計算統計資訊
+        total_analyses = len(records)
+        values = []
+        dates = []
+        value_history = []  # 用於圖表
+        
+        for record in records:
+            try:
+                data = json.loads(record.data)
+                value = data.get("value_estimation", {}).get("account_asset_value", 0)
+                values.append(value)
+                if record.created_at:
+                    dates.append(record.created_at)
+                    value_history.append({
+                        "date": record.created_at.isoformat(),
+                        "value": value,
+                        "username": record.username
+                    })
+            except (json.JSONDecodeError, KeyError):
+                continue
+        
+        latest_value = values[0] if values else 0
+        highest_value = max(values) if values else 0
+        first_analysis_date = min(dates).isoformat() if dates else None
+        latest_analysis_date = max(dates).isoformat() if dates else None
+        
+        # 反轉歷史記錄，讓最早的在前
+        value_history.reverse()
+        
+        return jsonify({
+            "ok": True,
+            "stats": {
+                "total_analyses": total_analyses,
+                "latest_value": latest_value,
+                "highest_value": highest_value,
+                "first_analysis_date": first_analysis_date,
+                "latest_analysis_date": latest_analysis_date,
+                "value_history": value_history
+            }
+        })
+    except SQLAlchemyError as e:
+        session.rollback()
+        print(f"[API] ❌ 查詢用戶統計失敗: {e}")
+        return jsonify({"ok": False, "error": "database_error"}), 500
+    finally:
+        session.close()
+
+# -----------------------------------------------------------------------------
+# Admin API Routes
+# -----------------------------------------------------------------------------
+
+@app.route('/api/admin/users', methods=['GET'])
+@admin_required
+def admin_get_all_users():
+    """獲取所有用戶列表（管理員專用）"""
+    session = SessionLocal()
+    try:
+        page = int(request.args.get('page', 1))
+        per_page = int(request.args.get('per_page', 50))
+        offset = (page - 1) * per_page
+        
+        # 查詢總數
+        total = session.query(User).count()
+        
+        # 查詢用戶列表
+        users = session.query(User).order_by(User.created_at.desc()).offset(offset).limit(per_page).all()
+        
+        users_data = []
+        # 批量查詢所有用戶的分析次數（優化 N+1 查詢）
+        user_ids = [u.id for u in users]
+        analysis_counts = {}
+        if user_ids:
+            from sqlalchemy import func
+            counts = session.query(
+                AnalysisResult.user_id,
+                func.count(AnalysisResult.id).label('count')
+            ).filter(AnalysisResult.user_id.in_(user_ids)).group_by(AnalysisResult.user_id).all()
+            analysis_counts = {uid: count for uid, count in counts}
+        
+        for user in users:
+            users_data.append({
+                "id": user.id,
+                "email": user.email,
+                "username": user.username,
+                "display_name": user.display_name,
+                "avatar_url": user.avatar_url,
+                "provider": user.provider,
+                "created_at": user.created_at.isoformat() if user.created_at else None,
+                "analysis_count": analysis_counts.get(user.id, 0)
+            })
+        
+        return jsonify({
+            "ok": True,
+            "users": users_data,
+            "pagination": {
+                "page": page,
+                "per_page": per_page,
+                "total": total,
+                "pages": (total + per_page - 1) // per_page
+            }
+        })
+    except SQLAlchemyError as e:
+        session.rollback()
+        print(f"[Admin] ❌ 查詢用戶列表失敗: {e}")
+        return jsonify({"ok": False, "error": "database_error"}), 500
+    finally:
+        session.close()
+
+@app.route('/api/admin/analyses', methods=['GET'])
+@admin_required
+def admin_get_all_analyses():
+    """獲取所有分析記錄（管理員專用）"""
+    session = SessionLocal()
+    try:
+        page = int(request.args.get('page', 1))
+        per_page = int(request.args.get('per_page', 50))
+        offset = (page - 1) * per_page
+        
+        # 查詢總數
+        total = session.query(AnalysisResult).count()
+        
+        # 查詢分析記錄列表（使用 joinedload 優化，避免 N+1 查詢）
+        records = session.query(AnalysisResult).options(
+            joinedload(AnalysisResult.user)
+        ).order_by(AnalysisResult.created_at.desc()).offset(offset).limit(per_page).all()
+        
+        analyses_data = []
+        for record in records:
+            try:
+                data = json.loads(record.data)
+                # 獲取用戶資訊（已通過 joinedload 預載入）
+                user = None
+                if record.user_id and record.user:
+                    user = {
+                        "id": record.user.id,
+                        "email": record.user.email,
+                        "username": record.user.username,
+                        "display_name": record.user.display_name
+                    }
+                
+                value_est = data.get("value_estimation", {})
+                analyses_data.append({
+                    "id": record.id,
+                    "username": record.username,
+                    "display_name": record.display_name,
+                    "user": user,
+                    "account_asset_value": value_est.get("account_asset_value", 0),
+                    "post_value": value_est.get("post_value", 0),
+                    "story_value": value_est.get("story_value", 0),
+                    "reels_value": value_est.get("reels_value", 0),
+                    "followers": data.get("followers", 0),
+                    "created_at": record.created_at.isoformat() if record.created_at else None,
+                    "updated_at": record.updated_at.isoformat() if record.updated_at else None
+                })
+            except (json.JSONDecodeError, KeyError) as e:
+                print(f"[Admin] ⚠️ 解析分析記錄失敗 (ID: {record.id}): {e}")
+                continue
+        
+        return jsonify({
+            "ok": True,
+            "analyses": analyses_data,
+            "pagination": {
+                "page": page,
+                "per_page": per_page,
+                "total": total,
+                "pages": (total + per_page - 1) // per_page
+            }
+        })
+    except SQLAlchemyError as e:
+        session.rollback()
+        print(f"[Admin] ❌ 查詢分析記錄失敗: {e}")
+        return jsonify({"ok": False, "error": "database_error"}), 500
+    finally:
+        session.close()
+
+@app.route('/api/admin/stats', methods=['GET'])
+@admin_required
+def admin_get_stats():
+    """獲取系統統計資訊（管理員專用）"""
+    session = SessionLocal()
+    try:
+        # 用戶統計
+        total_users = session.query(User).count()
+        # 使用子查詢來獲取有分析的用戶數（避免 JOIN 重複計算）
+        users_with_analyses = session.query(User.id).join(AnalysisResult, User.id == AnalysisResult.user_id).distinct().count()
+        
+        # 分析統計
+        total_analyses = session.query(AnalysisResult).count()
+        analyses_with_users = session.query(AnalysisResult).filter(AnalysisResult.user_id.isnot(None)).count()
+        anonymous_analyses = total_analyses - analyses_with_users
+        
+        # 價值統計
+        records = session.query(AnalysisResult).all()
+        total_value = 0
+        values = []
+        for record in records:
+            try:
+                data = json.loads(record.data)
+                value = data.get("value_estimation", {}).get("account_asset_value", 0)
+                if value > 0:
+                    values.append(value)
+                    total_value += value
+            except (json.JSONDecodeError, KeyError):
+                continue
+        
+        avg_value = total_value / len(values) if values else 0
+        max_value = max(values) if values else 0
+        min_value = min(values) if values else 0
+        
+        # 最近活動
+        recent_analyses = session.query(AnalysisResult).order_by(AnalysisResult.created_at.desc()).limit(10).all()
+        recent_analyses_data = []
+        for record in recent_analyses:
+            try:
+                data = json.loads(record.data)
+                recent_analyses_data.append({
+                    "username": record.username,
+                    "value": data.get("value_estimation", {}).get("account_asset_value", 0),
+                    "created_at": record.created_at.isoformat() if record.created_at else None
+                })
+            except (json.JSONDecodeError, KeyError):
+                continue
+        
+        return jsonify({
+            "ok": True,
+            "stats": {
+                "users": {
+                    "total": total_users,
+                    "with_analyses": users_with_analyses,
+                    "without_analyses": total_users - users_with_analyses
+                },
+                "analyses": {
+                    "total": total_analyses,
+                    "with_users": analyses_with_users,
+                    "anonymous": anonymous_analyses
+                },
+                "values": {
+                    "total": total_value,
+                    "average": avg_value,
+                    "max": max_value,
+                    "min": min_value,
+                    "count": len(values)
+                },
+                "recent_analyses": recent_analyses_data
+            }
+        })
+    except SQLAlchemyError as e:
+        session.rollback()
+        print(f"[Admin] ❌ 查詢統計資訊失敗: {e}")
+        return jsonify({"ok": False, "error": "database_error"}), 500
+    finally:
+        session.close()
+
+@app.route('/api/admin/analyses/<int:analysis_id>/update', methods=['PUT', 'PATCH'])
+@admin_required
+def admin_update_analysis(analysis_id):
+    """更新分析記錄的價值和報價（管理員專用）"""
+    admin_user = get_authenticated_user(required=True)
+    session = SessionLocal()
+    try:
+        record = session.get(AnalysisResult, analysis_id)
+        if not record:
+            return jsonify({"ok": False, "error": "analysis_not_found"}), 404
+        
+        data = request.get_json() or {}
+        
+        # 記錄更新前的值（用於日誌）
+        old_values = {}
+        try:
+            old_data = json.loads(record.data)
+            old_est = old_data.get("value_estimation", {})
+            old_values = {
+                "account_asset_value": old_est.get("account_asset_value", 0),
+                "post_value": old_est.get("post_value", 0),
+                "story_value": old_est.get("story_value", 0),
+                "reels_value": old_est.get("reels_value", 0)
+            }
+        except:
+            pass
+        
+        # 解析現有數據
+        try:
+            analysis_data = json.loads(record.data)
+        except json.JSONDecodeError:
+            return jsonify({"ok": False, "error": "invalid_analysis_data"}), 400
+        
+        # 更新價值估算
+        if "value_estimation" not in analysis_data:
+            analysis_data["value_estimation"] = {}
+        
+        value_est = analysis_data["value_estimation"]
+        
+        # 更新帳號總價值
+        if "account_asset_value" in data:
+            value_est["account_asset_value"] = int(data["account_asset_value"])
+        
+        # 更新報價
+        if "post_value" in data:
+            value_est["post_value"] = int(data["post_value"])
+        if "story_value" in data:
+            value_est["story_value"] = int(data["story_value"])
+        if "reels_value" in data:
+            value_est["reels_value"] = int(data["reels_value"])
+        
+        # 保存更新後的數據
+        record.data = json.dumps(analysis_data, ensure_ascii=False)
+        record.updated_at = datetime.utcnow()
+        session.commit()
+        
+        # 記錄管理員操作日誌
+        changes = []
+        if "account_asset_value" in data and old_values.get("account_asset_value") != value_est.get("account_asset_value"):
+            changes.append(f"帳號價值: {old_values.get('account_asset_value')} → {value_est.get('account_asset_value')}")
+        if "post_value" in data and old_values.get("post_value") != value_est.get("post_value"):
+            changes.append(f"貼文報價: {old_values.get('post_value')} → {value_est.get('post_value')}")
+        if "story_value" in data and old_values.get("story_value") != value_est.get("story_value"):
+            changes.append(f"Story報價: {old_values.get('story_value')} → {value_est.get('story_value')}")
+        if "reels_value" in data and old_values.get("reels_value") != value_est.get("reels_value"):
+            changes.append(f"Reels報價: {old_values.get('reels_value')} → {value_est.get('reels_value')}")
+        
+        print(f"[Admin] ✅ 管理員 {admin_user.get('email', 'unknown')} 更新分析記錄 ID {analysis_id} (@{record.username}): {', '.join(changes) if changes else '無變更'}")
+        
+        return jsonify({
+            "ok": True,
+            "message": "分析記錄已更新",
+            "analysis": {
+                "id": record.id,
+                "username": record.username,
+                "account_asset_value": value_est.get("account_asset_value", 0),
+                "post_value": value_est.get("post_value", 0),
+                "story_value": value_est.get("story_value", 0),
+                "reels_value": value_est.get("reels_value", 0)
+            }
+        })
+    except ValueError as e:
+        session.rollback()
+        return jsonify({"ok": False, "error": "invalid_value", "message": str(e)}), 400
+    except SQLAlchemyError as e:
+        session.rollback()
+        print(f"[Admin] ❌ 更新分析記錄失敗: {e}")
+        return jsonify({"ok": False, "error": "database_error"}), 500
+    finally:
+        session.close()
+
+@app.route('/api/admin/users/<int:user_id>', methods=['DELETE'])
+@admin_required
+def admin_delete_user(user_id):
+    """刪除用戶及其所有分析記錄（管理員專用）"""
+    session = SessionLocal()
+    try:
+        user = session.get(User, user_id)
+        if not user:
+            return jsonify({"ok": False, "error": "user_not_found"}), 404
+        
+        # 獲取用戶的分析記錄數量（用於日誌）
+        analysis_count = session.query(AnalysisResult).filter_by(user_id=user_id).count()
+        
+        # 刪除該用戶的所有分析記錄
+        session.query(AnalysisResult).filter_by(user_id=user_id).delete()
+        
+        # 刪除用戶
+        user_email = user.email
+        admin_user = get_authenticated_user(required=True)
+        session.delete(user)
+        session.commit()
+        
+        print(f"[Admin] ✅ 管理員 {admin_user.get('email', 'unknown')} 刪除用戶 ID {user_id} ({user_email}) 及其 {analysis_count} 筆分析記錄")
+        
+        return jsonify({
+            "ok": True,
+            "message": f"用戶及其 {analysis_count} 筆分析記錄已刪除",
+            "deleted_user": {
+                "id": user_id,
+                "email": user.email,
+                "analysis_count": analysis_count
+            }
+        })
+    except SQLAlchemyError as e:
+        session.rollback()
+        print(f"[Admin] ❌ 刪除用戶失敗: {e}")
+        return jsonify({"ok": False, "error": "database_error"}), 500
+    finally:
+        session.close()
+
+@app.route('/api/admin/analyses/<int:analysis_id>', methods=['DELETE'])
+@admin_required
+def admin_delete_analysis(analysis_id):
+    """刪除單筆分析記錄（管理員專用）"""
+    admin_user = get_authenticated_user(required=True)
+    session = SessionLocal()
+    try:
+        record = session.get(AnalysisResult, analysis_id)
+        if not record:
+            return jsonify({"ok": False, "error": "analysis_not_found"}), 404
+        
+        username = record.username
+        session.delete(record)
+        session.commit()
+        
+        print(f"[Admin] ✅ 管理員 {admin_user.get('email', 'unknown')} 刪除分析記錄 ID {analysis_id} (@{username})")
+        
+        return jsonify({
+            "ok": True,
+            "message": "分析記錄已刪除",
+            "deleted_analysis": {
+                "id": analysis_id,
+                "username": username
+            }
+        })
+    except SQLAlchemyError as e:
+        session.rollback()
+        print(f"[Admin] ❌ 刪除分析記錄失敗: {e}")
+        return jsonify({"ok": False, "error": "database_error"}), 500
+    finally:
+        session.close()
 
 @app.errorhandler(AuthError)
 def handle_auth_error(err):
