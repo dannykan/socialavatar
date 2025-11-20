@@ -207,6 +207,87 @@
                 padding: 8px;
             }
         }
+        
+        .search-filter-bar {
+            margin-bottom: 20px;
+            padding: 16px;
+            background: rgba(30, 41, 59, 0.5);
+            border-radius: 8px;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+        }
+        
+        .search-group {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .search-input, .filter-input {
+            flex: 1;
+            min-width: 150px;
+            padding: 10px 14px;
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(148, 163, 184, 0.3);
+            border-radius: 6px;
+            color: #e2e8f0;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        
+        .search-input:focus, .filter-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            background: rgba(15, 23, 42, 0.95);
+        }
+        
+        .search-input::placeholder, .filter-input::placeholder {
+            color: #64748b;
+        }
+        
+        .search-btn, .clear-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        
+        .search-btn {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: white;
+        }
+        
+        .search-btn:hover {
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            transform: translateY(-1px);
+        }
+        
+        .clear-btn {
+            background: rgba(148, 163, 184, 0.2);
+            color: #cbd5e1;
+        }
+        
+        .clear-btn:hover {
+            background: rgba(148, 163, 184, 0.3);
+        }
+        
+        @media (max-width: 768px) {
+            .search-group {
+                flex-direction: column;
+            }
+            
+            .search-input, .filter-input {
+                width: 100%;
+            }
+            
+            .search-btn, .clear-btn {
+                width: 100%;
+            }
+        }
     </style>
 </head>
 <body>
@@ -254,6 +335,14 @@
         <!-- 用戶列表 -->
         <div class="section">
             <h2 class="section-title">👥 用戶列表</h2>
+            <div class="search-filter-bar">
+                <div class="search-group">
+                    <input type="text" id="userSearchEmail" class="search-input" placeholder="搜索 Email..." onkeyup="handleUserSearch(event)">
+                    <input type="text" id="userSearchUsername" class="search-input" placeholder="搜索用戶名..." onkeyup="handleUserSearch(event)">
+                    <button class="search-btn" onclick="applyUserFilters()">🔍 搜索</button>
+                    <button class="clear-btn" onclick="clearUserFilters()">清除</button>
+                </div>
+            </div>
             <div id="usersSection">
                 <div class="loading">
                     <div class="spinner"></div>
@@ -265,6 +354,17 @@
         <!-- 分析記錄 -->
         <div class="section">
             <h2 class="section-title">📋 分析記錄</h2>
+            <div class="search-filter-bar">
+                <div class="search-group">
+                    <input type="text" id="analysisSearchUsername" class="search-input" placeholder="搜索 IG 帳號..." onkeyup="handleAnalysisSearch(event)">
+                    <input type="number" id="minValue" class="filter-input" placeholder="最低價值" min="0">
+                    <input type="number" id="maxValue" class="filter-input" placeholder="最高價值" min="0">
+                    <input type="date" id="dateFrom" class="filter-input" placeholder="開始日期">
+                    <input type="date" id="dateTo" class="filter-input" placeholder="結束日期">
+                    <button class="search-btn" onclick="applyAnalysisFilters()">🔍 搜索</button>
+                    <button class="clear-btn" onclick="clearAnalysisFilters()">清除</button>
+                </div>
+            </div>
             <div id="analysesSection">
                 <div class="loading">
                     <div class="spinner"></div>
@@ -523,9 +623,28 @@
             document.getElementById('statsSection').style.display = 'grid';
         }
 
+        // 用戶搜索和篩選狀態
+        let userSearchParams = {
+            search_email: '',
+            search_username: ''
+        };
+        
         async function loadUsers(headers, page = 1) {
             try {
-                const res = await fetch(`/api/admin/users?page=${page}&per_page=20`, { headers });
+                // 構建查詢參數
+                const params = new URLSearchParams({
+                    page: page.toString(),
+                    per_page: '20'
+                });
+                
+                if (userSearchParams.search_email) {
+                    params.append('search_email', userSearchParams.search_email);
+                }
+                if (userSearchParams.search_username) {
+                    params.append('search_username', userSearchParams.search_username);
+                }
+                
+                const res = await fetch(`/api/admin/users?${params.toString()}`, { headers });
                 if (!res.ok) {
                     // 檢查是否返回 HTML（404 錯誤頁面）
                     const contentType = res.headers.get('content-type');
@@ -546,10 +665,89 @@
                 `;
             }
         }
+        
+        function handleUserSearch(event) {
+            if (event.key === 'Enter') {
+                applyUserFilters();
+            }
+        }
+        
+        async function applyUserFilters() {
+            try {
+                console.log('[Search] 開始應用用戶篩選...');
+                userSearchParams.search_email = document.getElementById('userSearchEmail').value.trim();
+                userSearchParams.search_username = document.getElementById('userSearchUsername').value.trim();
+                console.log('[Search] 搜索參數:', userSearchParams);
+                
+                currentUsersPage = 1;
+                
+                // 顯示加載狀態
+                document.getElementById('usersSection').innerHTML = `
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        <p>搜索中...</p>
+                    </div>
+                `;
+                
+                if (currentUser) {
+                    const headers = await getAuthHeaders(currentUser);
+                    await loadUsers(headers, currentUsersPage);
+                } else {
+                    console.error('[Search] currentUser 不存在');
+                    showError('請先登入');
+                }
+            } catch (error) {
+                console.error('[Search] 應用篩選失敗:', error);
+                showError(`搜索失敗: ${error.message}`);
+            }
+        }
+        
+        async function clearUserFilters() {
+            try {
+                console.log('[Search] 清除用戶篩選...');
+                document.getElementById('userSearchEmail').value = '';
+                document.getElementById('userSearchUsername').value = '';
+                userSearchParams = { search_email: '', search_username: '' };
+                currentUsersPage = 1;
+                
+                // 顯示加載狀態
+                document.getElementById('usersSection').innerHTML = `
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        <p>載入中...</p>
+                    </div>
+                `;
+                
+                if (currentUser) {
+                    const headers = await getAuthHeaders(currentUser);
+                    await loadUsers(headers, currentUsersPage);
+                } else {
+                    console.error('[Search] currentUser 不存在');
+                    showError('請先登入');
+                }
+            } catch (error) {
+                console.error('[Search] 清除篩選失敗:', error);
+                showError(`清除失敗: ${error.message}`);
+            }
+        }
 
         function renderUsers(users, pagination) {
+            console.log('[Search] 渲染用戶列表，用戶數:', users.length);
+            
+            // 檢查是否有搜索條件
+            const hasSearch = userSearchParams.search_email || userSearchParams.search_username;
+            
             if (users.length === 0) {
-                document.getElementById('usersSection').innerHTML = '<p style="color: #94a3b8; text-align: center; padding: 40px;">暫無用戶</p>';
+                if (hasSearch) {
+                    document.getElementById('usersSection').innerHTML = `
+                        <div style="text-align: center; padding: 40px; color: #94a3b8;">
+                            <p>🔍 沒有找到符合條件的用戶</p>
+                            <p style="font-size: 12px; margin-top: 8px;">請嘗試其他搜索關鍵字</p>
+                        </div>
+                    `;
+                } else {
+                    document.getElementById('usersSection').innerHTML = '<p style="color: #94a3b8; text-align: center; padding: 40px;">暫無用戶</p>';
+                }
                 return;
             }
 
@@ -593,9 +791,40 @@
             document.getElementById('usersSection').innerHTML = html;
         }
 
+        // 分析記錄搜索和篩選狀態
+        let analysisSearchParams = {
+            search_username: '',
+            min_value: null,
+            max_value: null,
+            date_from: '',
+            date_to: ''
+        };
+        
         async function loadAnalyses(headers, page = 1) {
             try {
-                const res = await fetch(`/api/admin/analyses?page=${page}&per_page=20`, { headers });
+                // 構建查詢參數
+                const params = new URLSearchParams({
+                    page: page.toString(),
+                    per_page: '20'
+                });
+                
+                if (analysisSearchParams.search_username) {
+                    params.append('search_username', analysisSearchParams.search_username);
+                }
+                if (analysisSearchParams.min_value !== null && analysisSearchParams.min_value !== '') {
+                    params.append('min_value', analysisSearchParams.min_value.toString());
+                }
+                if (analysisSearchParams.max_value !== null && analysisSearchParams.max_value !== '') {
+                    params.append('max_value', analysisSearchParams.max_value.toString());
+                }
+                if (analysisSearchParams.date_from) {
+                    params.append('date_from', analysisSearchParams.date_from);
+                }
+                if (analysisSearchParams.date_to) {
+                    params.append('date_to', analysisSearchParams.date_to);
+                }
+                
+                const res = await fetch(`/api/admin/analyses?${params.toString()}`, { headers });
                 if (!res.ok) {
                     // 檢查是否返回 HTML（404 錯誤頁面）
                     const contentType = res.headers.get('content-type');
@@ -614,6 +843,86 @@
                 document.getElementById('analysesSection').innerHTML = `
                     <div class="error-message">載入分析記錄失敗: ${error.message}</div>
                 `;
+            }
+        }
+        
+        function handleAnalysisSearch(event) {
+            if (event.key === 'Enter') {
+                applyAnalysisFilters();
+            }
+        }
+        
+        async function applyAnalysisFilters() {
+            try {
+                console.log('[Search] 開始應用分析記錄篩選...');
+                analysisSearchParams.search_username = document.getElementById('analysisSearchUsername').value.trim();
+                const minValue = document.getElementById('minValue').value;
+                const maxValue = document.getElementById('maxValue').value;
+                analysisSearchParams.min_value = minValue ? parseInt(minValue) : null;
+                analysisSearchParams.max_value = maxValue ? parseInt(maxValue) : null;
+                analysisSearchParams.date_from = document.getElementById('dateFrom').value || '';
+                analysisSearchParams.date_to = document.getElementById('dateTo').value || '';
+                
+                console.log('[Search] 分析記錄搜索參數:', analysisSearchParams);
+                
+                currentAnalysesPage = 1;
+                
+                // 顯示加載狀態
+                document.getElementById('analysesSection').innerHTML = `
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        <p>搜索中...</p>
+                    </div>
+                `;
+                
+                if (currentUser) {
+                    const headers = await getAuthHeaders(currentUser);
+                    await loadAnalyses(headers, currentAnalysesPage);
+                } else {
+                    console.error('[Search] currentUser 不存在');
+                    showError('請先登入');
+                }
+            } catch (error) {
+                console.error('[Search] 應用分析記錄篩選失敗:', error);
+                showError(`搜索失敗: ${error.message}`);
+            }
+        }
+        
+        async function clearAnalysisFilters() {
+            try {
+                console.log('[Search] 清除分析記錄篩選...');
+                document.getElementById('analysisSearchUsername').value = '';
+                document.getElementById('minValue').value = '';
+                document.getElementById('maxValue').value = '';
+                document.getElementById('dateFrom').value = '';
+                document.getElementById('dateTo').value = '';
+                analysisSearchParams = {
+                    search_username: '',
+                    min_value: null,
+                    max_value: null,
+                    date_from: '',
+                    date_to: ''
+                };
+                currentAnalysesPage = 1;
+                
+                // 顯示加載狀態
+                document.getElementById('analysesSection').innerHTML = `
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        <p>載入中...</p>
+                    </div>
+                `;
+                
+                if (currentUser) {
+                    const headers = await getAuthHeaders(currentUser);
+                    await loadAnalyses(headers, currentAnalysesPage);
+                } else {
+                    console.error('[Search] currentUser 不存在');
+                    showError('請先登入');
+                }
+            } catch (error) {
+                console.error('[Search] 清除分析記錄篩選失敗:', error);
+                showError(`清除失敗: ${error.message}`);
             }
         }
 
@@ -775,8 +1084,26 @@
         }
 
         function renderAnalyses(analyses, pagination) {
+            console.log('[Search] 渲染分析記錄列表，記錄數:', analyses.length);
+            
+            // 檢查是否有搜索條件
+            const hasSearch = analysisSearchParams.search_username || 
+                             analysisSearchParams.min_value !== null || 
+                             analysisSearchParams.max_value !== null ||
+                             analysisSearchParams.date_from ||
+                             analysisSearchParams.date_to;
+            
             if (analyses.length === 0) {
-                document.getElementById('analysesSection').innerHTML = '<p style="color: #94a3b8; text-align: center; padding: 40px;">暫無分析記錄</p>';
+                if (hasSearch) {
+                    document.getElementById('analysesSection').innerHTML = `
+                        <div style="text-align: center; padding: 40px; color: #94a3b8;">
+                            <p>🔍 沒有找到符合條件的分析記錄</p>
+                            <p style="font-size: 12px; margin-top: 8px;">請嘗試其他搜索關鍵字或調整篩選條件</p>
+                        </div>
+                    `;
+                } else {
+                    document.getElementById('analysesSection').innerHTML = '<p style="color: #94a3b8; text-align: center; padding: 40px;">暫無分析記錄</p>';
+                }
                 return;
             }
 
@@ -942,7 +1269,14 @@
             }
             return value.toLocaleString();
         }
-
+        
+        // 導出搜索和篩選函數到全局
+        window.handleUserSearch = handleUserSearch;
+        window.applyUserFilters = applyUserFilters;
+        window.clearUserFilters = clearUserFilters;
+        window.handleAnalysisSearch = handleAnalysisSearch;
+        window.applyAnalysisFilters = applyAnalysisFilters;
+        window.clearAnalysisFilters = clearAnalysisFilters;
     </script>
 </body>
 </html>

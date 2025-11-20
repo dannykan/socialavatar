@@ -1929,11 +1929,28 @@ def admin_get_all_users():
         per_page = int(request.args.get('per_page', 50))
         offset = (page - 1) * per_page
         
-        # 查詢總數
-        total = session.query(User).count()
+        # 搜索和篩選參數
+        search_email = request.args.get('search_email', '').strip()
+        search_username = request.args.get('search_username', '').strip()
+        print(f"[Admin] 🔍 用戶搜索參數: email='{search_email}', username='{search_username}'")
+        
+        # 構建查詢
+        query = session.query(User)
+        
+        # 按 Email 搜索
+        if search_email:
+            query = query.filter(User.email.ilike(f'%{search_email}%'))
+        
+        # 按 Username 搜索
+        if search_username:
+            query = query.filter(User.username.ilike(f'%{search_username}%'))
+        
+        # 查詢總數與結果
+        total = query.count()
+        print(f"[Admin] 🔍 用戶搜索結果總數: {total}")
         
         # 查詢用戶列表
-        users = session.query(User).order_by(User.created_at.desc()).offset(offset).limit(per_page).all()
+        users = query.order_by(User.created_at.desc()).offset(offset).limit(per_page).all()
         
         users_data = []
         # 批量查詢所有用戶的分析次數（優化 N+1 查詢）
@@ -1986,13 +2003,73 @@ def admin_get_all_analyses():
         per_page = int(request.args.get('per_page', 50))
         offset = (page - 1) * per_page
         
-        # 查詢總數
-        total = session.query(AnalysisResult).count()
+        # 搜索和篩選參數
+        search_username = request.args.get('search_username', '').strip()
+        min_value = request.args.get('min_value', type=int)
+        max_value = request.args.get('max_value', type=int)
+        date_from = request.args.get('date_from', '').strip()
+        date_to = request.args.get('date_to', '').strip()
+        print(f"[Admin] 🔍 分析記錄搜索參數: username='{search_username}', min={min_value}, max={max_value}, from='{date_from}', to='{date_to}'")
         
-        # 查詢分析記錄列表（使用 joinedload 優化，避免 N+1 查詢）
-        records = session.query(AnalysisResult).options(
+        # 構建查詢
+        query = session.query(AnalysisResult).options(
             joinedload(AnalysisResult.user)
-        ).order_by(AnalysisResult.created_at.desc()).offset(offset).limit(per_page).all()
+        )
+        
+        # 按用戶名搜索
+        if search_username:
+            query = query.filter(AnalysisResult.username.ilike(f'%{search_username}%'))
+        
+        # 按日期範圍篩選
+        if date_from:
+            try:
+                from datetime import datetime
+                date_from_obj = datetime.fromisoformat(date_from.replace('Z', '+00:00'))
+                query = query.filter(AnalysisResult.created_at >= date_from_obj)
+            except (ValueError, AttributeError):
+                pass
+        
+        if date_to:
+            try:
+                from datetime import datetime
+                date_to_obj = datetime.fromisoformat(date_to.replace('Z', '+00:00'))
+                query = query.filter(AnalysisResult.created_at <= date_to_obj)
+            except (ValueError, AttributeError):
+                pass
+        
+        # 如果指定了價值範圍，需要先獲取所有記錄進行過濾（因為價值在 JSON 中）
+        if min_value is not None or max_value is not None:
+            # 先獲取所有符合其他條件的記錄
+            all_records = query.order_by(AnalysisResult.created_at.desc()).all()
+            
+            # 過濾價值範圍
+            filtered_records = []
+            for record in all_records:
+                try:
+                    data = json.loads(record.data)
+                    value_est = data.get("value_estimation", {})
+                    account_value = value_est.get("account_asset_value", 0)
+                    
+                    if min_value is not None and account_value < min_value:
+                        continue
+                    if max_value is not None and account_value > max_value:
+                        continue
+                    
+                    filtered_records.append(record)
+                except (json.JSONDecodeError, KeyError):
+                    continue
+            
+            # 更新總數
+            total = len(filtered_records)
+            # 應用分頁
+            records = filtered_records[offset:offset + per_page]
+            print(f"[Admin] 🔍 分析記錄經價值篩選後: {total}")
+        else:
+            # 沒有價值篩選，直接使用數據庫查詢
+            total = query.count()
+            records = query.order_by(AnalysisResult.created_at.desc()).offset(offset).limit(per_page).all()
+        
+        print(f"[Admin] 🔍 分析記錄搜索結果數: {total}")
         
         analyses_data = []
         for record in records:
@@ -2281,6 +2358,99 @@ def admin_delete_analysis(analysis_id):
         session.rollback()
         print(f"[Admin] ❌ 刪除分析記錄失敗: {e}")
         return jsonify({"ok": False, "error": "database_error"}), 500
+    finally:
+        session.close()
+
+# -----------------------------------------------------------------------------
+# Leaderboard API
+# -----------------------------------------------------------------------------
+@app.route('/api/leaderboard', methods=['GET'])
+def get_leaderboard():
+    """取得排行榜資料"""
+    session = SessionLocal()
+    try:
+        board_type = request.args.get('type', 'account_value')
+        limit = min(max(int(request.args.get('limit', 50)), 1), 100)
+        category = request.args.get('category')
+        timeframe = request.args.get('timeframe', 'all')
+        
+        print(f"[Leaderboard] 請求: type={board_type}, limit={limit}, category={category}, timeframe={timeframe}")
+        
+        query = session.query(AnalysisResult)
+        
+        # 時間篩選
+        if timeframe and timeframe != 'all':
+            from datetime import datetime, timedelta
+            now = datetime.utcnow()
+            if timeframe == '7d':
+                query = query.filter(AnalysisResult.created_at >= now - timedelta(days=7))
+            elif timeframe == '30d':
+                query = query.filter(AnalysisResult.created_at >= now - timedelta(days=30))
+        
+        records = query.order_by(AnalysisResult.created_at.desc()).all()
+        print(f"[Leaderboard] 找到分析記錄: {len(records)} 筆")
+        
+        leaderboard = {}
+        
+        for record in records:
+            try:
+                data = json.loads(record.data)
+                value_est = data.get("value_estimation", {})
+                account_value = value_est.get("account_asset_value")
+                followers = data.get("followers")
+                username = data.get("username") or record.username
+                display_name = data.get("display_name") or record.display_name
+                
+                if account_value is None:
+                    continue
+                
+                username_key = (username or '').lower()
+                if not username_key:
+                    continue
+                
+                entry = leaderboard.get(username_key)
+                if entry:
+                    if account_value > entry["account_value"]:
+                        entry.update({
+                            "account_value": account_value,
+                            "followers": followers,
+                            "display_name": display_name,
+                            "record_id": record.id,
+                            "created_at": record.created_at.isoformat() if record.created_at else None
+                        })
+                else:
+                    leaderboard[username_key] = {
+                        "username": username,
+                        "display_name": display_name,
+                        "followers": followers,
+                        "account_value": account_value,
+                        "record_id": record.id,
+                        "created_at": record.created_at.isoformat() if record.created_at else None
+                    }
+            except (json.JSONDecodeError, KeyError) as e:
+                print(f"[Leaderboard] ⚠️ 解析分析記錄失敗 (ID: {record.id}): {e}")
+                continue
+        
+        entries = list(leaderboard.values())
+        entries.sort(key=lambda x: x["account_value"], reverse=True)
+        top_entries = entries[:limit]
+        
+        for idx, entry in enumerate(top_entries, start=1):
+            entry["rank"] = idx
+            entry["avatar"] = (entry.get("display_name") or entry["username"] or "??")[:2].upper()
+        
+        print(f"[Leaderboard] 回傳排行榜筆數: {len(top_entries)}")
+        
+        return jsonify({
+            "ok": True,
+            "type": board_type,
+            "limit": limit,
+            "total": len(entries),
+            "leaderboard": top_entries
+        })
+    except Exception as e:
+        print(f"[Leaderboard] ❌ 取得排行榜失敗: {e}")
+        return jsonify({"ok": False, "error": "leaderboard_error"}), 500
     finally:
         session.close()
 

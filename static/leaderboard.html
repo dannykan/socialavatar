@@ -370,108 +370,11 @@
   </main>
 
   <script>
-    // 模擬排行榜數據
-    const mockLeaderboardData = [
-      {
-        rank: 1,
-        username: "taylorswift",
-        displayName: "Taylor Swift",
-        followers: "282M",
-        accountValue: 9850000,
-        avatar: "TS"
-      },
-      {
-        rank: 2,
-        username: "cristiano",
-        displayName: "Cristiano Ronaldo",
-        followers: "631M",
-        accountValue: 9200000,
-        avatar: "CR"
-      },
-      {
-        rank: 3,
-        username: "therock",
-        displayName: "Dwayne Johnson",
-        followers: "395M",
-        accountValue: 8750000,
-        avatar: "DJ"
-      },
-      {
-        rank: 4,
-        username: "kyliejenner",
-        displayName: "Kylie Jenner",
-        followers: "399M",
-        accountValue: 8200000,
-        avatar: "KJ"
-      },
-      {
-        rank: 5,
-        username: "selenagomez",
-        displayName: "Selena Gomez",
-        followers: "429M",
-        accountValue: 7850000,
-        avatar: "SG"
-      },
-      {
-        rank: 6,
-        username: "kimkardashian",
-        displayName: "Kim Kardashian",
-        followers: "364M",
-        accountValue: 7500000,
-        avatar: "KK"
-      },
-      {
-        rank: 7,
-        username: "lionelmessi",
-        displayName: "Lionel Messi",
-        followers: "500M",
-        accountValue: 7200000,
-        avatar: "LM"
-      },
-      {
-        rank: 8,
-        username: "beyonce",
-        displayName: "Beyoncé",
-        followers: "319M",
-        accountValue: 6800000,
-        avatar: "B"
-      },
-      {
-        rank: 9,
-        username: "justinbieber",
-        displayName: "Justin Bieber",
-        followers: "293M",
-        accountValue: 6500000,
-        avatar: "JB"
-      },
-      {
-        rank: 10,
-        username: "arianagrande",
-        displayName: "Ariana Grande",
-        followers: "380M",
-        accountValue: 6200000,
-        avatar: "AG"
-      }
-    ];
-
-    // 生成更多數據 (11-100名)
-    function generateMoreData() {
-      const moreData = [];
-      for (let i = 11; i <= 100; i++) {
-        moreData.push({
-          rank: i,
-          username: `user${i}`,
-          displayName: `User ${i}`,
-          followers: Math.floor(Math.random() * 50) + "M",
-          accountValue: Math.floor(Math.random() * 5000000) + 1000000,
-          avatar: `U${i}`
-        });
-      }
-      return moreData;
-    }
-
     // 格式化數字
     function formatNumber(num) {
+      if (num === undefined || num === null || num === '') {
+        return '-';
+      }
       // 如果已經是字符串且包含K/M，直接返回
       if (typeof num === 'string' && (num.includes('K') || num.includes('M'))) {
         return num;
@@ -497,24 +400,25 @@
       if (item.rank === 1) rankDisplay = '🥇';
       else if (item.rank === 2) rankDisplay = '🥈';
       else if (item.rank === 3) rankDisplay = '🥉';
+      const avatarText = (item.avatar || item.display_name || item.username || '??').toString().slice(0, 2).toUpperCase();
       
       return `
         <div class="leaderboard-item ${rankClass}">
           <div class="rank">${rankDisplay}</div>
-          <div class="user-info">
-            <div class="user-avatar">${item.avatar}</div>
+            <div class="user-info">
+            <div class="user-avatar">${avatarText}</div>
             <div class="user-details">
-              <div class="username">@${item.username}</div>
-              <div class="display-name">${item.displayName}</div>
+              <div class="username">@${item.username || '-'}</div>
+              <div class="display-name">${item.display_name || '-'}</div>
             </div>
           </div>
           <div class="stats">
             <div class="stat-item">
-              <div class="stat-value">${item.followers}</div>
+              <div class="stat-value">${formatNumber(item.followers)}</div>
               <div class="stat-label">粉絲數</div>
             </div>
             <div class="stat-item">
-              <div class="stat-value account-value">$${formatNumber(item.accountValue)}</div>
+              <div class="stat-value account-value">$${formatNumber(item.account_value)}</div>
               <div class="stat-label">帳號價值</div>
             </div>
           </div>
@@ -556,13 +460,46 @@
       }
     }
 
+    // 顯示錯誤
+    function showError(message) {
+      document.getElementById('leaderboardContent').innerHTML = `
+        <div class="empty-state">
+          <h3>⚠️ 無法載入排行榜</h3>
+          <p>${message}</p>
+        </div>
+      `;
+    }
+
+    async function fetchLeaderboard() {
+      const content = document.getElementById('leaderboardContent');
+      content.innerHTML = `
+        <div class="loading">
+          <div class="spinner"></div>
+          <p>正在載入排行榜...</p>
+        </div>
+      `;
+      
+      try {
+        const res = await fetch('/api/leaderboard?limit=100');
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error || `HTTP ${res.status}`);
+        }
+        const data = await res.json();
+        if (data.ok) {
+          renderLeaderboard(data.leaderboard || []);
+        } else {
+          throw new Error(data.error || '未知錯誤');
+        }
+      } catch (error) {
+        console.error('[Leaderboard] 載入失敗:', error);
+        showError('請稍後再試');
+      }
+    }
+
     // 初始化排行榜
     function initLeaderboard() {
-      // 模擬API調用延遲
-      setTimeout(() => {
-        const allData = [...mockLeaderboardData, ...generateMoreData()];
-        renderLeaderboard(allData);
-      }, 1000);
+      fetchLeaderboard();
     }
 
     // 頁面載入完成後初始化
